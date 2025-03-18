@@ -18,10 +18,10 @@ jobs:
           sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
           xcodebuild -version
 
-      - name: Install dependencies
+      - name: Resolve Swift Packages
         run: |
-          brew install cocoapods || true
-          pod install --repo-update
+          xcodebuild -resolvePackageDependencies -project YourProject.xcodeproj
+
 
       - name: Build project
         run: |
