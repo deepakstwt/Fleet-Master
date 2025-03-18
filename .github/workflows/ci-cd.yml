@@ -20,7 +20,7 @@ jobs:
 
       - name: Resolve Swift Packages
         run: |
-          xcodebuild -resolvePackageDependencies -project Fleet Master.xcodeproj
+          xcodebuild -resolvePackageDependencies -project Fleet_Master.xcodeproj
 
 
       - name: Build project
