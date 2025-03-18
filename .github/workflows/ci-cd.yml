@@ -2,46 +2,38 @@ name: iOS CI/CD Pipeline
 
 on:
   push:
-    branches: [main]   # Trigger CI on main pushes
+    branches: [main]   # Trigger CI on pushes to main
   pull_request:
     branches: [main]   # Trigger on PRs to main
 
 jobs:
   build:
-    runs-on: macos-latest  # Use macOS runner for Xcode
+    runs-on: macos-latest  # Use the latest macOS runner with Xcode
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Xcode
-        run: |
-          sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
-          xcodebuild -version
+      - name: Select Xcode 15.4
+        run: sudo xcode-select -s /Applications/Xcode_15.4.app/Contents/Developer
+
+      - name: Verify Xcode Version
+        run: xcodebuild -version
 
       - name: Resolve Swift Packages
         run: |
           xcodebuild -resolvePackageDependencies -project "Fleet Master.xcodeproj"
 
-
       - name: Build project
         run: |
           xcodebuild clean build \
-          -project YourProject.xcodeproj \
-          -scheme YourSchemeName \
+          -project "Fleet Master.xcodeproj" \
+          -scheme "Fleet Master" \
           -destination 'platform=iOS Simulator,name=iPhone 14,OS=17.2' \
           CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO
 
       - name: Run Unit Tests
         run: |
           xcodebuild test \
-          -project YourProject.xcodeproj \
-          -scheme YourSchemeName \
+          -project "Fleet Master.xcodeproj" \
+          -scheme "Fleet Master" \
           -destination 'platform=iOS Simulator,name=iPhone 14,OS=17.2'
-
-      - name: Archive App (Optional)
-        run: |
-          xcodebuild archive \
-          -project YourProject.xcodeproj \
-          -scheme YourSchemeName \
-          -archivePath ${{ github.workspace }}/YourProject.xcarchive
-
