@@ -11,7 +11,7 @@ import SwiftUI
 struct Fleet_MasterApp: App {
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            ContentView() 
         }
     }
 }
