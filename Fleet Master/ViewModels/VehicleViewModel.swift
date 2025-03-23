@@ -10,6 +10,8 @@ class VehicleViewModel: ObservableObject {
     @Published var alertMessage = ""
     @Published var showAlert = false
     @Published var filterActive = true
+    @Published var isLoading = false
+    @Published var errorMessage: String?
     
     // Form properties
     @Published var registrationNumber = ""
@@ -19,6 +21,7 @@ class VehicleViewModel: ObservableObject {
     @Published var vin = ""
     @Published var color = ""
     @Published var selectedFuelType = FuelType.petrol
+    @Published var selectedVehicleType = VehicleType.lmvTr
     @Published var rcExpiryDate = Date().addingTimeInterval(365*24*60*60) // 1 year from now
     @Published var insuranceNumber = ""
     @Published var insuranceExpiryDate = Date().addingTimeInterval(365*24*60*60) // 1 year from now
@@ -28,6 +31,8 @@ class VehicleViewModel: ObservableObject {
     @Published var nextServiceDue: Date? = Date().addingTimeInterval(90*24*60*60) // 3 months from now
     @Published var currentOdometer = 0
     @Published var additionalNotes = ""
+    
+    private let vehicleManager = VehicleSupabaseManager.shared
     
     var filteredVehicles: [Vehicle] {
         let filtered = vehicles.filter { vehicle in
@@ -53,67 +58,54 @@ class VehicleViewModel: ObservableObject {
     }
     
     init() {
-        // For demo purposes, add some sample vehicles
-        addSampleVehicles()
+        Task {
+            await fetchVehicles()
+        }
     }
     
-    func addSampleVehicles() {
-        let oneYearFromNow = Date().addingTimeInterval(365*24*60*60)
-        let threeMonthsFromNow = Date().addingTimeInterval(90*24*60*60)
+    // MARK: - Database Operations
+    
+    @MainActor
+    func fetchVehicles() async {
+        isLoading = true
+        errorMessage = nil
         
-        vehicles = [
-            Vehicle(
-                registrationNumber: "HR-01-AA-1234",
-                make: "Toyota",
-                model: "Camry",
-                year: 2022,
-                vin: "1HGCM82633A123456",
-                color: "White",
-                fuelType: .petrol,
-                rcExpiryDate: oneYearFromNow,
-                insuranceNumber: "INS-123456",
-                insuranceExpiryDate: oneYearFromNow,
-                pollutionCertificateNumber: "PC-123456",
-                pollutionCertificateExpiryDate: oneYearFromNow,
-                lastServiceDate: Date(),
-                nextServiceDue: threeMonthsFromNow,
-                currentOdometer: 5000
-            ),
-            Vehicle(
-                registrationNumber: "DL-02-BB-5678",
-                make: "Honda",
-                model: "Civic",
-                year: 2021,
-                vin: "5YJSA1CP3DFP12345",
-                color: "Black",
-                fuelType: .diesel,
-                rcExpiryDate: oneYearFromNow,
-                insuranceNumber: "INS-654321",
-                insuranceExpiryDate: oneYearFromNow,
-                pollutionCertificateNumber: "PC-654321",
-                pollutionCertificateExpiryDate: oneYearFromNow,
-                lastServiceDate: Date().addingTimeInterval(-30*24*60*60), // 1 month ago
-                nextServiceDue: threeMonthsFromNow,
-                currentOdometer: 8000
-            ),
-            Vehicle(
-                registrationNumber: "MH-03-CC-9012",
-                make: "Hyundai",
-                model: "Creta",
-                year: 2023,
-                vin: "KMHD84LF2JU123456",
-                color: "Red",
-                fuelType: .cng,
-                rcExpiryDate: oneYearFromNow,
-                insuranceNumber: "INS-901234",
-                insuranceExpiryDate: oneYearFromNow,
-                pollutionCertificateNumber: "PC-901234",
-                pollutionCertificateExpiryDate: oneYearFromNow,
-                lastServiceDate: Date().addingTimeInterval(-60*24*60*60), // 2 months ago
-                nextServiceDue: Date().addingTimeInterval(30*24*60*60), // 1 month from now
-                currentOdometer: 12000
-            )
-        ]
+        print("===== Starting vehicle fetch operation =====")
+        
+        do {
+            // Load all vehicles from Supabase
+            print("Calling vehicleManager.fetchAllVehicles()...")
+            vehicles = try await vehicleManager.fetchAllVehicles()
+            print("Successfully loaded \(vehicles.count) vehicles")
+            isLoading = false
+        } catch {
+            isLoading = false
+            errorMessage = "Failed to load vehicles: \(error.localizedDescription)"
+            vehicles = []
+            print("❌ Error fetching vehicles: \(error)")
+        }
+        
+        print("===== Completed vehicle fetch operation =====")
+    }
+    
+    @MainActor
+    func searchVehiclesInDatabase() async {
+        guard !searchText.isEmpty else {
+            await fetchVehicles()
+            return
+        }
+        
+        isLoading = true
+        errorMessage = nil
+        
+        do {
+            vehicles = try await vehicleManager.searchVehicles(searchText: searchText)
+            isLoading = false
+        } catch {
+            isLoading = false
+            errorMessage = "Failed to search vehicles: \(error.localizedDescription)"
+            print("Error searching vehicles: \(error)")
+        }
     }
     
     func addVehicle() {
@@ -125,6 +117,7 @@ class VehicleViewModel: ObservableObject {
             vin: vin,
             color: color,
             fuelType: selectedFuelType,
+            vehicleType: selectedVehicleType,
             rcExpiryDate: rcExpiryDate,
             insuranceNumber: insuranceNumber,
             insuranceExpiryDate: insuranceExpiryDate,
@@ -136,42 +129,124 @@ class VehicleViewModel: ObservableObject {
             additionalNotes: additionalNotes.isEmpty ? nil : additionalNotes
         )
         
-        vehicles.append(newVehicle)
-        resetForm()
+        Task {
+            await addVehicleToDatabase(newVehicle)
+        }
+    }
+    
+    @MainActor
+    private func addVehicleToDatabase(_ vehicle: Vehicle) async {
+        isLoading = true
+        errorMessage = nil
         
-        alertMessage = "Vehicle added successfully!"
-        showAlert = true
+        do {
+            let savedVehicle = try await vehicleManager.addVehicle(vehicle)
+            vehicles.append(savedVehicle)
+            resetForm()
+            isLoading = false
+            alertMessage = "Vehicle added successfully!"
+            showAlert = true
+        } catch {
+            isLoading = false
+            errorMessage = "Failed to add vehicle: \(error.localizedDescription)"
+            print("Error adding vehicle: \(error)")
+        }
     }
     
     func updateVehicle() {
-        guard let selectedVehicle = selectedVehicle,
-              let index = vehicles.firstIndex(where: { $0.id == selectedVehicle.id }) else { return }
+        guard let selectedVehicle = selectedVehicle else { return }
         
-        vehicles[index].registrationNumber = registrationNumber
-        vehicles[index].make = make
-        vehicles[index].model = model
-        vehicles[index].year = year
-        vehicles[index].vin = vin
-        vehicles[index].color = color
-        vehicles[index].fuelType = selectedFuelType
-        vehicles[index].rcExpiryDate = rcExpiryDate
-        vehicles[index].insuranceNumber = insuranceNumber
-        vehicles[index].insuranceExpiryDate = insuranceExpiryDate
-        vehicles[index].pollutionCertificateNumber = pollutionCertificateNumber
-        vehicles[index].pollutionCertificateExpiryDate = pollutionCertificateExpiryDate
-        vehicles[index].lastServiceDate = lastServiceDate
-        vehicles[index].nextServiceDue = nextServiceDue
-        vehicles[index].currentOdometer = currentOdometer
-        vehicles[index].additionalNotes = additionalNotes.isEmpty ? nil : additionalNotes
+        // Create updated vehicle object
+        var updatedVehicle = selectedVehicle
+        updatedVehicle.color = color
+        updatedVehicle.fuelType = selectedFuelType
+        updatedVehicle.rcExpiryDate = rcExpiryDate
+        updatedVehicle.insuranceNumber = insuranceNumber
+        updatedVehicle.insuranceExpiryDate = insuranceExpiryDate
+        updatedVehicle.pollutionCertificateNumber = pollutionCertificateNumber
+        updatedVehicle.pollutionCertificateExpiryDate = pollutionCertificateExpiryDate
+        updatedVehicle.lastServiceDate = lastServiceDate
+        updatedVehicle.nextServiceDue = nextServiceDue
+        updatedVehicle.currentOdometer = currentOdometer
+        updatedVehicle.additionalNotes = additionalNotes.isEmpty ? nil : additionalNotes
         
-        resetForm()
-        isShowingEditVehicle = false
-        self.selectedVehicle = nil
+        Task {
+            await updateVehicleInDatabase(updatedVehicle)
+        }
+    }
+    
+    @MainActor
+    private func updateVehicleInDatabase(_ vehicle: Vehicle) async {
+        isLoading = true
+        errorMessage = nil
+        
+        do {
+            let updatedVehicle = try await vehicleManager.updateVehicle(vehicle)
+            
+            // Update local array
+            if let index = vehicles.firstIndex(where: { $0.id == updatedVehicle.id }) {
+                vehicles[index] = updatedVehicle
+            }
+            
+            resetForm()
+            isShowingEditVehicle = false
+            self.selectedVehicle = nil
+            isLoading = false
+            
+            alertMessage = "Vehicle updated successfully!"
+            showAlert = true
+        } catch {
+            isLoading = false
+            errorMessage = "Failed to update vehicle: \(error.localizedDescription)"
+            print("Error updating vehicle: \(error)")
+            
+            // For development fallback only - remove in production
+            if let index = vehicles.firstIndex(where: { $0.id == vehicle.id }) {
+                vehicles[index] = vehicle
+            }
+            
+            resetForm()
+            isShowingEditVehicle = false
+            self.selectedVehicle = nil
+            
+            alertMessage = "Vehicle updated in local state only (offline mode)"
+            showAlert = true
+        }
     }
     
     func toggleVehicleStatus(vehicle: Vehicle) {
-        guard let index = vehicles.firstIndex(where: { $0.id == vehicle.id }) else { return }
-        vehicles[index].isActive.toggle()
+        Task {
+            await toggleVehicleStatusInDatabase(vehicle)
+        }
+    }
+    
+    @MainActor
+    private func toggleVehicleStatusInDatabase(_ vehicle: Vehicle) async {
+        isLoading = true
+        errorMessage = nil
+        
+        do {
+            let updatedVehicle = try await vehicleManager.toggleVehicleStatus(
+                vehicleId: vehicle.id, 
+                isActive: !vehicle.isActive
+            )
+            
+            // Update local array
+            if let index = vehicles.firstIndex(where: { $0.id == updatedVehicle.id }) {
+                vehicles[index] = updatedVehicle
+            }
+            
+            isLoading = false
+        } catch {
+            isLoading = false
+            errorMessage = "Failed to toggle vehicle status: \(error.localizedDescription)"
+            print("Error toggling vehicle status: \(error)")
+            
+            // For development fallback only - remove in production
+            if let index = vehicles.firstIndex(where: { $0.id == vehicle.id }) {
+                vehicles[index].isActive.toggle()
+            }
+        }
     }
     
     func selectVehicleForEdit(vehicle: Vehicle) {
@@ -183,6 +258,7 @@ class VehicleViewModel: ObservableObject {
         vin = vehicle.vin
         color = vehicle.color
         selectedFuelType = vehicle.fuelType
+        selectedVehicleType = vehicle.vehicleType
         rcExpiryDate = vehicle.rcExpiryDate
         insuranceNumber = vehicle.insuranceNumber
         insuranceExpiryDate = vehicle.insuranceExpiryDate
@@ -203,6 +279,7 @@ class VehicleViewModel: ObservableObject {
         vin = ""
         color = ""
         selectedFuelType = .petrol
+        selectedVehicleType = .lmvTr
         rcExpiryDate = Date().addingTimeInterval(365*24*60*60)
         insuranceNumber = ""
         insuranceExpiryDate = Date().addingTimeInterval(365*24*60*60)
@@ -212,7 +289,6 @@ class VehicleViewModel: ObservableObject {
         nextServiceDue = Date().addingTimeInterval(90*24*60*60)
         currentOdometer = 0
         additionalNotes = ""
-        isShowingAddVehicle = false
     }
     
     func getVehicleById(_ id: String) -> Vehicle? {

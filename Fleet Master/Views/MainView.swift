@@ -6,6 +6,8 @@ struct MainView: View {
     @EnvironmentObject private var maintenanceViewModel: MaintenanceViewModel
     @EnvironmentObject private var vehicleViewModel: VehicleViewModel
     @EnvironmentObject private var tripViewModel: TripViewModel
+    @EnvironmentObject private var appStateManager: AppStateManager
+    @State private var showSignOutAlert = false
     
     enum SidebarItem: Hashable {
         case dashboard
@@ -63,8 +65,29 @@ struct MainView: View {
                         Label("Trip Management", systemImage: "map.fill")
                     }
                 }
+                
+                Section {
+                    Button(action: {
+                        showSignOutAlert = true
+                    }) {
+                        Label("Sign Out", systemImage: "rectangle.portrait.and.arrow.right")
+                            .foregroundColor(.red)
+                    }
+                } footer: {
+                    Text("Version 1.0")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
             }
             .navigationTitle("Fleet Master")
+            .alert("Sign Out", isPresented: $showSignOutAlert) {
+                Button("Cancel", role: .cancel) { }
+                Button("Sign Out", role: .destructive) {
+                    appStateManager.signOut()
+                }
+            } message: {
+                Text("Are you sure you want to sign out?")
+            }
         } detail: {
             NavigationStack {
                 switch selectedSidebarItem {

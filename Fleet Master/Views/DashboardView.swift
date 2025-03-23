@@ -147,7 +147,7 @@ struct DashboardView: View {
                     }
                     
                     if tripViewModel.upcomingTrips.isEmpty {
-                        EmptyStateView(
+                        DashboardEmptyStateView(
                             icon: "calendar",
                             message: "No upcoming trips scheduled"
                         )
@@ -416,7 +416,7 @@ struct VehicleStatusCard: View {
     }
 }
 
-struct EmptyStateView: View {
+struct DashboardEmptyStateView: View {
     var icon: String
     var message: String
     

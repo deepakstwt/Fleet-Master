@@ -6,6 +6,16 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		96AD82532D8C3AA2004B0876 /* Auth in Frameworks */ = {isa = PBXBuildFile; productRef = 96AD82522D8C3AA2004B0876 /* Auth */; };
+		96AD82552D8C3AA2004B0876 /* Functions in Frameworks */ = {isa = PBXBuildFile; productRef = 96AD82542D8C3AA2004B0876 /* Functions */; };
+		96AD82572D8C3AA2004B0876 /* PostgREST in Frameworks */ = {isa = PBXBuildFile; productRef = 96AD82562D8C3AA2004B0876 /* PostgREST */; };
+		96AD82592D8C3AA2004B0876 /* Realtime in Frameworks */ = {isa = PBXBuildFile; productRef = 96AD82582D8C3AA2004B0876 /* Realtime */; };
+		96AD825B2D8C3AA2004B0876 /* Storage in Frameworks */ = {isa = PBXBuildFile; productRef = 96AD825A2D8C3AA2004B0876 /* Storage */; };
+		96AD82622D8C84FD004B0876 /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = 96AD82612D8C84FD004B0876 /* Supabase */; };
+		96B6DB612D9094DE001BF589 /* SwiftSMTP in Frameworks */ = {isa = PBXBuildFile; productRef = 96B6DB602D9094DE001BF589 /* SwiftSMTP */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		963DDB8D2D8946B800B03077 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -24,25 +34,15 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
-		963DDB7C2D8946B700B03077 /* Fleet Master.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Fleet Master.app"; sourceTree = BUILT_PRODUCTS_DIR; };
-		963DDB8C2D8946B800B03077 /* Fleet MasterTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Fleet MasterTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
-		963DDB962D8946B800B03077 /* Fleet MasterUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Fleet MasterUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
+		96B6DB632D909FBF001BF589 /* Fleet Master.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; name = "Fleet Master.app"; path = "/Users/kushagrakulshrestha/Desktop/Fleet Master/build/Debug-iphoneos/Fleet Master.app"; sourceTree = "<absolute>"; };
+		96B6DB642D909FBF001BF589 /* Fleet MasterTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; name = "Fleet MasterTests.xctest"; path = "/Users/kushagrakulshrestha/Desktop/Fleet Master/build/Debug-iphoneos/Fleet Master.app/PlugIns/Fleet MasterTests.xctest"; sourceTree = "<absolute>"; };
+		96B6DB652D909FBF001BF589 /* Fleet MasterUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; name = "Fleet MasterUITests.xctest"; path = "/Users/kushagrakulshrestha/Desktop/Fleet Master/build/Debug-iphoneos/Fleet MasterUITests-Runner.app/PlugIns/Fleet MasterUITests.xctest"; sourceTree = "<absolute>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		963DDB7E2D8946B700B03077 /* Fleet Master */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = "Fleet Master";
-			sourceTree = "<group>";
-		};
-		963DDB8F2D8946B800B03077 /* Fleet MasterTests */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			path = "Fleet MasterTests";
-			sourceTree = "<group>";
-		};
-		963DDB992D8946B800B03077 /* Fleet MasterUITests */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			path = "Fleet MasterUITests";
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -52,6 +52,13 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				96AD82572D8C3AA2004B0876 /* PostgREST in Frameworks */,
+				96AD82552D8C3AA2004B0876 /* Functions in Frameworks */,
+				96AD82622D8C84FD004B0876 /* Supabase in Frameworks */,
+				96AD82532D8C3AA2004B0876 /* Auth in Frameworks */,
+				96AD825B2D8C3AA2004B0876 /* Storage in Frameworks */,
+				96B6DB612D9094DE001BF589 /* SwiftSMTP in Frameworks */,
+				96AD82592D8C3AA2004B0876 /* Realtime in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -76,20 +83,7 @@
 			isa = PBXGroup;
 			children = (
 				963DDB7E2D8946B700B03077 /* Fleet Master */,
-				963DDB8F2D8946B800B03077 /* Fleet MasterTests */,
-				963DDB992D8946B800B03077 /* Fleet MasterUITests */,
-				963DDB7D2D8946B700B03077 /* Products */,
 			);
-			sourceTree = "<group>";
-		};
-		963DDB7D2D8946B700B03077 /* Products */ = {
-			isa = PBXGroup;
-			children = (
-				963DDB7C2D8946B700B03077 /* Fleet Master.app */,
-				963DDB8C2D8946B800B03077 /* Fleet MasterTests.xctest */,
-				963DDB962D8946B800B03077 /* Fleet MasterUITests.xctest */,
-			);
-			name = Products;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -112,9 +106,16 @@
 			);
 			name = "Fleet Master";
 			packageProductDependencies = (
+				96AD82522D8C3AA2004B0876 /* Auth */,
+				96AD82542D8C3AA2004B0876 /* Functions */,
+				96AD82562D8C3AA2004B0876 /* PostgREST */,
+				96AD82582D8C3AA2004B0876 /* Realtime */,
+				96AD825A2D8C3AA2004B0876 /* Storage */,
+				96AD82612D8C84FD004B0876 /* Supabase */,
+				96B6DB602D9094DE001BF589 /* SwiftSMTP */,
 			);
 			productName = "Fleet Master";
-			productReference = 963DDB7C2D8946B700B03077 /* Fleet Master.app */;
+			productReference = 96B6DB632D909FBF001BF589 /* Fleet Master.app */;
 			productType = "com.apple.product-type.application";
 		};
 		963DDB8B2D8946B800B03077 /* Fleet MasterTests */ = {
@@ -130,14 +131,11 @@
 			dependencies = (
 				963DDB8E2D8946B800B03077 /* PBXTargetDependency */,
 			);
-			fileSystemSynchronizedGroups = (
-				963DDB8F2D8946B800B03077 /* Fleet MasterTests */,
-			);
 			name = "Fleet MasterTests";
 			packageProductDependencies = (
 			);
 			productName = "Fleet MasterTests";
-			productReference = 963DDB8C2D8946B800B03077 /* Fleet MasterTests.xctest */;
+			productReference = 96B6DB642D909FBF001BF589 /* Fleet MasterTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
 		963DDB952D8946B800B03077 /* Fleet MasterUITests */ = {
@@ -153,14 +151,11 @@
 			dependencies = (
 				963DDB982D8946B800B03077 /* PBXTargetDependency */,
 			);
-			fileSystemSynchronizedGroups = (
-				963DDB992D8946B800B03077 /* Fleet MasterUITests */,
-			);
 			name = "Fleet MasterUITests";
 			packageProductDependencies = (
 			);
 			productName = "Fleet MasterUITests";
-			productReference = 963DDB962D8946B800B03077 /* Fleet MasterUITests.xctest */;
+			productReference = 96B6DB652D909FBF001BF589 /* Fleet MasterUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
 		};
 /* End PBXNativeTarget section */
@@ -195,8 +190,12 @@
 			);
 			mainGroup = 963DDB732D8946B700B03077;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				96AD82512D8C3AA2004B0876 /* XCRemoteSwiftPackageReference "supabase-swift" */,
+				96B6DB5F2D9094DE001BF589 /* XCRemoteSwiftPackageReference "Swift-SMTP" */,
+			);
 			preferredProjectObjectVersion = 77;
-			productRefGroup = 963DDB7D2D8946B700B03077 /* Products */;
+			productRefGroup = 963DDB732D8946B700B03077;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
@@ -562,6 +561,63 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		96AD82512D8C3AA2004B0876 /* XCRemoteSwiftPackageReference "supabase-swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/supabase/supabase-swift";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.5.1;
+			};
+		};
+		96B6DB5F2D9094DE001BF589 /* XCRemoteSwiftPackageReference "Swift-SMTP" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/Kitura/Swift-SMTP";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 6.0.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		96AD82522D8C3AA2004B0876 /* Auth */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 96AD82512D8C3AA2004B0876 /* XCRemoteSwiftPackageReference "supabase-swift" */;
+			productName = Auth;
+		};
+		96AD82542D8C3AA2004B0876 /* Functions */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 96AD82512D8C3AA2004B0876 /* XCRemoteSwiftPackageReference "supabase-swift" */;
+			productName = Functions;
+		};
+		96AD82562D8C3AA2004B0876 /* PostgREST */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 96AD82512D8C3AA2004B0876 /* XCRemoteSwiftPackageReference "supabase-swift" */;
+			productName = PostgREST;
+		};
+		96AD82582D8C3AA2004B0876 /* Realtime */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 96AD82512D8C3AA2004B0876 /* XCRemoteSwiftPackageReference "supabase-swift" */;
+			productName = Realtime;
+		};
+		96AD825A2D8C3AA2004B0876 /* Storage */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 96AD82512D8C3AA2004B0876 /* XCRemoteSwiftPackageReference "supabase-swift" */;
+			productName = Storage;
+		};
+		96AD82612D8C84FD004B0876 /* Supabase */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 96AD82512D8C3AA2004B0876 /* XCRemoteSwiftPackageReference "supabase-swift" */;
+			productName = Supabase;
+		};
+		96B6DB602D9094DE001BF589 /* SwiftSMTP */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 96B6DB5F2D9094DE001BF589 /* XCRemoteSwiftPackageReference "Swift-SMTP" */;
+			productName = SwiftSMTP;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 963DDB742D8946B700B03077 /* Project object */;
 }

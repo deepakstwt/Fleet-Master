@@ -15,22 +15,44 @@ struct Fleet_MasterApp: App {
     @StateObject private var vehicleViewModel = VehicleViewModel()
     @StateObject private var tripViewModel = TripViewModel()
     @StateObject private var locationManager = LocationManager()
+    @StateObject private var appStateManager = AppStateManager()
     @State private var showPermissionRequest = false
+    
+    // Initialize Supabase when the app loads
+    init() {
+        // Configure Supabase by accessing the shared instance
+        // This will ensure it's initialized before it's used
+        _ = SupabaseManager.shared
+    }
     
     var body: some Scene {
         WindowGroup {
-            MainView()
-                .environmentObject(driverViewModel)
-                .environmentObject(maintenanceViewModel)
-                .environmentObject(vehicleViewModel)
-                .environmentObject(tripViewModel)
-                .onAppear {
-                    // Request location permissions when the app launches
-                    locationManager.requestLocationPermission()
-                }
-                .sheet(isPresented: $showPermissionRequest) {
-                    MapPermissionView()
-                }
+            // Show LoginView or MainView based on authentication state
+            if appStateManager.isLoggedIn {
+                MainView()
+                    .environmentObject(driverViewModel)
+                    .environmentObject(maintenanceViewModel)
+                    .environmentObject(vehicleViewModel)
+                    .environmentObject(tripViewModel)
+                    .environmentObject(appStateManager)
+                    .onAppear {
+                        locationManager.requestLocationPermission()
+                    }
+            } else {
+                LoginView()
+                    .environmentObject(driverViewModel)
+                    .environmentObject(maintenanceViewModel)
+                    .environmentObject(vehicleViewModel)
+                    .environmentObject(tripViewModel)
+                    .environmentObject(appStateManager)
+                    .onAppear {
+                        // Request location permissions when the app launches
+                        locationManager.requestLocationPermission()
+                    }
+                    .sheet(isPresented: $showPermissionRequest) {
+                        MapPermissionView()
+                    }
+            }
         }
     }
 }
