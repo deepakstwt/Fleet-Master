@@ -114,6 +114,17 @@ class LoginViewModel: ObservableObject {
         
         Task {
             do {
+                // First check if email exists in fleet_manager table
+                let isFleetManager = try await checkEmailInFleetManagerTable(email: email)
+                
+                if !isFleetManager {
+                    await MainActor.run {
+                        self.isLoading = false
+                        self.showAlert(message: "Access denied: This email is not registered as a fleet manager.")
+                    }
+                    return
+                }
+                
                 // Try to sign in with password first
                 _ = try await supabaseManager.signIn(email: email, password: password)
                 
@@ -256,6 +267,36 @@ class LoginViewModel: ObservableObject {
     private func saveFirstLoginState() {
         if let currentUser = userId {
             userDefaults.set(!_isFirstLogin, forKey: "isFirstLogin_\(currentUser)")
+        }
+    }
+    
+    /// Check if the provided email exists in the fleet_manager table
+    /// - Parameter email: Email to check
+    /// - Returns: Boolean indicating if the email exists in the fleet_manager table
+    private func checkEmailInFleetManagerTable(email: String) async throws -> Bool {
+        do {
+            let response = try await supabaseManager.supabase
+                .from("fleet_manager")
+                .select("email")
+                .eq("email", value: email.lowercased())
+                .execute()
+            
+            // Parse the response
+            let jsonData = response.data
+            
+            // Decode to extract the count of matching records
+            struct FleetManager: Decodable {
+                let email: String
+            }
+            
+            let decoder = JSONDecoder()
+            let managers = try decoder.decode([FleetManager].self, from: jsonData)
+            
+            // If we found at least one record matching the email, return true
+            return !managers.isEmpty
+        } catch {
+            print("Error checking fleet manager email: \(error)")
+            throw error
         }
     }
     
