@@ -182,6 +182,62 @@ final class SupabaseManager {
         }
     }
     
+    // MARK: - Custom Database Queries
+    
+    /// Check if an email exists in the fleet_manager table
+    /// - Parameter email: Email to check
+    /// - Returns: Boolean indicating if the email exists
+    /*
+    func checkFleetManagerEmailExists(email: String) async throws -> Bool {
+        do {
+            // Use a direct SQL query with parameters for safety
+            let query = """
+            SELECT EXISTS (
+                SELECT 1 FROM public.fleet_manager 
+                WHERE email = '\(email)'
+            )
+            """
+            
+            print("Running SQL query: \(query)")
+            
+            let response = try await supabase.database.rpc(fn: "executeQuery", params: ["query": query])
+            
+            print("SQL query response: \(response)")
+            
+            // Extract the boolean result
+            if let jsonData = response.data,
+               let jsonString = String(data: jsonData, encoding: .utf8) {
+                print("SQL query result: \(jsonString)")
+                return jsonString.contains("true")
+            }
+            
+            return false
+        } catch {
+            print("Error checking fleet manager email via SQL: \(error)")
+            
+            // Fallback to direct table query
+            do {
+                let response = try await supabase
+                    .from("fleet_manager")
+                    .select("id")
+                    .eq("email", value: email)
+                    .execute()
+                
+                if let jsonData = response.data,
+                   let jsonString = String(data: jsonData, encoding: .utf8) {
+                    print("Fallback query result: \(jsonString)")
+                    return jsonString != "[]"
+                }
+                
+                return false
+            } catch {
+                print("Fallback query failed: \(error)")
+                return false
+            }
+        }
+    }
+    */
+    
     // MARK: - Helper Methods
     
     /// Map Supabase SDK errors to custom SupabaseError type
