@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import Security
 
 @main
 struct Fleet_MasterApp: App {
@@ -22,13 +23,72 @@ struct Fleet_MasterApp: App {
     init() {
         // Configure Supabase by accessing the shared instance
         // This will ensure it's initialized before it's used
-        _ = SupabaseManager.shared
+        let supabaseManager = SupabaseManager.shared
+        
+        // Register default values for UserDefaults
+        let currentAppVersion = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "1.0"
+        
+        // Only set default values if they don't exist yet
+        let defaults = UserDefaults.standard
+        
+        // Check if this is the first time the app is installed
+        let isFirstInstall = defaults.object(forKey: "appPreviouslyLaunched") == nil
+        
+        if isFirstInstall {
+            print("First time app installation detected")
+            // Clear any potentially leftover keychain data from previous installations
+            supabaseManager.clearKeychainDataSync()
+            
+            // Also make sure no auth state is preserved
+            clearAuthStateInUserDefaults()
+            
+            // Force immediate session clearing
+            Task {
+                do {
+                    try await supabaseManager.signOut()
+                } catch {
+                    print("Error signing out on first install: \(error)")
+                }
+            }
+        }
+        
+        if defaults.object(forKey: "appPreviouslyLaunched") == nil {
+            defaults.set(false, forKey: "appPreviouslyLaunched")
+        }
+        
+        if defaults.object(forKey: "appInstallationVersion") == nil {
+            defaults.set(currentAppVersion, forKey: "appInstallationVersion")
+        }
+        
+        defaults.synchronize()
+    }
+    
+    // Clear all authentication state in UserDefaults
+    private func clearAuthStateInUserDefaults() {
+        let defaults = UserDefaults.standard
+        
+        // Clear authentication state keys
+        defaults.removeObject(forKey: "pendingOTPVerification")
+        defaults.removeObject(forKey: "otpEmailAddress")
+        defaults.removeObject(forKey: "authState")
+        
+        // Clear any keys with login completion status
+        for key in defaults.dictionaryRepresentation().keys {
+            if key.starts(with: "firstLoginCompleted_") {
+                defaults.removeObject(forKey: key)
+            }
+        }
+        
+        defaults.synchronize()
+        print("All auth state removed from UserDefaults")
     }
     
     var body: some Scene {
         WindowGroup {
-            // Show LoginView or MainView based on authentication state
-            if appStateManager.isLoggedIn {
+            // Show splash screen while loading, then LoginView or MainView based on authentication state
+            if appStateManager.isLoading {
+                SplashScreenView()
+            } else if appStateManager.isLoggedIn {
                 MainView()
                     .environmentObject(driverViewModel)
                     .environmentObject(maintenanceViewModel)

@@ -34,9 +34,9 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
-		96B6DB632D909FBF001BF589 /* Fleet Master.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; name = "Fleet Master.app"; path = "/Users/kushagrakulshrestha/Desktop/Fleet Master/build/Debug-iphoneos/Fleet Master.app"; sourceTree = "<absolute>"; };
-		96B6DB642D909FBF001BF589 /* Fleet MasterTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; name = "Fleet MasterTests.xctest"; path = "/Users/kushagrakulshrestha/Desktop/Fleet Master/build/Debug-iphoneos/Fleet Master.app/PlugIns/Fleet MasterTests.xctest"; sourceTree = "<absolute>"; };
-		96B6DB652D909FBF001BF589 /* Fleet MasterUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; name = "Fleet MasterUITests.xctest"; path = "/Users/kushagrakulshrestha/Desktop/Fleet Master/build/Debug-iphoneos/Fleet MasterUITests-Runner.app/PlugIns/Fleet MasterUITests.xctest"; sourceTree = "<absolute>"; };
+		96405FFC2D9179760083F0C0 /* Fleet Master.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Fleet Master.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		96405FFD2D9179760083F0C0 /* Fleet MasterTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Fleet MasterTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
+		96405FFE2D9179760083F0C0 /* Fleet MasterUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Fleet MasterUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -83,6 +83,9 @@
 			isa = PBXGroup;
 			children = (
 				963DDB7E2D8946B700B03077 /* Fleet Master */,
+				96405FFC2D9179760083F0C0 /* Fleet Master.app */,
+				96405FFD2D9179760083F0C0 /* Fleet MasterTests.xctest */,
+				96405FFE2D9179760083F0C0 /* Fleet MasterUITests.xctest */,
 			);
 			sourceTree = "<group>";
 		};
@@ -115,7 +118,7 @@
 				96B6DB602D9094DE001BF589 /* SwiftSMTP */,
 			);
 			productName = "Fleet Master";
-			productReference = 96B6DB632D909FBF001BF589 /* Fleet Master.app */;
+			productReference = 96405FFC2D9179760083F0C0 /* Fleet Master.app */;
 			productType = "com.apple.product-type.application";
 		};
 		963DDB8B2D8946B800B03077 /* Fleet MasterTests */ = {
@@ -135,7 +138,7 @@
 			packageProductDependencies = (
 			);
 			productName = "Fleet MasterTests";
-			productReference = 96B6DB642D909FBF001BF589 /* Fleet MasterTests.xctest */;
+			productReference = 96405FFD2D9179760083F0C0 /* Fleet MasterTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
 		963DDB952D8946B800B03077 /* Fleet MasterUITests */ = {
@@ -155,7 +158,7 @@
 			packageProductDependencies = (
 			);
 			productName = "Fleet MasterUITests";
-			productReference = 96B6DB652D909FBF001BF589 /* Fleet MasterUITests.xctest */;
+			productReference = 96405FFE2D9179760083F0C0 /* Fleet MasterUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
 		};
 /* End PBXNativeTarget section */

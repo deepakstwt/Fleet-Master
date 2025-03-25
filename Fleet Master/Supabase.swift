@@ -1,5 +1,6 @@
 import Foundation
 import Supabase
+import Security
 
 /// Custom error type for Supabase operations
 enum SupabaseError: Error, LocalizedError {
@@ -80,6 +81,20 @@ final class SupabaseManager {
     func signOut() async throws {
         do {
             try await supabase.auth.signOut()
+        } catch {
+            throw mapAuthError(error)
+        }
+    }
+    
+    /// Sign out the current user and clear keychain data (for complete reset)
+    /// - Throws: Authentication errors
+    func signOutAndClearKeychain() async throws {
+        do {
+            // Regular sign out
+            try await supabase.auth.signOut()
+            
+            // Clear any keychain items used by the app
+            clearKeychainData()
         } catch {
             throw mapAuthError(error)
         }
@@ -180,6 +195,48 @@ final class SupabaseManager {
         } catch {
             throw mapAuthError(error)
         }
+    }
+    
+    /// Clear all keychain data associated with this app
+    private func clearKeychainData() {
+        clearKeychainDataSync()
+    }
+    
+    /// Clear all keychain data associated with this app synchronously
+    func clearKeychainDataSync() {
+        // Remove all keychain items with the app's bundle identifier
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: Bundle.main.bundleIdentifier ?? "com.fleetmaster.app"
+        ]
+        
+        // First try to delete all existing items
+        SecItemDelete(query as CFDictionary)
+        
+        // Also clear internet password items which might be used for authorization
+        let internetQuery: [String: Any] = [
+            kSecClass as String: kSecClassInternetPassword,
+            kSecAttrServer as String: "wqgyynzvuvsxqnvnibim.supabase.co" // Your Supabase URL domain
+        ]
+        
+        SecItemDelete(internetQuery as CFDictionary)
+        
+        // Also clear generic password items without specific service attribute
+        let genericQuery: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword
+        ]
+        
+        SecItemDelete(genericQuery as CFDictionary)
+        
+        // Also delete any access tokens or items stored by the Supabase client
+        let accessTokenQuery: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrLabel as String: "supabase.session"
+        ]
+        
+        SecItemDelete(accessTokenQuery as CFDictionary)
+        
+        print("Keychain data cleared synchronously")
     }
     
     // MARK: - Custom Database Queries
