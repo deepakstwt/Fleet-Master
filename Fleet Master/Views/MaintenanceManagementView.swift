@@ -314,7 +314,7 @@ struct MaintenanceCard: View {
                 
                 HStack(spacing: 12) {
                     HStack(spacing: 4) {
-                        Image(systemName: "certificate.fill")
+                        Image(systemName: "medal.star.fill")
                         .font(.caption)
                             .foregroundColor(.orange)
                         
@@ -838,7 +838,7 @@ struct AddMaintenanceView: View {
                     ForEach(viewModel.selectedCertifications) { certification in
                         VStack(alignment: .leading, spacing: 12) {
                             HStack {
-                                Image(systemName: "certificate.fill")
+                                Image(systemName: "medal.star.fill")
                                     .foregroundColor(categoryColor(for: certification.category))
                                 
                                 Text(certification.name)
@@ -1748,7 +1748,7 @@ struct EditMaintenanceView: View {
                     ForEach(viewModel.selectedCertifications) { certification in
                         VStack(alignment: .leading, spacing: 12) {
                             HStack {
-                                Image(systemName: "certificate.fill")
+                                Image(systemName: "medal.star.fill")
                                     .foregroundColor(categoryColor(for: certification.category))
                                 
                                 Text(certification.name)
