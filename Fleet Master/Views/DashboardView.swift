@@ -5,606 +5,688 @@ struct DashboardView: View {
     @EnvironmentObject private var tripViewModel: TripViewModel
     @EnvironmentObject private var driverViewModel: DriverViewModel
     @EnvironmentObject private var vehicleViewModel: VehicleViewModel
-    @State private var selectedTimeFrame: TimeFrame = .week
-    @State private var showingMapView = false
-    @State private var selectedTrip: Trip?
+    @State private var showNotificationCenter = false
     
-    enum TimeFrame: String, CaseIterable, Identifiable {
-        case day = "Day"
-        case week = "Week"
-        case month = "Month"
-        
-        var id: String { self.rawValue }
-    }
+    // Sample data for the fuel costs chart
+    let monthlyFuelCosts: [(month: String, cost: Double)] = [
+        ("Jan", 2450),
+        ("Feb", 2100),
+        ("Mar", 2800),
+        ("Apr", 2300),
+        ("May", 2600),
+        ("Jun", 2900)
+    ]
     
     var body: some View {
+        NavigationStack {
         ScrollView {
-            VStack(spacing: 20) {
-                // Header section with key metrics
-                HStack(spacing: 20) {
-                    MetricCard(
-                        title: "Active Trips",
-                        value: "\(tripViewModel.inProgressTrips.count)",
-                        icon: "arrow.triangle.swap",
-                        color: .blue
-                    )
-                    
-                    MetricCard(
-                        title: "Available Drivers",
-                        value: "\(driverViewModel.availableDrivers.count)",
-                        icon: "person.fill",
-                        color: .green
-                    )
-                    
-                    MetricCard(
-                        title: "Active Vehicles",
-                        value: "\(vehicleViewModel.activeVehicles.count)",
-                        icon: "car.fill",
-                        color: .orange
-                    )
-                }
-                .padding(.horizontal)
-                
-                // Chart section
-                VStack(alignment: .leading, spacing: 10) {
-                    HStack {
-                        Text("Trip Overview")
-                            .font(.headline)
-                        
-                        Spacer()
-                        
-                        Picker("Time Frame", selection: $selectedTimeFrame) {
-                            ForEach(TimeFrame.allCases) { timeFrame in
-                                Text(timeFrame.rawValue).tag(timeFrame)
+                VStack(spacing: 24) {
+                    // Main Stats Section
+                    HStack(spacing: 16) {
+                        // Vehicles Card
+                        DashboardCard(
+                            title: "Vehicles",
+                            icon: "car.fill",
+                            color: .blue,
+                            content: {
+                                StatRow(title: "Total", value: "\(vehicleViewModel.vehicles.count)", valueColor: .blue)
+                                StatRow(title: "Available", value: "\(vehicleViewModel.activeVehicles.count)", valueColor: .green)
+                                StatRow(title: "On Duty", value: "\(vehicleViewModel.vehicles.filter { !$0.isActive }.count)", valueColor: .red)
                             }
-                        }
-                        .pickerStyle(.segmented)
-                        .frame(width: 200)
-                    }
+                        )
+                        
+                        // Drivers Card
+                        DashboardCard(
+                            title: "Drivers",
+                            icon: "person.2.fill",
+                            color: .indigo,
+                            content: {
+                                StatRow(title: "Total", value: "\(driverViewModel.drivers.count)", valueColor: .indigo)
+                                StatRow(title: "Available", value: "\(driverViewModel.availableDrivers.count)", valueColor: .green)
+                                StatRow(title: "On Duty", value: "\(driverViewModel.drivers.filter { !$0.isAvailable && $0.isActive }.count)", valueColor: .orange)
+                            }
+                        )
+                        
+                        // Trips Card
+                        DashboardCard(
+                            title: "Trips",
+                            icon: "arrow.triangle.swap",
+                            color: .purple,
+                            content: {
+                                StatRow(title: "Scheduled", value: "\(tripViewModel.trips.count)", valueColor: .purple)
+                                StatRow(title: "Active", value: "\(tripViewModel.inProgressTrips.count)", valueColor: .blue)
+                                StatRow(title: "Completed", value: "\(tripViewModel.trips.filter { Calendar.current.isDateInToday($0.scheduledStartTime) }.count)", valueColor: .green)
+                            }
+                        )
+            }
+            .padding(.horizontal)
                     
-                    ZStack {
-                        if #available(iOS 16.0, *) {
-                            TripChart(trips: tripViewModel.trips, timeFrame: selectedTimeFrame)
-                                .frame(height: 250)
-                        } else {
-                            Text("Charts available in iOS 16 and above")
-                                .frame(height: 250)
-                                .frame(maxWidth: .infinity)
-                                .background(Color(.systemGray6))
-                                .cornerRadius(10)
-                        }
-                    }
-                }
-                .padding(.horizontal)
-                .padding(.top, 10)
-                
-                // Map preview section
-                VStack(alignment: .leading, spacing: 10) {
-                    HStack {
-                        Text("Active Fleet Map")
-                            .font(.headline)
-                        
-                        Spacer()
-                        
-                        Button(action: {
-                            // Open detailed map view
-                        }) {
-                            Text("View All")
-                                .font(.subheadline)
-                                .foregroundColor(.blue)
-                        }
-                    }
+                    // Costs Card
+                    DashboardCard(
+                        title: "Costs",
+                        icon: "indianrupeesign",
+                        color: .green,
+                        isFullWidth: true,
+                        content: {
+                            VStack(alignment: .leading, spacing: 16) {
+                                HStack {
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        Text("Monthly Fuel Cost")
+                                            .font(.subheadline)
+                                            .foregroundStyle(.secondary)
+                                        Text("₹ \(String(format: "%.2f", monthlyFuelCosts.last?.cost ?? 0))")
+                                            .font(.title2)
+                                            .fontWeight(.bold)
+                                    }
                     
-                    ZStack {
-                        RoundedRectangle(cornerRadius: 12)
-                            .fill(Color(.systemGray6))
-                            .frame(height: 200)
-                        
-                        // Sample map preview (replace with actual map component)
-                        Image(systemName: "map")
-                            .font(.system(size: 40))
-                            .foregroundColor(.gray)
-                        
-                        // Overlay showing active vehicles/trips count
-                        VStack {
-                            Spacer()
-                            HStack {
-                                VStack(alignment: .leading) {
-                                    Text("\(tripViewModel.inProgressTrips.count) Active Trips")
-                                        .font(.headline)
-                                        .foregroundColor(.white)
-                                    Text("\(vehicleViewModel.activeVehicles.count) Vehicles on Road")
-                                        .font(.subheadline)
-                                        .foregroundColor(.white.opacity(0.8))
+                    Spacer()
+                                    
+                                    VStack(alignment: .trailing, spacing: 4) {
+                                        HStack(spacing: 2) {
+                                            Image(systemName: "arrow.up.right")
+                                            Text("12%")
+                                        }
+                                        .font(.caption)
+                                        .foregroundStyle(.red)
+                                        
+                                        Text("vs last month")
+                                            .font(.caption2)
+                                            .foregroundStyle(.secondary)
+                                    }
                                 }
-                                .padding()
                                 
-                                Spacer()
-                            }
-                            .background(Color.black.opacity(0.6))
-                        }
-                    }
-                    .cornerRadius(12)
-                    .onTapGesture {
-                        // Open map view
-                    }
-                }
-                .padding(.horizontal)
-                
-                // Upcoming trips section
-                VStack(alignment: .leading, spacing: 10) {
-                    HStack {
-                        Text("Upcoming Trips")
-                            .font(.headline)
-                        
-                        Spacer()
-                        
-                        NavigationLink(destination: TripManagementView()) {
-                            Text("View All")
-                                .font(.subheadline)
-                                .foregroundColor(.blue)
-                        }
-                    }
-                    
-                    if tripViewModel.upcomingTrips.isEmpty {
-                        DashboardEmptyStateView(
-                            icon: "calendar",
-                            message: "No upcoming trips scheduled"
-                        )
-                    } else {
-                        ForEach(Array(tripViewModel.upcomingTrips.prefix(3))) { trip in
-                            UpcomingTripCard(
-                                trip: trip,
-                                driverName: trip.driverId != nil ? (driverViewModel.getDriverById(trip.driverId!)?.name ?? "Unassigned") : "Unassigned",
-                                vehicleName: trip.vehicleId != nil ? formatVehicle(vehicleViewModel.getVehicleById(trip.vehicleId!)) : "Unassigned"
-                            )
-                            .onTapGesture {
-                                selectedTrip = trip
-                                showingMapView = true
-                            }
-                        }
-                    }
-                }
-                .padding(.horizontal)
-                
-                // Driver availability section
-                VStack(alignment: .leading, spacing: 10) {
-                    HStack {
-                        Text("Driver Availability")
-                            .font(.headline)
-                        
-                        Spacer()
-                        
-                        NavigationLink(destination: DriverManagementView()) {
-                            Text("View All")
-                                .font(.subheadline)
-                                .foregroundColor(.blue)
-                        }
-                    }
-                    
-                    HStack(spacing: 15) {
-                        DriverStatusCard(
-                            count: driverViewModel.availableDrivers.count,
-                            status: "Available",
-                            color: .green
-                        )
-                        
-                        DriverStatusCard(
-                            count: driverViewModel.drivers.filter({ !$0.isAvailable && $0.isActive }).count,
-                            status: "On Duty",
-                            color: .orange
-                        )
-                        
-                        DriverStatusCard(
-                            count: driverViewModel.drivers.filter({ !$0.isActive }).count,
-                            status: "Inactive",
-                            color: .gray
-                        )
-                    }
-                }
-                .padding(.horizontal)
-                
-                // Vehicle status section
-                VStack(alignment: .leading, spacing: 10) {
-                    HStack {
-                        Text("Vehicle Status")
-                            .font(.headline)
-                        
-                        Spacer()
-                        
-                        NavigationLink(destination: VehicleManagementView()) {
-                            Text("View All")
-                                .font(.subheadline)
-                                .foregroundColor(.blue)
-                        }
-                    }
-                    
-                    if #available(iOS 16.0, *) {
-                        VehicleStatusChart(vehicles: vehicleViewModel.vehicles)
-                            .frame(height: 200)
-                    } else {
-                        HStack(spacing: 15) {
-                            VehicleStatusCard(
-                                count: vehicleViewModel.activeVehicles.count,
-                                status: "Active",
-                                color: .green
-                            )
-                            
-                            VehicleStatusCard(
-                                count: vehicleViewModel.vehicles.filter({ !$0.isActive }).count,
-                                status: "Inactive",
-                                color: .gray
-                            )
-                        }
-                    }
-                }
-                .padding(.horizontal)
-            }
-            .padding(.vertical)
-        }
-        .navigationTitle("Dashboard")
-        .sheet(isPresented: $showingMapView) {
-            if let trip = selectedTrip {
-                NavigationStack {
-                    TripMapView(startLocation: trip.startLocation, endLocation: trip.endLocation)
-                        .navigationTitle("Trip Route")
-                        .navigationBarTitleDisplayMode(.inline)
-                        .toolbar {
-                            ToolbarItem(placement: .cancellationAction) {
-                                Button("Close") {
-                                    showingMapView = false
+                                Chart {
+                                    ForEach(monthlyFuelCosts, id: \.month) { item in
+                                        BarMark(
+                                            x: .value("Month", item.month),
+                                            y: .value("Cost", item.cost)
+                                        )
+                                        .foregroundStyle(Color.green.gradient)
+                                    }
+                                }
+                                .frame(height: 150)
+                                .chartYAxis {
+                                    AxisMarks(position: .leading) { value in
+                                        AxisValueLabel {
+                                            if let cost = value.as(Double.self) {
+                                                Text("₹\(Int(cost/1000))k")
+                                                    .font(.caption2)
+                                                    .foregroundStyle(.secondary)
+                                            }
+                                        }
+                                    }
+                                }
+                                .chartXAxis {
+                                    AxisMarks { value in
+                                        AxisValueLabel {
+                                            if let month = value.as(String.self) {
+                                                Text(month)
+                                                    .font(.caption2)
+                                                    .foregroundStyle(.secondary)
+                                            }
+                                        }
+                                    }
                                 }
                             }
                         }
+                    )
+                    .padding(.horizontal)
+                    
+                    // Maintenance Statistics
+                    DashboardCard(
+                        title: "Maintenance",
+                        icon: "wrench.and.screwdriver.fill",
+                        color: .orange,
+                        isFullWidth: true,
+                        content: {
+                            VStack(spacing: 16) {
+                                // Maintenance Status Cards
+                                VStack(spacing: 12) {
+                                    // Currently Under Maintenance Card
+                                    HStack(spacing: 16) {
+                                        Circle()
+                                            .fill(Color.orange.opacity(0.15))
+                                            .frame(width: 48, height: 48)
+                                            .overlay {
+                                                Image(systemName: "wrench.fill")
+                                                    .foregroundStyle(.orange)
+                                            }
+                                        
+                                        VStack(alignment: .leading, spacing: 4) {
+                                            Text("Currently Under Maintenance")
+                                                .font(.subheadline)
+                                                .foregroundStyle(.secondary)
+                                            
+                                            Text("4 Vehicles")
+                                                .font(.title3)
+                                                .fontWeight(.semibold)
+                                        }
+                                        
+                                        Spacer()
+                                        
+                                        Image(systemName: "chevron.right")
+                                            .foregroundStyle(.secondary)
+                                    }
+                                    .padding()
+                                    .background(Color(.systemGray6))
+                                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                                    
+                                    // Driver Reported Issues Card
+                                    HStack(spacing: 16) {
+                                        Circle()
+                                            .fill(Color.red.opacity(0.15))
+                                            .frame(width: 48, height: 48)
+                                            .overlay {
+                                                Image(systemName: "exclamationmark.triangle.fill")
+                                                    .foregroundStyle(.red)
+                                            }
+                                        
+                                        VStack(alignment: .leading, spacing: 4) {
+                                            Text("Driver Pending requests.")
+                                                .font(.subheadline)
+                                                .foregroundStyle(.secondary)
+                                            
+                                            Text("7 Requests")
+                                                .font(.title3)
+                                                .fontWeight(.semibold)
+                                        }
+                        
+                        Spacer()
+                        
+                                        Image(systemName: "chevron.right")
+                                            .foregroundStyle(.secondary)
+                                    }
+                                    .padding()
+                                    .background(Color(.systemGray6))
+                                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                                    
+                                    // Upcoming Service Card
+                                    HStack(spacing: 16) {
+                                        Circle()
+                                            .fill(Color.blue.opacity(0.15))
+                                            .frame(width: 48, height: 48)
+                                            .overlay {
+                                                Image(systemName: "calendar.badge.clock")
+                                                    .foregroundStyle(.blue)
+                                            }
+                                        
+                                        VStack(alignment: .leading, spacing: 4) {
+                                            Text("Upcoming Service Due")
+                                                .font(.subheadline)
+                                                .foregroundStyle(.secondary)
+                                            
+                                            Text("12 Vehicles")
+                                                .font(.title3)
+                                                .fontWeight(.semibold)
+                                        }
+                                        
+                            Spacer()
+                                        
+                                        Image(systemName: "chevron.right")
+                                            .foregroundStyle(.secondary)
+                                    }
+                                    .padding()
+                                    .background(Color(.systemGray6))
+                                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                                }
+                                
+                                // Maintenance Cost Statistics
+                                HStack(spacing: 16) {
+                                    // Monthly Cost Card
+                                    VStack(spacing: 8) {
+                                        Text("830$")
+                                            .font(.system(size: 48, weight: .bold))
+                                            .foregroundStyle(.primary)
+                                            .frame(maxWidth: .infinity)
+                                        
+                                        Text("Total Monthly maintenance cost")
+                                            .font(.subheadline)
+                                            .foregroundStyle(.secondary)
+                                            .multilineTextAlignment(.center)
+                                            .fixedSize(horizontal: false, vertical: true)
+                                            .frame(maxWidth: .infinity)
+                                    }
+                                    .padding(24)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 12)
+                                            .stroke(
+                                                LinearGradient(
+                                                    colors: [.blue.opacity(0.7), .green.opacity(0.7)],
+                                                    startPoint: .topLeading,
+                                                    endPoint: .bottomTrailing
+                                                ),
+                                                lineWidth: 2
+                                            )
+                                    )
+                                    
+                                    // Average Cost Card
+                                    VStack(spacing: 8) {
+                                        Text("48$")
+                                            .font(.system(size: 48, weight: .bold))
+                                            .foregroundStyle(.primary)
+                                            .frame(maxWidth: .infinity)
+                                        
+                                        Text("Average cost per vehicle")
+                                            .font(.subheadline)
+                                            .foregroundStyle(.secondary)
+                                            .multilineTextAlignment(.center)
+                                            .fixedSize(horizontal: false, vertical: true)
+                                            .frame(maxWidth: .infinity)
+                                    }
+                                    .padding(24)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 12)
+                                            .stroke(
+                                                LinearGradient(
+                                                    colors: [.green.opacity(0.7), .blue.opacity(0.7)],
+                                                    startPoint: .topLeading,
+                                                    endPoint: .bottomTrailing
+                                                ),
+                                                lineWidth: 2
+                                            )
+                                    )
+                                }
+
+                                // Top Costliest Vehicles
+                                VStack(alignment: .leading, spacing: 12) {
+                                    Text("Top Costliest Vehicles")
+                                        .font(.headline)
+                                        .foregroundStyle(.primary)
+                                        .padding(.horizontal, 4)
+                                    
+                                    ScrollView(.horizontal, showsIndicators: false) {
+                                        HStack(spacing: 16) {
+                                            // Most Expensive Vehicle
+                                            VStack(alignment: .leading, spacing: 12) {
+                                                VStack(alignment: .leading, spacing: 4) {
+                                                    Text("KA01AB1234")
+                                                        .font(.headline)
+                                                        .foregroundStyle(.white)
+                                                    
+                                                    Text("₹35,000")
+                                                        .font(.title2)
+                                                        .fontWeight(.bold)
+                                                        .foregroundStyle(.white)
+                                                }
+                                                
+                                                Divider()
+                                                    .background(.white.opacity(0.3))
+                                                
+                                                VStack(alignment: .leading, spacing: 8) {
+                                                    Text("Engine Overhaul")
+                                                        .font(.subheadline)
+                                                        .foregroundStyle(.white.opacity(0.9))
+                                                    
+                                                    Text("Last repair: 2 days ago")
+                                                        .font(.caption)
+                                                        .foregroundStyle(.white.opacity(0.7))
+                                                }
+                                            }
+                                            .padding()
+                                            .frame(width: 220)
+                                            .background(
+                                                LinearGradient(
+                                                    colors: [Color(red: 0.2, green: 0.3, blue: 0.4), Color(red: 0.1, green: 0.15, blue: 0.2)],
+                                                    startPoint: .topLeading,
+                                                    endPoint: .bottomTrailing
+                                                )
+                                            )
+                                            .clipShape(RoundedRectangle(cornerRadius: 12))
+                                            
+                                            // Second Most Expensive
+                                            VStack(alignment: .leading, spacing: 12) {
+                                                VStack(alignment: .leading, spacing: 4) {
+                                                    Text("KA01CD5678")
+                            .font(.headline)
+                                                        .foregroundStyle(.white)
+                                                    
+                                                    Text("₹28,000")
+                                                        .font(.title2)
+                                                        .fontWeight(.bold)
+                                                        .foregroundStyle(.white)
+                                                }
+                                                
+                                                Divider()
+                                                    .background(.white.opacity(0.3))
+                                                
+                                                VStack(alignment: .leading, spacing: 8) {
+                                                    Text("Transmission Repair")
+                                .font(.subheadline)
+                                                        .foregroundStyle(.white.opacity(0.9))
+                                                    
+                                                    Text("Last repair: 5 days ago")
+                                                        .font(.caption)
+                                                        .foregroundStyle(.white.opacity(0.7))
+                                                }
+                                            }
+                                            .padding()
+                                            .frame(width: 220)
+                                            .background(
+                                                LinearGradient(
+                                                    colors: [Color(red: 0.25, green: 0.35, blue: 0.45), Color(red: 0.15, green: 0.2, blue: 0.25)],
+                                                    startPoint: .topLeading,
+                                                    endPoint: .bottomTrailing
+                                                )
+                                            )
+                                            .clipShape(RoundedRectangle(cornerRadius: 12))
+                                            
+                                            // Third Most Expensive
+                                            VStack(alignment: .leading, spacing: 12) {
+                                                VStack(alignment: .leading, spacing: 4) {
+                                                    Text("KA01EF9012")
+                                                        .font(.headline)
+                                                        .foregroundStyle(.white)
+                                                    
+                                                    Text("₹22,000")
+                                                        .font(.title2)
+                                                        .fontWeight(.bold)
+                                                        .foregroundStyle(.white)
+                                                }
+                                                
+                                                Divider()
+                                                    .background(.white.opacity(0.3))
+                                                
+                                                VStack(alignment: .leading, spacing: 8) {
+                                                    Text("Brake System")
+                                                        .font(.subheadline)
+                                                        .foregroundStyle(.white.opacity(0.9))
+                                                    
+                                                    Text("Last repair: 1 week ago")
+                                                        .font(.caption)
+                                                        .foregroundStyle(.white.opacity(0.7))
+                                                }
+                                            }
+                                            .padding()
+                                            .frame(width: 220)
+                                            .background(
+                                                LinearGradient(
+                                                    colors: [Color(red: 0.3, green: 0.4, blue: 0.5), Color(red: 0.2, green: 0.25, blue: 0.3)],
+                                                    startPoint: .topLeading,
+                                                    endPoint: .bottomTrailing
+                                                )
+                                            )
+                                            .clipShape(RoundedRectangle(cornerRadius: 12))
+                                        }
+                                        .padding(.horizontal, 4)
+                                    }
+                                }
+
+                                // Frequent Repairs List
+                                VStack(alignment: .leading, spacing: 16) {
+                                    Text("Most Frequent Repairs")
+                            .font(.headline)
+                                        .foregroundStyle(.primary)
+                                        .padding(.horizontal, 4)
+                                    
+                                    VStack(spacing: 12) {
+                                        // Engine Oil Change
+                                        FrequentRepairRow(
+                                            icon: "engine.combustion.fill",
+                                            iconColor: .orange,
+                                            repairType: "Engine Oil Change"
+                                        )
+                                        
+                                        // Tire Replacement
+                                        FrequentRepairRow(
+                                            icon: "car.wheel.and.tire",
+                                            iconColor: .blue,
+                                            repairType: "Tire Replacement"
+                                        )
+                                        
+                                        // Brake Service
+                                        FrequentRepairRow(
+                                            icon: "brake",
+                                            iconColor: .red,
+                                            repairType: "Brake Service"
+                                        )
+                                        
+                                        
+                                    }
+                                    .padding(.horizontal, 4)
+                                }
+                            }
+                        }
+                    )
+                    .padding(.horizontal)
                 }
+            }
+            .navigationTitle("Dashboard")
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        showNotificationCenter = true
+                    } label: {
+                        Image(systemName: "bell.fill")
+                            .foregroundStyle(.blue)
+                    }
+                }
+            }
+            .sheet(isPresented: $showNotificationCenter) {
+                NotificationCenterView()
             }
         }
     }
+}
+
+struct DashboardCard<Content: View>: View {
+    let title: String
+    let icon: String
+    let color: Color
+    var isFullWidth: Bool = false
+    @ViewBuilder let content: Content
     
-    private func formatVehicle(_ vehicle: Vehicle?) -> String {
-        guard let vehicle = vehicle else { return "Unknown" }
-        return "\(vehicle.make) \(vehicle.model) (\(vehicle.registrationNumber))"
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack {
+                Label(title, systemImage: icon)
+                    .font(.headline)
+                    .foregroundStyle(color)
+                
+                Spacer()
+            }
+            
+            content
+        }
+        .padding()
+        .frame(maxWidth: isFullWidth ? .infinity : nil)
+        .background {
+            if isFullWidth {
+                // Regular card background for full-width cards
+                Color(.systemBackground)
+            } else {
+                // Enhanced glass effect for small cards
+                ZStack {
+                    Color(.systemBackground)
+                        .opacity(0.7)
+                    
+                    // Enhanced gradient overlay
+                    LinearGradient(
+                        colors: [
+                            .white.opacity(0.7),
+                            .white.opacity(0.3)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                }
+                .blur(radius: 0.5)
+                .background(.ultraThinMaterial)
+            }
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+        // Multiple layered shadows for depth
+        .shadow(color: Color.black.opacity(0.03), radius: 3, x: 0, y: 0)
+        .shadow(color: Color.black.opacity(0.1), radius: 8, x: 0, y: 4)
+        .shadow(color: Color.black.opacity(0.05), radius: 16, x: 0, y: 8)
+        // Enhanced border for glass effect
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(
+                    .linearGradient(
+                        colors: [
+                            .white.opacity(0.8),
+                            .white.opacity(0.2),
+                            .white.opacity(0.4),
+                            .clear
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    lineWidth: isFullWidth ? 0 : 1
+                )
+        )
+        // Outer glow effect
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(color.opacity(0.1), lineWidth: isFullWidth ? 0 : 2)
+                .blur(radius: 4)
+        )
     }
 }
 
-// MARK: - Supporting Components
-
-struct MetricCard: View {
-    var title: String
-    var value: String
-    var icon: String
-    var color: Color
+struct StatRow: View {
+    let title: String
+    let value: String
+    let valueColor: Color
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
             HStack {
-                Image(systemName: icon)
-                    .foregroundColor(color)
-                
-                Spacer()
-                
-                Text("\(value)")
-                    .font(.title)
-                    .fontWeight(.bold)
-                    .foregroundColor(color)
-            }
-            
             Text(title)
-                .font(.subheadline)
-                .foregroundColor(.secondary)
-        }
-        .padding()
-        .background(RoundedRectangle(cornerRadius: 12).fill(Color(.systemBackground)))
-        .shadow(color: Color.black.opacity(0.1), radius: 5, x: 0, y: 2)
-    }
-}
-
-struct UpcomingTripCard: View {
-    var trip: Trip
-    var driverName: String
-    var vehicleName: String
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(trip.title)
-                        .font(.headline)
-                    
-                    Text(formatDate(trip.scheduledStartTime))
                         .font(.subheadline)
-                        .foregroundColor(.secondary)
-                }
+                .foregroundStyle(.secondary)
                 
                 Spacer()
                 
-                Image(systemName: "chevron.right")
-                    .foregroundColor(.secondary)
-            }
-            
-            Divider()
-            
-            HStack {
-                VStack(alignment: .leading, spacing: 4) {
-                    Label {
-                        Text(driverName)
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    } icon: {
-                        Image(systemName: "person.fill")
-                            .foregroundColor(.blue)
-                    }
-                    
-                    Label {
-                        Text(vehicleName)
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    } icon: {
-                        Image(systemName: "car.fill")
-                            .foregroundColor(.blue)
+            Text(value)
+                .font(.headline)
+                .foregroundStyle(valueColor)
+        }
+    }
+}
+
+struct NotificationCenterView: View {
+    @Environment(\.dismiss) private var dismiss
+    @State private var selectedTab: NotificationType = .driver
+    
+    enum NotificationType: String, CaseIterable {
+        case driver = "Drivers"
+        case maintenance = "Maintenance"
+    }
+    
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: 0) {
+                // Segmented Control
+                Picker("Notification Type", selection: $selectedTab) {
+                    ForEach(NotificationType.allCases, id: \.self) { type in
+                        Text(type.rawValue).tag(type)
                     }
                 }
+                .pickerStyle(.segmented)
+                .padding()
                 
-                Spacer()
-                
-                HStack {
-                    Image(systemName: "mappin.and.ellipse")
-                        .foregroundColor(.red)
-                    Text(trip.startLocation)
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                        .lineLimit(1)
+                // Notification List
+                ScrollView {
+                    LazyVStack(spacing: 0) {
+                        ForEach(0..<(selectedTab == .driver ? 5 : 3), id: \.self) { _ in
+                            NotificationRow(
+                                title: selectedTab == .driver ? "Trip Completed" : "Vehicle Service Required",
+                                message: selectedTab == .driver ? 
+                                    "Driver John Doe completed trip #1234" : 
+                                    "Vehicle ABC-123 requires maintenance",
+                                time: selectedTab == .driver ? "2 minutes ago" : "1 hour ago",
+                                type: selectedTab
+                            )
+                            .padding(.horizontal)
+                            .padding(.vertical, 8)
+                            
+                            Divider()
+                                .padding(.horizontal)
+                        }
+                    }
+                }
+            }
+            .navigationTitle("Notifications")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Done") {
+                        dismiss()
+                    }
                 }
             }
         }
-        .padding()
-        .background(RoundedRectangle(cornerRadius: 12).fill(Color(.systemBackground)))
-        .shadow(color: Color.black.opacity(0.1), radius: 5, x: 0, y: 2)
-    }
-    
-    private func formatDate(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateStyle = .medium
-        formatter.timeStyle = .short
-        return formatter.string(from: date)
     }
 }
 
-struct DriverStatusCard: View {
-    var count: Int
-    var status: String
-    var color: Color
+struct NotificationRow: View {
+    let title: String
+    let message: String
+    let time: String
+    let type: NotificationCenterView.NotificationType
     
     var body: some View {
-        VStack(spacing: 10) {
-            Text("\(count)")
-                .font(.title)
-                .fontWeight(.bold)
-                .foregroundColor(color)
+        HStack(spacing: 16) {
+            Circle()
+                .fill(type == .driver ? .blue : .orange)
+                .frame(width: 40, height: 40)
+                .overlay {
+                    Image(systemName: type == .driver ? "person.fill" : "wrench.fill")
+                        .foregroundStyle(.white)
+                }
             
-            Text(status)
-                .font(.subheadline)
-                .foregroundColor(.secondary)
-        }
-        .frame(maxWidth: .infinity)
-        .padding()
-        .background(RoundedRectangle(cornerRadius: 12).fill(Color(.systemBackground)))
-        .shadow(color: Color.black.opacity(0.1), radius: 5, x: 0, y: 2)
-    }
-}
-
-struct VehicleStatusCard: View {
-    var count: Int
-    var status: String
-    var color: Color
-    
-    var body: some View {
-        VStack(spacing: 10) {
-            Text("\(count)")
-                .font(.title)
-                .fontWeight(.bold)
-                .foregroundColor(color)
-            
-            Text(status)
-                .font(.subheadline)
-                .foregroundColor(.secondary)
-        }
-        .frame(maxWidth: .infinity)
-        .padding()
-        .background(RoundedRectangle(cornerRadius: 12).fill(Color(.systemBackground)))
-        .shadow(color: Color.black.opacity(0.1), radius: 5, x: 0, y: 2)
-    }
-}
-
-struct DashboardEmptyStateView: View {
-    var icon: String
-    var message: String
-    
-    var body: some View {
-        HStack {
-            Spacer()
-            VStack(spacing: 10) {
-                Image(systemName: icon)
-                    .font(.system(size: 40))
-                    .foregroundColor(.gray)
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title)
+                    .font(.headline)
                 
                 Text(message)
                     .font(.subheadline)
-                    .foregroundColor(.secondary)
-                    .multilineTextAlignment(.center)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+                
+                Text(time)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
-            .padding()
-            Spacer()
+            
+            Spacer(minLength: 0)
         }
-        .frame(height: 120)
-        .background(RoundedRectangle(cornerRadius: 12).fill(Color(.systemGray6)))
+        .background(Color(.systemBackground))
     }
 }
 
-// MARK: - Chart Components
-
-@available(iOS 16.0, *)
-struct TripChart: View {
-    var trips: [Trip]
-    var timeFrame: DashboardView.TimeFrame
+struct FrequentRepairRow: View {
+    let icon: String
+    let iconColor: Color
+    let repairType: String
     
     var body: some View {
-        Chart {
-            ForEach(chartData) { data in
-                BarMark(
-                    x: .value("Day", data.day),
-                    y: .value("Count", data.count)
-                )
-                .foregroundStyle(by: .value("Status", data.status))
-            }
-        }
-        .chartForegroundStyleScale([
-            "Scheduled": Color.blue,
-            "In Progress": Color.orange,
-            "Completed": Color.green,
-            "Cancelled": Color.gray
-        ])
-        .chartLegend(position: .bottom, alignment: .center)
-    }
-    
-    private var chartData: [TripChartData] {
-        let calendar = Calendar.current
-        let today = Date()
-        
-        var data: [TripChartData] = []
-        var daysToShow = 7
-        
-        switch timeFrame {
-        case .day:
-            daysToShow = 1
-        case .week:
-            daysToShow = 7
-        case .month:
-            daysToShow = 30
-        }
-        
-        for dayOffset in 0..<daysToShow {
-            let date = calendar.date(byAdding: .day, value: -dayOffset, to: today)!
+        HStack(spacing: 16) {
+            // Icon
+            Circle()
+                .fill(iconColor.opacity(0.15))
+                .frame(width: 40, height: 40)
+                .overlay {
+                    Image(systemName: icon)
+                        .foregroundStyle(iconColor)
+                }
             
-            // For each day, count trips by status
-            let dayTrips = trips.filter { trip in
-                return calendar.isDate(trip.scheduledStartTime, inSameDayAs: date)
-            }
-            
-            let scheduledCount = dayTrips.filter { $0.status == .scheduled }.count
-            let inProgressCount = dayTrips.filter { $0.status == .inProgress }.count
-            let completedCount = dayTrips.filter { $0.status == .completed }.count
-            let cancelledCount = dayTrips.filter { $0.status == .cancelled }.count
-            
-            // Format the day string
-            let formatter = DateFormatter()
-            formatter.dateFormat = daysToShow > 7 ? "MMM d" : "E"
-            let dayString = formatter.string(from: date)
-            
-            // Add data points
-            if scheduledCount > 0 {
-                data.append(TripChartData(day: dayString, status: "Scheduled", count: scheduledCount))
-            }
-            if inProgressCount > 0 {
-                data.append(TripChartData(day: dayString, status: "In Progress", count: inProgressCount))
-            }
-            if completedCount > 0 {
-                data.append(TripChartData(day: dayString, status: "Completed", count: completedCount))
-            }
-            if cancelledCount > 0 {
-                data.append(TripChartData(day: dayString, status: "Cancelled", count: cancelledCount))
-            }
-            
-            // If no trips, add zero data point to maintain consistent x-axis
-            if dayTrips.isEmpty {
-                data.append(TripChartData(day: dayString, status: "Scheduled", count: 0))
-            }
-        }
-        
-        return data.reversed()
-    }
-    
-    struct TripChartData: Identifiable {
-        var id = UUID()
-        var day: String
-        var status: String
-        var count: Int
-    }
-}
-
-@available(iOS 16.0, *)
-struct VehicleStatusChart: View {
-    var vehicles: [Vehicle]
-    
-    var body: some View {
-        Chart {
-            SectorMark(
-                angle: .value("Count", activeVehicles),
-                innerRadius: .ratio(0.6),
-                angularInset: 1.5
-            )
-            .cornerRadius(5)
-            .foregroundStyle(.green)
-            .annotation(position: .overlay) {
-                Text("Active")
-                    .font(.caption)
-                    .foregroundColor(.white)
-                    .fontWeight(.bold)
-            }
-            
-            SectorMark(
-                angle: .value("Count", inactiveVehicles),
-                innerRadius: .ratio(0.6),
-                angularInset: 1.5
-            )
-            .cornerRadius(5)
-            .foregroundStyle(.gray)
-            .annotation(position: .overlay) {
-                Text("Inactive")
-                    .font(.caption)
-                    .foregroundColor(.white)
-                    .fontWeight(.bold)
-            }
-        }
-        .frame(height: 200)
-        .padding(.horizontal)
-        
-        HStack {
-            HStack {
-                Rectangle()
-                    .fill(.green)
-                    .frame(width: 12, height: 12)
-                Text("Active (\(activeVehicles))")
-                    .font(.caption)
-            }
+            // Repair Type
+            Text(repairType)
+                .font(.subheadline)
+                .fontWeight(.medium)
             
             Spacer()
-            
-            HStack {
-                Rectangle()
-                    .fill(.gray)
-                    .frame(width: 12, height: 12)
-                Text("Inactive (\(inactiveVehicles))")
-                    .font(.caption)
-            }
         }
-        .padding(.horizontal)
-    }
-    
-    private var activeVehicles: Int {
-        vehicles.filter { $0.isActive }.count
-    }
-    
-    private var inactiveVehicles: Int {
-        vehicles.filter { !$0.isActive }.count
+        .padding()
+        .background(Color(.systemGray6))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 }
 
 #Preview {
-    NavigationStack {
         DashboardView()
             .environmentObject(TripViewModel())
             .environmentObject(DriverViewModel())
             .environmentObject(VehicleViewModel())
-    }
 } 

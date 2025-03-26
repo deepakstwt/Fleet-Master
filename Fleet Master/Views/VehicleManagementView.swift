@@ -110,9 +110,9 @@ struct VehicleManagementView: View {
     private var searchAndFilterBar: some View {
             HStack(spacing: 12) {
                 HStack {
-                    Image(systemName: "magnifyingglass")
-                    .foregroundColor(.secondary)
-                
+                        Image(systemName: "magnifyingglass")
+                            .foregroundColor(.secondary)
+                        
                 TextField("Search by make, model, or registration", text: $searchText)
                     .autocorrectionDisabled()
                 
@@ -126,7 +126,7 @@ struct VehicleManagementView: View {
                         }
                 }
                 .padding(10)
-            .background(Color(.systemGray6))
+                    .background(Color(.systemGray6))
             .cornerRadius(10)
             
         Menu {
@@ -178,7 +178,7 @@ struct VehicleManagementView: View {
     }
     
             // Add vehicle button
-        Button(action: {
+                    Button(action: {
                 showAddVehicleSheet = true
         }) {
             Image(systemName: "plus")
@@ -365,7 +365,7 @@ struct VehicleManagementView: View {
                         .font(.subheadline.bold())
                         .foregroundStyle(.primary)
                     
-                    Button {
+                                Button {
                         withAnimation {
                             if selectedSortOption == .makeAsc {
                                 selectedSortOption = .makeDesc
@@ -373,7 +373,7 @@ struct VehicleManagementView: View {
                                 selectedSortOption = .makeAsc
                             }
                         }
-                    } label: {
+                                } label: {
                         Image(systemName: selectedSortOption == .makeDesc ? "arrow.down" : "arrow.up")
                             .font(.caption)
                             .foregroundStyle(selectedSortOption == .makeAsc || selectedSortOption == .makeDesc ? .blue : .secondary)
@@ -393,8 +393,8 @@ struct VehicleManagementView: View {
                 HStack(spacing: 4) {
                     Text("Year")
                         .font(.subheadline.bold())
-                    
-                    Button {
+                                
+                                Button {
                         withAnimation {
                             if selectedSortOption == .newest {
                                 selectedSortOption = .oldest
@@ -402,7 +402,7 @@ struct VehicleManagementView: View {
                                 selectedSortOption = .newest
                             }
                         }
-                    } label: {
+                                } label: {
                         Image(systemName: selectedSortOption == .oldest ? "arrow.down" : "arrow.up")
                             .font(.caption)
                             .foregroundStyle(selectedSortOption == .newest || selectedSortOption == .oldest ? .blue : .secondary)
@@ -537,7 +537,7 @@ struct VehicleRow: View {
                             .frame(width: 48, height: 48)
                 
                 Image(systemName: vehicle.vehicleType.icon)
-                            .font(.system(size: 20))
+                    .font(.system(size: 20))
                     .foregroundColor(statusColor)
             }
             
@@ -556,16 +556,16 @@ struct VehicleRow: View {
                 Text("VIN: \(vehicle.vin)")
                             .font(.caption2)
                     .foregroundColor(.secondary)
-                    }
+            }
                 }
                 .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
                 .layoutPriority(2)
-                
+            
                 // Type column
                     VehicleTypeBadge(type: vehicle.vehicleType)
                     .frame(width: 80, alignment: .center)
                     .layoutPriority(1)
-                
+            
                 // Year column - Display without commas
                 Text(String(format: "%d", vehicle.year))
                     .font(.subheadline)
@@ -582,14 +582,14 @@ struct VehicleRow: View {
                 HStack(spacing: 16) {
                     Button(action: onEdit) {
                         Image(systemName: "pencil")
-                            .font(.caption)
+                        .font(.caption)
                             .foregroundStyle(.blue)
-                    }
+                }
                     .buttonStyle(BorderlessButtonStyle())
-                    
+                
                     Button(action: onToggleStatus) {
                         Image(systemName: vehicle.isActive ? "trash" : "checkmark.circle")
-                            .font(.caption)
+                    .font(.caption)
                             .foregroundStyle(vehicle.isActive ? .red : .green)
                     }
                     .buttonStyle(BorderlessButtonStyle())
@@ -913,10 +913,10 @@ struct AddVehicleView: View {
                         }
                         .disabled((currentStep == 1 && !isStep1Valid) || (currentStep == 2 && !isStep2Valid))
                     } else {
-                        Button(action: {
-                            viewModel.addVehicle()
-                            dismiss()
-                        }) {
+                    Button(action: {
+                        viewModel.addVehicle()
+                        dismiss()
+                    }) {
                             Text("Add Vehicle")
                                 .frame(maxWidth: .infinity)
                                 .padding(.vertical, 16)
@@ -1127,7 +1127,7 @@ struct AddVehicleView: View {
                     .padding(.bottom, 4)
                 
                 LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
-                    ForEach(FuelType.allCases, id: \.self) { fuelType in
+                        ForEach(FuelType.allCases, id: \.self) { fuelType in
                         fuelTypeCard(fuelType)
                     }
                 }
@@ -1321,8 +1321,8 @@ struct AddVehicleView: View {
                     DatePicker(
                         "",
                         selection: Binding(
-                            get: { viewModel.lastServiceDate ?? Date() },
-                            set: { viewModel.lastServiceDate = $0 }
+                        get: { viewModel.lastServiceDate ?? Date() },
+                        set: { viewModel.lastServiceDate = $0 }
                         ),
                         displayedComponents: .date
                     )
@@ -1347,8 +1347,8 @@ struct AddVehicleView: View {
                     DatePicker(
                         "",
                         selection: Binding(
-                            get: { viewModel.nextServiceDue ?? Date() },
-                            set: { viewModel.nextServiceDue = $0 }
+                        get: { viewModel.nextServiceDue ?? Date() },
+                        set: { viewModel.nextServiceDue = $0 }
                         ),
                         displayedComponents: .date
                     )
@@ -1748,8 +1748,8 @@ struct EditVehicleView: View {
                         .disabled((currentStep == 1 && !isStep1Valid) || (currentStep == 2 && !isStep2Valid))
                     } else {
                         Button(action: {
-                            viewModel.updateVehicle()
-                            dismiss()
+                        viewModel.updateVehicle()
+                        dismiss()
                         }) {
                             Text("Update Vehicle")
                                 .frame(maxWidth: .infinity)
@@ -1907,7 +1907,7 @@ struct EditVehicleView: View {
                 Text("RC Expiry Date")
                     .font(.headline)
                 
-        HStack {
+                            HStack {
                     Image(systemName: "doc.text.fill")
                         .foregroundColor(.blue)
                         .frame(width: 24)
@@ -1957,7 +1957,7 @@ struct EditVehicleView: View {
                 
                 if viewModel.insuranceNumber.isEmpty {
                     Text("Insurance number is required")
-                        .font(.caption)
+                                    .font(.caption)
                         .foregroundColor(.red)
                         .padding(.leading, 4)
                 }

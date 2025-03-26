@@ -55,8 +55,8 @@ struct DriverManagementView: View {
                 // Enhanced Search Bar
                 VStack(spacing: 0) {
                     HStack(spacing: 12) {
-                        HStack {
-                            Image(systemName: "magnifyingglass")
+                HStack {
+                    Image(systemName: "magnifyingglass")
                                 .foregroundColor(isSearchFocused || !viewModel.searchText.isEmpty ? .blue : .secondary)
                                 .animation(.easeInOut(duration: 0.2), value: isSearchFocused || !viewModel.searchText.isEmpty)
                             
@@ -73,7 +73,7 @@ struct DriverManagementView: View {
                         .background(
                             RoundedRectangle(cornerRadius: 10)
                                 .fill(Color(.systemGray6))
-                                .overlay(
+                        .overlay(
                                     RoundedRectangle(cornerRadius: 10)
                                         .stroke(isSearchFocused ? Color.blue : Color.clear, lineWidth: 1.5)
                                 )
@@ -114,9 +114,9 @@ struct DriverManagementView: View {
                         }
                         
                         // Add Driver Button
-                        Button(action: {
-                            viewModel.isShowingAddDriver = true
-                        }) {
+                    Button(action: {
+                        viewModel.isShowingAddDriver = true
+                    }) {
                             Image(systemName: "plus")
                                 .font(.system(size: 16, weight: .medium))
                                 .foregroundStyle(.white)
@@ -163,8 +163,8 @@ struct DriverManagementView: View {
                                             .scaleEffect(phase.isIdentity ? 1.0 : 0.95)
                                     }
                                     .id(driver.id)
-                                    .onTapGesture {
-                                        selectedDriver = driver
+                            .onTapGesture {
+                                selectedDriver = driver
                                     }
                                     .contextMenu {
                                         Button {
@@ -173,23 +173,23 @@ struct DriverManagementView: View {
                                             Label("Edit Driver", systemImage: "pencil")
                                         }
                                         
-                                        Button {
-                                            viewModel.toggleDriverAvailability(driver: driver)
-                                        } label: {
-                                            Label(driver.isAvailable ? "Set Unavailable" : "Set Available", 
-                                                systemImage: driver.isAvailable ? "person.crop.circle.badge.xmark.fill" : "person.crop.circle.badge.checkmark.fill")
-                                        }
-                                        
+                                Button {
+                                    viewModel.toggleDriverAvailability(driver: driver)
+                                } label: {
+                                    Label(driver.isAvailable ? "Set Unavailable" : "Set Available", 
+                                          systemImage: driver.isAvailable ? "person.crop.circle.badge.xmark.fill" : "person.crop.circle.badge.checkmark.fill")
+                                }
+                                
                                         if driver.isActive {
                                             Button(role: .destructive) {
-                                                viewModel.toggleDriverStatus(driver: driver)
-                                            } label: {
+                                    viewModel.toggleDriverStatus(driver: driver)
+                                } label: {
                                                 Label("Disable Driver", systemImage: "person.crop.circle.badge.xmark")
-                                            }
+                                }
                                         } else {
-                                            Button {
+                                Button {
                                                 viewModel.toggleDriverStatus(driver: driver)
-                                            } label: {
+                                } label: {
                                                 Label("Enable Driver", systemImage: "person.crop.circle.badge.checkmark")
                                             }
                                         }
@@ -238,7 +238,7 @@ struct DriverManagementView: View {
                     .environmentObject(viewModel)
             }
             .sheet(item: $selectedDriver) { driver in
-                DriverDetailView(driver: driver)
+                    DriverDetailView(driver: driver)
             }
             .alert(viewModel.alertMessage, isPresented: $viewModel.showAlert) {
                 Button("OK", role: .cancel) { }

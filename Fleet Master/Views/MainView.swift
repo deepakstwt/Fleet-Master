@@ -73,6 +73,7 @@ struct MainView: View {
                         Label("Sign Out", systemImage: "rectangle.portrait.and.arrow.right")
                             .foregroundColor(.red)
                     }
+                    .padding(.top, 210)
                 } footer: {
                     Text("Version 1.0")
                         .font(.caption)
