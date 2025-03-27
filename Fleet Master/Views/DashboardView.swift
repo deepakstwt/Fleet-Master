@@ -22,433 +22,146 @@ struct DashboardView: View {
         ScrollView {
                 VStack(spacing: 24) {
                     // Main Stats Section
-                    HStack(spacing: 16) {
-                        // Vehicles Card
-                        DashboardCard(
-                            title: "Vehicles",
-                            icon: "car.fill",
-                            color: .blue,
-                            content: {
-                                StatRow(title: "Total", value: "\(vehicleViewModel.vehicles.count)", valueColor: .blue)
-                                StatRow(title: "Available", value: "\(vehicleViewModel.activeVehicles.count)", valueColor: .green)
-                                StatRow(title: "On Duty", value: "\(vehicleViewModel.vehicles.filter { !$0.isActive }.count)", valueColor: .red)
-                            }
-                        )
-                        
-                        // Drivers Card
-                        DashboardCard(
-                            title: "Drivers",
-                            icon: "person.2.fill",
-                            color: .indigo,
-                            content: {
-                                StatRow(title: "Total", value: "\(driverViewModel.drivers.count)", valueColor: .indigo)
-                                StatRow(title: "Available", value: "\(driverViewModel.availableDrivers.count)", valueColor: .green)
-                                StatRow(title: "On Duty", value: "\(driverViewModel.drivers.filter { !$0.isAvailable && $0.isActive }.count)", valueColor: .orange)
-                            }
-                        )
-                        
-                        // Trips Card
-                        DashboardCard(
-                            title: "Trips",
-                            icon: "arrow.triangle.swap",
-                            color: .purple,
-                            content: {
-                                StatRow(title: "Scheduled", value: "\(tripViewModel.trips.count)", valueColor: .purple)
-                                StatRow(title: "Active", value: "\(tripViewModel.inProgressTrips.count)", valueColor: .blue)
-                                StatRow(title: "Completed", value: "\(tripViewModel.trips.filter { Calendar.current.isDateInToday($0.scheduledStartTime) }.count)", valueColor: .green)
-                            }
-                        )
-            }
-            .padding(.horizontal)
-                    
-                    // Costs Card
-                    DashboardCard(
-                        title: "Costs",
-                        icon: "indianrupeesign",
-                        color: .green,
-                        isFullWidth: true,
-                        content: {
-                            VStack(alignment: .leading, spacing: 16) {
-                                HStack {
-                                    VStack(alignment: .leading, spacing: 4) {
-                                        Text("Monthly Fuel Cost")
-                                            .font(.subheadline)
-                                            .foregroundStyle(.secondary)
-                                        Text("₹ \(String(format: "%.2f", monthlyFuelCosts.last?.cost ?? 0))")
-                                            .font(.title2)
-                                            .fontWeight(.bold)
-                                    }
-                    
-                    Spacer()
-                                    
-                                    VStack(alignment: .trailing, spacing: 4) {
-                                        HStack(spacing: 2) {
-                                            Image(systemName: "arrow.up.right")
-                                            Text("12%")
-                                        }
-                                        .font(.caption)
-                                        .foregroundStyle(.red)
-                                        
-                                        Text("vs last month")
-                                            .font(.caption2)
-                                            .foregroundStyle(.secondary)
-                                    }
-                                }
-                                
-                                Chart {
-                                    ForEach(monthlyFuelCosts, id: \.month) { item in
-                                        BarMark(
-                                            x: .value("Month", item.month),
-                                            y: .value("Cost", item.cost)
-                                        )
-                                        .foregroundStyle(Color.green.gradient)
-                                    }
-                                }
-                                .frame(height: 150)
-                                .chartYAxis {
-                                    AxisMarks(position: .leading) { value in
-                                        AxisValueLabel {
-                                            if let cost = value.as(Double.self) {
-                                                Text("₹\(Int(cost/1000))k")
-                                                    .font(.caption2)
-                                                    .foregroundStyle(.secondary)
-                                            }
-                                        }
-                                    }
-                                }
-                                .chartXAxis {
-                                    AxisMarks { value in
-                                        AxisValueLabel {
-                                            if let month = value.as(String.self) {
-                                                Text(month)
-                                                    .font(.caption2)
-                                                    .foregroundStyle(.secondary)
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    )
-                    .padding(.horizontal)
-                    
-                    // Maintenance Statistics
-                    DashboardCard(
-                        title: "Maintenance",
-                        icon: "wrench.and.screwdriver.fill",
-                        color: .orange,
-                        isFullWidth: true,
-                        content: {
-                            VStack(spacing: 16) {
-                                // Maintenance Status Cards
-                                VStack(spacing: 12) {
-                                    // Currently Under Maintenance Card
-                                    HStack(spacing: 16) {
-                                        Circle()
-                                            .fill(Color.orange.opacity(0.15))
-                                            .frame(width: 48, height: 48)
-                                            .overlay {
-                                                Image(systemName: "wrench.fill")
-                                                    .foregroundStyle(.orange)
-                                            }
-                                        
-                                        VStack(alignment: .leading, spacing: 4) {
-                                            Text("Currently Under Maintenance")
-                                                .font(.subheadline)
-                                                .foregroundStyle(.secondary)
-                                            
-                                            Text("4 Vehicles")
-                                                .font(.title3)
-                                                .fontWeight(.semibold)
-                                        }
-                                        
-                                        Spacer()
-                                        
-                                        Image(systemName: "chevron.right")
-                                            .foregroundStyle(.secondary)
-                                    }
-                                    .padding()
-                                    .background(Color(.systemGray6))
-                                    .clipShape(RoundedRectangle(cornerRadius: 12))
-                                    
-                                    // Driver Reported Issues Card
-                                    HStack(spacing: 16) {
-                                        Circle()
-                                            .fill(Color.red.opacity(0.15))
-                                            .frame(width: 48, height: 48)
-                                            .overlay {
-                                                Image(systemName: "exclamationmark.triangle.fill")
-                                                    .foregroundStyle(.red)
-                                            }
-                                        
-                                        VStack(alignment: .leading, spacing: 4) {
-                                            Text("Driver Pending requests.")
-                                                .font(.subheadline)
-                                                .foregroundStyle(.secondary)
-                                            
-                                            Text("7 Requests")
-                                                .font(.title3)
-                                                .fontWeight(.semibold)
-                                        }
-                        
-                        Spacer()
-                        
-                                        Image(systemName: "chevron.right")
-                                            .foregroundStyle(.secondary)
-                                    }
-                                    .padding()
-                                    .background(Color(.systemGray6))
-                                    .clipShape(RoundedRectangle(cornerRadius: 12))
-                                    
-                                    // Upcoming Service Card
-                                    HStack(spacing: 16) {
-                                        Circle()
-                                            .fill(Color.blue.opacity(0.15))
-                                            .frame(width: 48, height: 48)
-                                            .overlay {
-                                                Image(systemName: "calendar.badge.clock")
-                                                    .foregroundStyle(.blue)
-                                            }
-                                        
-                                        VStack(alignment: .leading, spacing: 4) {
-                                            Text("Upcoming Service Due")
-                                                .font(.subheadline)
-                                                .foregroundStyle(.secondary)
-                                            
-                                            Text("12 Vehicles")
-                                                .font(.title3)
-                                                .fontWeight(.semibold)
-                                        }
-                                        
-                            Spacer()
-                                        
-                                        Image(systemName: "chevron.right")
-                                            .foregroundStyle(.secondary)
-                                    }
-                                    .padding()
-                                    .background(Color(.systemGray6))
-                                    .clipShape(RoundedRectangle(cornerRadius: 12))
-                                }
-                                
-                                // Maintenance Cost Statistics
-                                HStack(spacing: 16) {
-                                    // Monthly Cost Card
-                                    VStack(spacing: 8) {
-                                        Text("830$")
-                                            .font(.system(size: 48, weight: .bold))
-                                            .foregroundStyle(.primary)
-                                            .frame(maxWidth: .infinity)
-                                        
-                                        Text("Total Monthly maintenance cost")
-                                            .font(.subheadline)
-                                            .foregroundStyle(.secondary)
-                                            .multilineTextAlignment(.center)
-                                            .fixedSize(horizontal: false, vertical: true)
-                                            .frame(maxWidth: .infinity)
-                                    }
-                                    .padding(24)
-                                    .background(
-                                        RoundedRectangle(cornerRadius: 12)
-                                            .stroke(
-                                                LinearGradient(
-                                                    colors: [.blue.opacity(0.7), .green.opacity(0.7)],
-                                                    startPoint: .topLeading,
-                                                    endPoint: .bottomTrailing
-                                                ),
-                                                lineWidth: 2
-                                            )
-                                    )
-                                    
-                                    // Average Cost Card
-                                    VStack(spacing: 8) {
-                                        Text("48$")
-                                            .font(.system(size: 48, weight: .bold))
-                                            .foregroundStyle(.primary)
-                                            .frame(maxWidth: .infinity)
-                                        
-                                        Text("Average cost per vehicle")
-                                            .font(.subheadline)
-                                            .foregroundStyle(.secondary)
-                                            .multilineTextAlignment(.center)
-                                            .fixedSize(horizontal: false, vertical: true)
-                                            .frame(maxWidth: .infinity)
-                                    }
-                                    .padding(24)
-                                    .background(
-                                        RoundedRectangle(cornerRadius: 12)
-                                            .stroke(
-                                                LinearGradient(
-                                                    colors: [.green.opacity(0.7), .blue.opacity(0.7)],
-                                                    startPoint: .topLeading,
-                                                    endPoint: .bottomTrailing
-                                                ),
-                                                lineWidth: 2
-                                            )
-                                    )
-                                }
-
-                                // Top Costliest Vehicles
-                                VStack(alignment: .leading, spacing: 12) {
-                                    Text("Top Costliest Vehicles")
-                                        .font(.headline)
-                                        .foregroundStyle(.primary)
-                                        .padding(.horizontal, 4)
-                                    
-                                    ScrollView(.horizontal, showsIndicators: false) {
-                                        HStack(spacing: 16) {
-                                            // Most Expensive Vehicle
-                                            VStack(alignment: .leading, spacing: 12) {
-                                                VStack(alignment: .leading, spacing: 4) {
-                                                    Text("KA01AB1234")
-                                                        .font(.headline)
-                                                        .foregroundStyle(.white)
-                                                    
-                                                    Text("₹35,000")
-                                                        .font(.title2)
-                                                        .fontWeight(.bold)
-                                                        .foregroundStyle(.white)
-                                                }
-                                                
-                                                Divider()
-                                                    .background(.white.opacity(0.3))
-                                                
-                                                VStack(alignment: .leading, spacing: 8) {
-                                                    Text("Engine Overhaul")
-                                                        .font(.subheadline)
-                                                        .foregroundStyle(.white.opacity(0.9))
-                                                    
-                                                    Text("Last repair: 2 days ago")
-                                                        .font(.caption)
-                                                        .foregroundStyle(.white.opacity(0.7))
-                                                }
-                                            }
-                                            .padding()
-                                            .frame(width: 220)
-                                            .background(
-                                                LinearGradient(
-                                                    colors: [Color(red: 0.2, green: 0.3, blue: 0.4), Color(red: 0.1, green: 0.15, blue: 0.2)],
-                                                    startPoint: .topLeading,
-                                                    endPoint: .bottomTrailing
-                                                )
-                                            )
-                                            .clipShape(RoundedRectangle(cornerRadius: 12))
-                                            
-                                            // Second Most Expensive
-                                            VStack(alignment: .leading, spacing: 12) {
-                                                VStack(alignment: .leading, spacing: 4) {
-                                                    Text("KA01CD5678")
-                            .font(.headline)
-                                                        .foregroundStyle(.white)
-                                                    
-                                                    Text("₹28,000")
-                                                        .font(.title2)
-                                                        .fontWeight(.bold)
-                                                        .foregroundStyle(.white)
-                                                }
-                                                
-                                                Divider()
-                                                    .background(.white.opacity(0.3))
-                                                
-                                                VStack(alignment: .leading, spacing: 8) {
-                                                    Text("Transmission Repair")
-                                .font(.subheadline)
-                                                        .foregroundStyle(.white.opacity(0.9))
-                                                    
-                                                    Text("Last repair: 5 days ago")
-                                                        .font(.caption)
-                                                        .foregroundStyle(.white.opacity(0.7))
-                                                }
-                                            }
-                                            .padding()
-                                            .frame(width: 220)
-                                            .background(
-                                                LinearGradient(
-                                                    colors: [Color(red: 0.25, green: 0.35, blue: 0.45), Color(red: 0.15, green: 0.2, blue: 0.25)],
-                                                    startPoint: .topLeading,
-                                                    endPoint: .bottomTrailing
-                                                )
-                                            )
-                                            .clipShape(RoundedRectangle(cornerRadius: 12))
-                                            
-                                            // Third Most Expensive
-                                            VStack(alignment: .leading, spacing: 12) {
-                                                VStack(alignment: .leading, spacing: 4) {
-                                                    Text("KA01EF9012")
-                                                        .font(.headline)
-                                                        .foregroundStyle(.white)
-                                                    
-                                                    Text("₹22,000")
-                                                        .font(.title2)
-                                                        .fontWeight(.bold)
-                                                        .foregroundStyle(.white)
-                                                }
-                                                
-                                                Divider()
-                                                    .background(.white.opacity(0.3))
-                                                
-                                                VStack(alignment: .leading, spacing: 8) {
-                                                    Text("Brake System")
-                                                        .font(.subheadline)
-                                                        .foregroundStyle(.white.opacity(0.9))
-                                                    
-                                                    Text("Last repair: 1 week ago")
-                                                        .font(.caption)
-                                                        .foregroundStyle(.white.opacity(0.7))
-                                                }
-                                            }
-                                            .padding()
-                                            .frame(width: 220)
-                                            .background(
-                                                LinearGradient(
-                                                    colors: [Color(red: 0.3, green: 0.4, blue: 0.5), Color(red: 0.2, green: 0.25, blue: 0.3)],
-                                                    startPoint: .topLeading,
-                                                    endPoint: .bottomTrailing
-                                                )
-                                            )
-                                            .clipShape(RoundedRectangle(cornerRadius: 12))
-                                        }
-                                        .padding(.horizontal, 4)
-                                    }
-                                }
-
-                                // Frequent Repairs List
-                                VStack(alignment: .leading, spacing: 16) {
-                                    Text("Most Frequent Repairs")
-                            .font(.headline)
-                                        .foregroundStyle(.primary)
-                                        .padding(.horizontal, 4)
-                                    
+                    VStack(spacing: 16) {
+                        // Top Row
+                        HStack(spacing: 16) {
+                            // Fleet Overview Card
+                            DashboardCard(
+                                title: "Fleet Overview",
+                                icon: "car.2.fill",
+                                color: .blue,
+                                content: {
                                     VStack(spacing: 12) {
-                                        // Engine Oil Change
-                                        FrequentRepairRow(
-                                            icon: "engine.combustion.fill",
-                                            iconColor: .orange,
-                                            repairType: "Engine Oil Change"
+                                        StatRow(
+                                            title: "Total Vehicles",
+                                            value: "\(vehicleViewModel.vehicles.count)",
+                                            valueColor: .blue,
+                                            icon: "car.fill"
                                         )
-                                        
-                                        // Tire Replacement
-                                        FrequentRepairRow(
-                                            icon: "car.wheel.and.tire",
-                                            iconColor: .blue,
-                                            repairType: "Tire Replacement"
+                                        StatRow(
+                                            title: "In Use",
+                                            value: "\(vehicleViewModel.activeVehicles.count)",
+                                            valueColor: .green,
+                                            icon: "checkmark.circle.fill"
                                         )
-                                        
-                                        // Brake Service
-                                        FrequentRepairRow(
-                                            icon: "brake",
-                                            iconColor: .red,
-                                            repairType: "Brake Service"
+                                        StatRow(
+                                            title: "Under Maintenance",
+                                            value: "\(vehicleViewModel.vehicles.filter { !$0.isActive }.count)",
+                                            valueColor: .red,
+                                            icon: "wrench.fill"
                                         )
-                                        
+                                    }
+                                }
+                            )
+                            
+                            // Driver Overview Card
+                            DashboardCard(
+                                title: "Driver Overview",
+                                icon: "person.2.fill",
+                                color: .indigo,
+                                content: {
+                                    VStack(spacing: 12) {
+                                        StatRow(
+                                            title: "Total Drivers",
+                                            value: "\(driverViewModel.drivers.count)",
+                                            valueColor: .indigo,
+                                            icon: "person.fill"
+                                        )
+                                        StatRow(
+                                            title: "Available",
+                                            value: "\(driverViewModel.availableDrivers.count)",
+                                            valueColor: .green,
+                                            icon: "checkmark.circle.fill"
+                                        )
+                                        StatRow(
+                                            title: "On Duty",
+                                            value: "\(driverViewModel.drivers.filter { !$0.isAvailable && $0.isActive }.count)",
+                                            valueColor: .orange,
+                                            icon: "figure.walk"
+                                        )
+                                    }
+                                }
+                            )
+                        }
+                        .padding(.horizontal)
+                        
+                        // Bottom Row
+                        HStack(spacing: 16) {
+                            // Trips Card
+                            DashboardCard(
+                                title: "Trips Overview",
+                                icon: "arrow.triangle.swap",
+                                color: .purple,
+                                content: {
+                                    VStack(spacing: 12) {
+                                        StatRow(
+                                            title: "Scheduled",
+                                            value: "\(tripViewModel.trips.count)",
+                                            valueColor: .purple,
+                                            icon: "calendar.badge.clock"
+                                        )
+                                        StatRow(
+                                            title: "Active",
+                                            value: "\(tripViewModel.inProgressTrips.count)",
+                                            valueColor: .blue,
+                                            icon: "arrow.triangle.branch"
+                                        )
+                                        StatRow(
+                                            title: "Pending",
+                                            value: "5",
+                                            valueColor: .orange,
+                                            icon: "clock.fill"
+                                        )
+                                        StatRow(
+                                            title: "Completed",
+                                            value: "\(tripViewModel.trips.filter { Calendar.current.isDateInToday($0.scheduledStartTime) }.count)",
+                                            valueColor: .green,
+                                            icon: "checkmark.circle.fill"
+                                        )
+                                    }
+                                }
+                            )
+                            
+                            // Maintenance Overview Card
+                            DashboardCard(
+                                title: "Maintenance Overview",
+                                icon: "wrench.and.screwdriver.fill",
+                                color: .orange,
+                                content: {
+                                    VStack(spacing: 12) {
+                                        StatRow(
+                                            title: "Vehicles Under Maintenance",
+                                            value: "4",
+                                            valueColor: .orange,
+                                            icon: "wrench.fill"
+                                        )
+                                        StatRow(
+                                            title: "Upcoming",
+                                            value: "12",
+                                            valueColor: .blue,
+                                            icon: "calendar.badge.clock"
+                                        )
+                                        StatRow(
+                                            title: "Delayed Repairs",
+                                            value: "5",
+                                            valueColor: .red,
+                                            icon: "exclamationmark.triangle.fill"
+                                        )
+                                        StatRow(
+                                            title: "Monthly Maintenance Cost",
+                                            value: "₹83,000",
+                                            valueColor: .green,
+                                            icon: "indianrupeesign.circle.fill"
+                                        )
+                                    }
+                                }
+                            )
+                        }
+                        .padding(.horizontal)
+                    }
+                    
                                         
                                     }
-                                    .padding(.horizontal, 4)
-                                }
-                            }
-                        }
-                    )
-                    .padding(.horizontal)
-                }
             }
             .navigationTitle("Dashboard")
             .toolbar {
@@ -548,15 +261,22 @@ struct StatRow: View {
     let title: String
     let value: String
     let valueColor: Color
+    let icon: String?
     
     var body: some View {
-            HStack {
+        HStack {
+            if let icon {
+                Image(systemName: icon)
+                    .foregroundStyle(.secondary)
+                    .frame(width: 20, height: 20)
+            }
+            
             Text(title)
-                        .font(.subheadline)
+                .font(.subheadline)
                 .foregroundStyle(.secondary)
-                
-                Spacer()
-                
+            
+            Spacer()
+            
             Text(value)
                 .font(.headline)
                 .foregroundStyle(valueColor)

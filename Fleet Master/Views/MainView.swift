@@ -39,48 +39,50 @@ struct MainView: View {
     
     var body: some View {
         NavigationSplitView {
-            List(selection: $selectedSidebarItem) {
-                Section("Main") {
-                    NavigationLink(value: SidebarItem.dashboard) {
-                        Label("Dashboard", systemImage: "gauge")
-                    }
-                }
-                
-                Section("User Management") {
-                    NavigationLink(value: SidebarItem.driverManagement) {
-                        Label("Driver Management", systemImage: "person.2.fill")
+            VStack(spacing: 0) {
+                List(selection: $selectedSidebarItem) {
+                    Section("Main") {
+                        NavigationLink(value: SidebarItem.dashboard) {
+                            Label("Dashboard", systemImage: "gauge")
+                        }
                     }
                     
-                    NavigationLink(value: SidebarItem.maintenanceManagement) {
-                        Label("Maintenance Management", systemImage: "wrench.fill")
-                    }
-                }
-                
-                Section("Fleet Management") {
-                    NavigationLink(value: SidebarItem.vehicleManagement) {
-                        Label("Vehicle Management", systemImage: "car.fill")
+                    Section("User Management") {
+                        NavigationLink(value: SidebarItem.driverManagement) {
+                            Label("Driver Management", systemImage: "person.2.fill")
+                        }
+                        
+                        NavigationLink(value: SidebarItem.maintenanceManagement) {
+                            Label("Maintenance Management", systemImage: "wrench.fill")
+                        }
                     }
                     
-                    NavigationLink(value: SidebarItem.tripManagement) {
-                        Label("Trip Management", systemImage: "map.fill")
+                    Section("Fleet Management") {
+                        NavigationLink(value: SidebarItem.vehicleManagement) {
+                            Label("Vehicle Management", systemImage: "car.fill")
+                        }
+                        
+                        NavigationLink(value: SidebarItem.tripManagement) {
+                            Label("Trip Management", systemImage: "map.fill")
+                        }
                     }
                 }
+                .navigationTitle("Fleet Master")
                 
-                Section {
-                    Button(action: {
-                        showSignOutAlert = true
-                    }) {
-                        Label("Sign Out", systemImage: "rectangle.portrait.and.arrow.right")
-                            .foregroundColor(.red)
-                    }
-                    .padding(.top, 210)
-                } footer: {
-                    Text("Version 1.0")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                Divider()
+                
+                Button(action: {
+                    showSignOutAlert = true
+                }) {
+                    Label("Sign Out", systemImage: "rectangle.portrait.and.arrow.right")
+                        .foregroundColor(.red)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.vertical, 8)
+                        .padding(.horizontal, 16)
                 }
+                .padding(.bottom, 8)
+                .background(Color(.systemGray6))
             }
-            .navigationTitle("Fleet Master")
             .alert("Sign Out", isPresented: $showSignOutAlert) {
                 Button("Cancel", role: .cancel) { }
                 Button("Sign Out", role: .destructive) {

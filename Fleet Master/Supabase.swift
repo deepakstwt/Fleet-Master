@@ -295,6 +295,58 @@ final class SupabaseManager {
     }
     */
     
+    // MARK: - Maintenance Vehicle Operations
+    
+    /// Get the last ticket number from the database
+    private func getLastTicketNumber() async throws -> Int {
+        let response = try await supabase
+            .from("Maintenance_Vehicle")
+            .select("TicketNo")
+            .order("TicketNo", ascending: false)
+            .limit(1)
+            .execute()
+            .data
+        
+        let decoder = JSONDecoder()
+        
+        struct TicketResponse: Codable {
+            let TicketNo: String
+        }
+        
+        do {
+            let tickets = try decoder.decode([TicketResponse].self, from: response)
+            if let lastTicket = tickets.first?.TicketNo,
+               let number = Int(lastTicket.replacingOccurrences(of: "TKT", with: "")) {
+                return number
+            }
+        } catch {
+            print("Error decoding ticket response: \(error)")
+        }
+        
+        return 0
+    }
+    
+    /// Generate the next ticket number
+    private func generateNextTicketNumber() async throws -> String {
+        let lastNumber = try await getLastTicketNumber()
+        let nextNumber = lastNumber + 1
+        return String(format: "TKT%07d", nextNumber)
+    }
+    
+    /// Schedule a new maintenance task for a vehicle
+    func scheduleMaintenance(_ maintenanceVehicle: inout MaintenanceVehicle) async throws {
+        // Generate the next ticket number
+        let ticketNo = try await generateNextTicketNumber()
+        
+        // Update the ticket number
+        maintenanceVehicle.ticketNo = ticketNo
+        
+        try await supabase
+            .from("Maintenance_Vehicle")
+            .insert(maintenanceVehicle)
+            .execute()
+    }
+    
     // MARK: - Helper Methods
     
     /// Map Supabase SDK errors to custom SupabaseError type

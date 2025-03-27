@@ -524,28 +524,29 @@ struct VehicleRow: View {
     let onTap: () -> Void
     
     @State private var isHovered = false
+    @State private var showMaintenanceSheet = false
     
     var body: some View {
         Button(action: onTap) {
             HStack(spacing: 0) {
                 // Vehicle info column
                 HStack(spacing: 12) {
-            // Avatar/Icon
-            ZStack {
-                Circle()
-                    .fill(statusColor.opacity(0.15))
+                    // Avatar/Icon
+                    ZStack {
+                        Circle()
+                            .fill(statusColor.opacity(0.15))
                             .frame(width: 48, height: 48)
-                
-                Image(systemName: vehicle.vehicleType.icon)
+                        
+                        Image(systemName: vehicle.vehicleType.icon)
                     .font(.system(size: 20))
-                    .foregroundColor(statusColor)
+                            .foregroundColor(statusColor)
             }
             
-            // Vehicle Info
+                    // Vehicle Info
                     VStack(alignment: .leading, spacing: 2) {
                 Text("\(vehicle.make) \(vehicle.model)")
                             .font(.subheadline)
-                    .fontWeight(.semibold)
+                            .fontWeight(.semibold)
                     .foregroundColor(vehicle.isActive ? .primary : .secondary)
                             .lineLimit(1)
                 
@@ -562,7 +563,7 @@ struct VehicleRow: View {
                 .layoutPriority(2)
             
                 // Type column
-                    VehicleTypeBadge(type: vehicle.vehicleType)
+                VehicleTypeBadge(type: vehicle.vehicleType)
                     .frame(width: 80, alignment: .center)
                     .layoutPriority(1)
             
@@ -578,27 +579,32 @@ struct VehicleRow: View {
                     .frame(width: 80, alignment: .center)
                     .layoutPriority(1)
                 
-                // Actions column
-                HStack(spacing: 16) {
+                // Actions column with Menu
+                Menu {
                     Button(action: onEdit) {
-                        Image(systemName: "pencil")
-                        .font(.caption)
-                            .foregroundStyle(.blue)
-                }
-                    .buttonStyle(BorderlessButtonStyle())
-                
-                    Button(action: onToggleStatus) {
-                        Image(systemName: vehicle.isActive ? "trash" : "checkmark.circle")
-                    .font(.caption)
-                            .foregroundStyle(vehicle.isActive ? .red : .green)
+                        Label("Edit", systemImage: "pencil")
                     }
-                    .buttonStyle(BorderlessButtonStyle())
+                    
+                    Button(action: onToggleStatus) {
+                        Label("Delete", systemImage: "trash")
+                            .foregroundColor(.red)
+                    }
+                    
+                    Button(action: { showMaintenanceSheet = true }) {
+                        Label("Schedule Maintenance", systemImage: "wrench.fill")
+                    }
+                } label: {
+                    Image(systemName: "ellipsis")
+                        .font(.system(size: 16, weight: .bold))
+                        .foregroundStyle(.secondary)
+                        .frame(width: 32, height: 32)
+                        .contentShape(Rectangle())
                 }
                 .opacity(isHovered ? 1 : 0.6)
                 .frame(width: 80, alignment: .center)
                 .layoutPriority(1)
             }
-        .padding(.horizontal, 16)
+            .padding(.horizontal, 16)
             .frame(maxWidth: .infinity)
             .frame(height: 72)
             .background(
@@ -617,6 +623,10 @@ struct VehicleRow: View {
                 .opacity(0.5),
             alignment: .bottom
         )
+        .sheet(isPresented: $showMaintenanceSheet) {
+            ScheduleMaintenanceView(vehicle: vehicle)
+                .presentationDetents([.large])
+        }
     }
     
     private var statusText: String {
@@ -1944,7 +1954,7 @@ struct EditVehicleView: View {
                         .onSubmit {
                             advanceToNextField(from: .insuranceNumber)
                         }
-                    }
+                }
                     .padding()
                 .background(
                     RoundedRectangle(cornerRadius: 10)
@@ -2122,7 +2132,7 @@ struct EditVehicleView: View {
                     TextField("Enter current kilometers", value: $viewModel.currentOdometer, formatter: NumberFormatter())
                         .keyboardType(.numberPad)
                 }
-                    .padding()
+                .padding()
                 .background(
                     RoundedRectangle(cornerRadius: 10)
                         .fill(Color(.systemBackground))
