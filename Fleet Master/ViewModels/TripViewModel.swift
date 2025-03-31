@@ -34,6 +34,7 @@ class TripViewModel: ObservableObject {
     @Published var routeError: String?
     
     private var cancellables = Set<AnyCancellable>()
+    private var statusCheckTimer: Timer?
     
     init() {
         // Add location access request during initialization
@@ -41,6 +42,43 @@ class TripViewModel: ObservableObject {
         
         // Setup listeners for address changes to calculate routes
         setupLocationCalculation()
+        
+        // Start the timer to check trip statuses
+        startStatusCheckTimer()
+    }
+    
+    deinit {
+        stopStatusCheckTimer()
+    }
+    
+    private func startStatusCheckTimer() {
+        // Check every minute for trip status updates
+        statusCheckTimer = Timer.scheduledTimer(withTimeInterval: 60.0, repeats: true) { [weak self] _ in
+            self?.checkAndUpdateTripStatuses()
+        }
+        // Run an initial check immediately
+        checkAndUpdateTripStatuses()
+    }
+    
+    private func stopStatusCheckTimer() {
+        statusCheckTimer?.invalidate()
+        statusCheckTimer = nil
+    }
+    
+    private func checkAndUpdateTripStatuses() {
+        let now = Date()
+        
+        for trip in trips {
+            if trip.status == .scheduled {
+                // If the scheduled start time has passed, update to in progress
+                if trip.scheduledStartTime <= now {
+                    if let index = trips.firstIndex(where: { $0.id == trip.id }) {
+                        trips[index].status = .inProgress
+                        trips[index].actualStartTime = now
+                    }
+                }
+            }
+        }
     }
     
     private func setupLocationCalculation() {

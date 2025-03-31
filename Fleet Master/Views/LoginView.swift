@@ -710,7 +710,7 @@ struct OTPDigitField: View {
                     .stroke(isFocused ? Color.blue : Color.gray.opacity(0.3), lineWidth: 2)
             )
             .focused($focused)
-            .onChange(of: text) { newValue in
+            .onChange(of: text) { oldValue, newValue in
                 // Handle digit entered
                 if newValue.count > 0 {
                     // Ensure only one digit
@@ -730,7 +730,7 @@ struct OTPDigitField: View {
                     focused = true
                 }
             }
-            .onChange(of: isFocused) { newValue in
+            .onChange(of: isFocused) { oldValue, newValue in
                 focused = newValue
             }
             .onTapGesture {

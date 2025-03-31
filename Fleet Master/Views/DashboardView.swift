@@ -1,167 +1,172 @@
 import SwiftUI
 import Charts
+import MapKit
 
 struct DashboardView: View {
     @EnvironmentObject private var tripViewModel: TripViewModel
     @EnvironmentObject private var driverViewModel: DriverViewModel
     @EnvironmentObject private var vehicleViewModel: VehicleViewModel
     @State private var showNotificationCenter = false
-    
-    // Sample data for the fuel costs chart
-    let monthlyFuelCosts: [(month: String, cost: Double)] = [
-        ("Jan", 2450),
-        ("Feb", 2100),
-        ("Mar", 2800),
-        ("Apr", 2300),
-        ("May", 2600),
-        ("Jun", 2900)
-    ]
+    @State private var selectedTrip: Trip?
+    @State private var showTripDetail = false
     
     var body: some View {
         NavigationStack {
         ScrollView {
                 VStack(spacing: 24) {
-                    // Main Stats Section
-                    VStack(spacing: 16) {
-                        // Top Row
-                        HStack(spacing: 16) {
-                            // Fleet Overview Card
-                            DashboardCard(
-                                title: "Fleet Overview",
-                                icon: "car.2.fill",
-                                color: .blue,
-                                content: {
-                                    VStack(spacing: 12) {
-                                        StatRow(
-                                            title: "Total Vehicles",
-                                            value: "\(vehicleViewModel.vehicles.count)",
-                                            valueColor: .blue,
-                                            icon: "car.fill"
-                                        )
-                                        StatRow(
-                                            title: "In Use",
-                                            value: "\(vehicleViewModel.activeVehicles.count)",
-                                            valueColor: .green,
-                                            icon: "checkmark.circle.fill"
-                                        )
-                                        StatRow(
-                                            title: "Under Maintenance",
-                                            value: "\(vehicleViewModel.vehicles.filter { !$0.isActive }.count)",
-                                            valueColor: .red,
-                                            icon: "wrench.fill"
-                                        )
-                                    }
-                                }
+                    // KPI Metrics (Fleet Summary)
+                    VStack(spacing: 24) {  // Increased spacing
+                        Text("Fleet Summary")
+                            .font(.title)  // Larger title
+                            .fontWeight(.bold)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.horizontal)
+                        
+                        // KPI Grid with larger spacing
+                        LazyVGrid(
+                            columns: [
+                                GridItem(.flexible(), spacing: 20),
+                                GridItem(.flexible(), spacing: 20)
+                            ],
+                            spacing: 20
+                        ) {
+                            // Total Vehicles KPI
+                            KPICard(
+                                title: "Total Vehicles",
+                                value: "",
+                                icon: "car.fill",
+                                details: [
+                                    KPIDetail(
+                                        label: "Active",
+                                        value: "\(vehicleViewModel.activeVehicles.count)",
+                                        color: Color(hex: "1E3A8A")  // Using primary gradient color
+                                    ),
+                                    KPIDetail(
+                                        label: "Under Maintenance",
+                                        value: "\(vehicleViewModel.vehicles.filter { !$0.isActive }.count)",
+                                        color: Color(hex: "1E3A8A")  // Using primary gradient color
+                                    ),
+                                    KPIDetail(
+                                        label: "Idle",
+                                        value: "0",
+                                        color: Color(hex: "1E3A8A")  // Using primary gradient color
+                                    )
+                                ]
                             )
                             
-                            // Driver Overview Card
-                            DashboardCard(
-                                title: "Driver Overview",
+                            // Drivers KPI
+                            KPICard(
+                                title: "Drivers",
+                                value: "",
                                 icon: "person.2.fill",
-                                color: .indigo,
-                                content: {
-                                    VStack(spacing: 12) {
-                                        StatRow(
-                                            title: "Total Drivers",
-                                            value: "\(driverViewModel.drivers.count)",
-                                            valueColor: .indigo,
-                                            icon: "person.fill"
-                                        )
-                                        StatRow(
-                                            title: "Available",
-                                            value: "\(driverViewModel.availableDrivers.count)",
-                                            valueColor: .green,
-                                            icon: "checkmark.circle.fill"
-                                        )
-                                        StatRow(
-                                            title: "On Duty",
-                                            value: "\(driverViewModel.drivers.filter { !$0.isAvailable && $0.isActive }.count)",
-                                            valueColor: .orange,
-                                            icon: "figure.walk"
-                                        )
-                                    }
-                                }
+                                details: [
+                                    KPIDetail(
+                                        label: "Available",
+                                        value: "\(driverViewModel.availableDrivers.count)",
+                                        color: Color(hex: "059669")  // Using primary gradient color
+                                    ),
+                                    KPIDetail(
+                                        label: "On Trip",
+                                        value: "\(driverViewModel.drivers.filter { !$0.isAvailable && $0.isActive }.count)",
+                                        color: Color(hex: "059669")  // Using primary gradient color
+                                    )
+                                ]
                             )
+                            
+                            // Maintenance KPI
+                            KPICard(
+                                title: "Maintenance",
+                                value: "",
+                                icon: "wrench.fill",
+                                details: [
+                                    KPIDetail(
+                                        label: "In Progress",
+                                        value: "\(vehicleViewModel.vehicles.filter { !$0.isActive }.count)",
+                                        color: Color(hex: "C2410C")  // Using primary gradient color
+                                    ),
+                                    KPIDetail(
+                                        label: "Scheduled",
+                                        value: "0",
+                                        color: Color(hex: "C2410C")  // Using primary gradient color
+                                    ),
+                                    KPIDetail(
+                                        label: "Overdue",
+                                        value: "0",
+                                        color: Color(hex: "C2410C")  // Using primary gradient color
+                                    )
+                                ]
+                            )
+                            
+                            // Active Trips KPI
+                            KPICard(
+                                title: "Active Trips",
+                                value: "",
+                                icon: "arrow.triangle.swap",
+                                details: [
+                                    KPIDetail(
+                                        label: "In Progress",
+                                        value: "\(tripViewModel.inProgressTrips.count)",
+                                        color: Color(hex: "4F46E5")  // Using primary gradient color
+                                    ),
+                                    KPIDetail(
+                                        label: "Scheduled",
+                                        value: "0",
+                                        color: Color(hex: "4F46E5")  // Using primary gradient color
+                                    ),
+                                    KPIDetail(
+                                        label: "Delayed",
+                                        value: "0",
+                                        color: Color(hex: "4F46E5")  // Using primary gradient color
+                                    )
+                                ]
+                            )
+            }
+            .padding(.horizontal)
+                    }
+                    
+                    // Active Trips Section
+                    VStack(alignment: .leading, spacing: 16) {
+                    HStack {
+                            Text("Active Trips")
+                                .font(.title2)
+                                .fontWeight(.bold)
+                        
+                        Spacer()
+                        
+                            NavigationLink(destination: TripManagementView()) {
+                            Text("View All")
+                                    .foregroundStyle(.blue)
+                            }
                         }
                         .padding(.horizontal)
                         
-                        // Bottom Row
-                        HStack(spacing: 16) {
-                            // Trips Card
-                            DashboardCard(
-                                title: "Trips Overview",
-                                icon: "arrow.triangle.swap",
-                                color: .purple,
-                                content: {
-                                    VStack(spacing: 12) {
-                                        StatRow(
-                                            title: "Scheduled",
-                                            value: "\(tripViewModel.trips.count)",
-                                            valueColor: .purple,
-                                            icon: "calendar.badge.clock"
-                                        )
-                                        StatRow(
-                                            title: "Active",
-                                            value: "\(tripViewModel.inProgressTrips.count)",
-                                            valueColor: .blue,
-                                            icon: "arrow.triangle.branch"
-                                        )
-                                        StatRow(
-                                            title: "Pending",
-                                            value: "5",
-                                            valueColor: .orange,
-                                            icon: "clock.fill"
-                                        )
-                                        StatRow(
-                                            title: "Completed",
-                                            value: "\(tripViewModel.trips.filter { Calendar.current.isDateInToday($0.scheduledStartTime) }.count)",
-                                            valueColor: .green,
-                                            icon: "checkmark.circle.fill"
-                                        )
-                                    }
+                        if tripViewModel.inProgressTrips.isEmpty {
+                            VStack(spacing: 12) {
+                                Image(systemName: "car.2.fill")
+                            .font(.system(size: 40))
+                                    .foregroundStyle(.secondary)
+                                Text("No Active Trips")
+                                        .font(.headline)
+                                Text("All vehicles are currently stationary")
+                                        .font(.subheadline)
+                                    .foregroundStyle(.secondary)
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 40)
+                            .background(Color(.systemBackground))
+                            .clipShape(RoundedRectangle(cornerRadius: 12))
+                            .shadow(color: Color(.systemGray4).opacity(0.5), radius: 5)
+                            .padding(.horizontal)
+                        } else {
+                            VStack(spacing: 12) {
+                                ForEach(tripViewModel.inProgressTrips) { trip in
+                                    ActiveTripCard(trip: trip)
                                 }
-                            )
-                            
-                            // Maintenance Overview Card
-                            DashboardCard(
-                                title: "Maintenance Overview",
-                                icon: "wrench.and.screwdriver.fill",
-                                color: .orange,
-                                content: {
-                                    VStack(spacing: 12) {
-                                        StatRow(
-                                            title: "Vehicles Under Maintenance",
-                                            value: "4",
-                                            valueColor: .orange,
-                                            icon: "wrench.fill"
-                                        )
-                                        StatRow(
-                                            title: "Upcoming",
-                                            value: "12",
-                                            valueColor: .blue,
-                                            icon: "calendar.badge.clock"
-                                        )
-                                        StatRow(
-                                            title: "Delayed Repairs",
-                                            value: "5",
-                                            valueColor: .red,
-                                            icon: "exclamationmark.triangle.fill"
-                                        )
-                                        StatRow(
-                                            title: "Monthly Maintenance Cost",
-                                            value: "₹83,000",
-                                            valueColor: .green,
-                                            icon: "indianrupeesign.circle.fill"
-                                        )
-                                    }
-                                }
-                            )
+                            }
+                            .padding(.horizontal)
                         }
-                        .padding(.horizontal)
                     }
-                    
-                                        
-                                    }
+                }
             }
             .navigationTitle("Dashboard")
             .toolbar {
@@ -177,7 +182,189 @@ struct DashboardView: View {
             .sheet(isPresented: $showNotificationCenter) {
                 NotificationCenterView()
             }
+            .sheet(item: $selectedTrip) { trip in
+                TripDetailView(trip: trip)
+            }
         }
+    }
+}
+
+// KPI Detail Model
+struct KPIDetail {
+    let label: String
+    let value: String
+    let color: Color
+}
+
+// KPI Card Component
+struct KPICard: View {
+    let title: String
+    let value: String
+    let icon: String
+    let details: [KPIDetail]
+    @State private var isHovered = false
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            // Header with icon and title
+            HStack(spacing: 12) {
+                Image(systemName: icon)
+                    .font(.system(size: 35))
+                    .foregroundStyle(.white)
+                    .frame(width: 48, height: 48)
+                    .background(
+                        Circle()
+                            .fill(
+                                LinearGradient(
+                                    colors: iconGradient,
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
+                    )
+                    .shadow(color: iconGradient[0].opacity(0.3), radius: 8, x: 0, y: 4)
+                
+                Text(title)
+                    .font(.system(size: 25, weight: .semibold))
+                    .foregroundStyle(.primary)
+            }
+            
+            // Details
+            VStack(alignment: .leading, spacing: 12) {
+                ForEach(details, id: \.label) { detail in
+                    HStack(alignment: .center, spacing: 12) {
+                        // Indicator dot (using primary color)
+                        Circle()
+                            .fill(iconGradient[0])
+                            .frame(width: 8, height: 8)
+                        
+                        // Label and value
+                        HStack {
+                            Text(detail.label)
+                                .font(.system(size: 20))
+                                .foregroundStyle(.secondary)
+                            
+                            Spacer()
+                            
+                            Text(detail.value)
+                                .font(.system(size: 20, weight: .medium))
+                                .foregroundStyle(iconGradient[0])
+                        }
+                    }
+                }
+            }
+        }
+        .padding(24)
+        .frame(height: 200)
+        .frame(maxWidth: .infinity)
+        .background {
+            ZStack {
+                RoundedRectangle(cornerRadius: 24)
+                    .fill(cardGradient)
+                    .opacity(isHovered ? 0.15 : 0.1)
+                
+                // Glass effect overlay
+                RoundedRectangle(cornerRadius: 24)
+                    .fill(.ultraThinMaterial)
+                
+                // Subtle gradient overlay
+                RoundedRectangle(cornerRadius: 24)
+                    .fill(
+                        LinearGradient(
+                            colors: [
+                                .white.opacity(0.4),
+                                .white.opacity(0.1)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .blendMode(.overlay)
+            }
+        }
+        .overlay(
+            RoundedRectangle(cornerRadius: 24)
+                .stroke(
+                    LinearGradient(
+                        colors: [
+                            iconGradient[0].opacity(isHovered ? 0.3 : 0.1),
+                            iconGradient[1].opacity(isHovered ? 0.2 : 0.05),
+                            .clear
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    lineWidth: 1.5
+                )
+        )
+        .shadow(color: iconGradient[0].opacity(0.1), radius: isHovered ? 15 : 10, x: 0, y: 4)
+        .shadow(color: iconGradient[1].opacity(0.05), radius: isHovered ? 5 : 1, x: 0, y: 1)
+        .onHover { hovering in
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                isHovered = hovering
+            }
+        }
+        .scaleEffect(isHovered ? 1.02 : 1.0)
+    }
+    
+    // Gradient colors based on card type with semantic meaning
+    private var iconGradient: [Color] {
+        switch title {
+        case "Total Vehicles":
+            // Deep Blue to Royal Blue - Automotive industry standard colors
+            // Represents reliability, professionalism, and trust
+            return [Color(hex: "1E3A8A"), Color(hex: "3B82F6")]
+        case "Drivers":
+            // Forest Green to Emerald - Human resource management colors
+            // Represents growth, safety, and personnel
+            return [Color(hex: "059669"), Color(hex: "34D399")]
+        case "Maintenance":
+            // Deep Orange to Amber - Universal maintenance colors
+            // Represents caution, attention, and industrial standards
+            return [Color(hex: "C2410C"), Color(hex: "F59E0B")]
+        case "Active Trips":
+            // Indigo to Purple - Movement and energy colors
+            // Represents dynamic activity and navigation
+            return [Color(hex: "4F46E5"), Color(hex: "8B5CF6")]
+        default:
+            return [.blue, .blue.opacity(0.7)]
+        }
+    }
+    
+    // Card background gradient based on card type
+    private var cardGradient: some ShapeStyle {
+        LinearGradient(
+            colors: iconGradient,
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+    }
+}
+
+// Color extension for hex colors
+extension Color {
+    init(hex: String) {
+        let hex = hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
+        var int: UInt64 = 0
+        Scanner(string: hex).scanHexInt64(&int)
+        let a, r, g, b: UInt64
+        switch hex.count {
+        case 3: // RGB (12-bit)
+            (a, r, g, b) = (255, (int >> 8) * 17, (int >> 4 & 0xF) * 17, (int & 0xF) * 17)
+        case 6: // RGB (24-bit)
+            (a, r, g, b) = (255, int >> 16, int >> 8 & 0xFF, int & 0xFF)
+        case 8: // ARGB (32-bit)
+            (a, r, g, b) = (int >> 24, int >> 16 & 0xFF, int >> 8 & 0xFF, int & 0xFF)
+        default:
+            (a, r, g, b) = (1, 1, 1, 1)
+        }
+        self.init(
+            .sRGB,
+            red: Double(r) / 255,
+            green: Double(g) / 255,
+            blue:  Double(b) / 255,
+            opacity: Double(a) / 255
+        )
     }
 }
 
@@ -192,7 +379,7 @@ struct DashboardCard<Content: View>: View {
         VStack(alignment: .leading, spacing: 16) {
             HStack {
                 Label(title, systemImage: icon)
-                    .font(.headline)
+                        .font(.headline)
                     .foregroundStyle(color)
                 
                 Spacer()

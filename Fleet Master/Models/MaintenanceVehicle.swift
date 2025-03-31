@@ -16,17 +16,17 @@ struct MaintenanceVehicle: Codable, Identifiable {
     
     enum CodingKeys: String, CodingKey {
         case id
-        case ticketNo = "TicketNo"
+        case ticketNo = "ticketNo"
         case registrationNumber = "registration_number"
-        case problem = "Problem"
-        case priority = "Priority"
-        case maintenanceNote = "Maintenance_Note"
-        case type = "Type"
-        case assignedPersonnelId = "Assigned_Personnel_id"
-        case completed = "Completed"
-        case cost = "Cost"
+        case problem = "problem"
+        case priority = "priority"
+        case maintenanceNote = "maintenance_Note"
+        case type = "type"
+        case assignedPersonnelId = "assigned_Personnel_id"
+        case completed = "completed"
+        case cost = "cost"
         case status = "status"
-        case accepted = "Accepted"
+        case accepted = "accepted"
     }
     
     enum Priority: String, Codable {
@@ -58,7 +58,7 @@ struct MaintenanceVehicle: Codable, Identifiable {
         // Default values for maintenance app managed fields
         self.completed = false
         self.cost = 0.0
-        self.status = .active
+        self.status = .schedule
         self.accepted = false
     }
 } 

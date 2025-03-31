@@ -301,8 +301,8 @@ final class SupabaseManager {
     private func getLastTicketNumber() async throws -> Int {
         let response = try await supabase
             .from("Maintenance_Vehicle")
-            .select("TicketNo")
-            .order("TicketNo", ascending: false)
+            .select("ticketNo")
+            .order("ticketNo", ascending: false)
             .limit(1)
             .execute()
             .data
@@ -310,12 +310,12 @@ final class SupabaseManager {
         let decoder = JSONDecoder()
         
         struct TicketResponse: Codable {
-            let TicketNo: String
+            let ticketNo: String
         }
         
         do {
             let tickets = try decoder.decode([TicketResponse].self, from: response)
-            if let lastTicket = tickets.first?.TicketNo,
+            if let lastTicket = tickets.first?.ticketNo,
                let number = Int(lastTicket.replacingOccurrences(of: "TKT", with: "")) {
                 return number
             }

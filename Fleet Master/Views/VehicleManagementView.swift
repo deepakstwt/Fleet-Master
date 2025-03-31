@@ -91,7 +91,7 @@ struct VehicleManagementView: View {
                         viewModel.selectVehicleForEdit(vehicle: vehicle)
                     }
             }
-            .onChange(of: searchText) { newValue in
+            .onChange(of: searchText) { oldValue, newValue in
                 Task {
                     await viewModel.searchVehiclesInDatabase()
                 }
