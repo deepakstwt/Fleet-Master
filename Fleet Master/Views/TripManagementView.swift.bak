@@ -272,7 +272,7 @@ struct TripManagementView: View {
                 case .calendar:
                     ScheduledTripsCalendarView()
                 case .map:
-                    mapContent
+                    tripMapOverview
                 }
             }
         }
@@ -344,201 +344,41 @@ struct TripManagementView: View {
         .listStyle(.plain)
     }
     
-    private var mapContent: some View {
-        Group {
-            if filteredTrips.isEmpty {
-                emptyStateView
-            } else {
-                ZStack(alignment: .bottomTrailing) {
-                    TripMapView(
-                        trips: filteredTrips,
-                        locationManager: locationManager, 
-                        isAssignedTrip: true, // Professional map mode for Fleet Managers
-                        showAllRoutes: true,  // Show all routes on map
-                        highlightSelectedRoute: true // Highlight routes when selected
-                    )
+    private var tripMapOverview: some View {
+        VStack(spacing: 20) {
+            // Placeholder for the map functionality
+            ZStack {
+                Color(.systemGray6)
                     .edgesIgnoringSafeArea(.all)
+                
+                VStack(spacing: 20) {
+                    Image(systemName: "map")
+                        .font(.system(size: 60))
+                        .foregroundColor(.gray)
                     
-                    // Fleet Manager Control Panel
-                    VStack(spacing: 12) {
-                        Text("Fleet Manager Controls")
-                            .font(.headline)
-                            .padding(.horizontal, 16)
-                            .padding(.top, 12)
-                            .foregroundColor(.primary)
-                        
-                        Divider()
-                        
-                        // Trip Statistics
-                        HStack(spacing: 20) {
-                            VStack {
-                                Text("\(filteredTrips.filter { $0.status == .inProgress }.count)")
-                                    .font(.title2.bold())
-                                    .foregroundColor(.blue)
-                                Text("Active")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                            }
-                            
-                            VStack {
-                                Text("\(filteredTrips.filter { $0.status == .scheduled }.count)")
-                                    .font(.title2.bold())
-                                    .foregroundColor(.orange)
-                                Text("Scheduled")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                            }
-                            
-                            VStack {
-                                let driverCount = filteredTrips.compactMap { $0.driverId }.count
-                                Text("\(driverCount)")
-                                    .font(.title2.bold())
-                                    .foregroundColor(.green)
-                                Text("Drivers")
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                            }
+                    Text("Map View Coming Soon")
+                        .font(.headline)
+                    
+                    Text("Trip mapping functionality will be available in a future update.")
+                        .multilineTextAlignment(.center)
+                        .foregroundColor(.secondary)
+                        .padding(.horizontal, 40)
+                    
+                    // Button to switch to list view
+                    Button(action: {
+                        withAnimation {
+                            viewMode = .list
                         }
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 8)
-                        
-                        Divider()
-                        
-                        // Trip Filter Controls
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("Filter Active Trips")
-                                .font(.subheadline)
-                                .foregroundColor(.secondary)
-                                .padding(.horizontal, 16)
-                            
-                            ScrollView(.horizontal, showsIndicators: false) {
-                                HStack(spacing: 10) {
-                                    Button(action: {
-                                        // Filter for vehicles that need attention
-                                        statusFilter = .inProgress
-                                    }) {
-                                        HStack {
-                                            Image(systemName: "exclamationmark.triangle")
-                                                .foregroundColor(.orange)
-                                            Text("Attention Needed")
-                                                .font(.caption)
-                                        }
-                                        .padding(.vertical, 8)
-                                        .padding(.horizontal, 12)
-                                        .background(statusFilter == .inProgress ? Color.orange.opacity(0.2) : Color(.systemBackground))
-                                        .cornerRadius(20)
-                                        .overlay(
-                                            RoundedRectangle(cornerRadius: 20)
-                                                .stroke(Color.orange.opacity(0.5), lineWidth: statusFilter == .inProgress ? 1.5 : 0)
-                                        )
-                                    }
-                                    .buttonStyle(ScaleButtonStyle())
-                                    
-                                    Button(action: {
-                                        // Show all in-progress trips
-                                        statusFilter = .inProgress
-                                    }) {
-                                        HStack {
-                                            Image(systemName: "arrow.triangle.swap")
-                                                .foregroundColor(.blue)
-                                            Text("In Progress")
-                                                .font(.caption)
-                                        }
-                                        .padding(.vertical, 8)
-                                        .padding(.horizontal, 12)
-                                        .background(statusFilter == .inProgress ? Color.blue.opacity(0.2) : Color(.systemBackground))
-                                        .cornerRadius(20)
-                                        .overlay(
-                                            RoundedRectangle(cornerRadius: 20)
-                                                .stroke(Color.blue.opacity(0.5), lineWidth: statusFilter == .inProgress ? 1.5 : 0)
-                                        )
-                                    }
-                                    .buttonStyle(ScaleButtonStyle())
-                                    
-                                    Button(action: {
-                                        // Clear all filters
-                                        statusFilter = nil
-                                    }) {
-                                        HStack {
-                                            Image(systemName: "arrow.clockwise")
-                                                .foregroundColor(.green)
-                                            Text("All Trips")
-                                                .font(.caption)
-                                        }
-                                        .padding(.vertical, 8)
-                                        .padding(.horizontal, 12)
-                                        .background(statusFilter == nil ? Color.green.opacity(0.2) : Color(.systemBackground))
-                                        .cornerRadius(20)
-                                        .overlay(
-                                            RoundedRectangle(cornerRadius: 20)
-                                                .stroke(Color.green.opacity(0.5), lineWidth: statusFilter == nil ? 1.5 : 0)
-                                        )
-                                    }
-                                    .buttonStyle(ScaleButtonStyle())
-                                }
-                                .padding(.horizontal, 16)
-                            }
-                        }
-                        
-                        Divider()
-                            .padding(.vertical, 4)
-                        
-                        // Live tracking controls
-                        VStack(spacing: 10) {
-                            Button(action: {
-                                // Enable live tracking for all vehicles on the map
-                                let vehicleIds = filteredTrips.compactMap { $0.vehicleId }
-                                locationManager.startTrackingVehicles(vehicleIds: vehicleIds)
-                            }) {
-                                HStack {
-                                    Image(systemName: "location.fill")
-                                        .foregroundColor(.white)
-                                    Text("Track All Vehicles")
-                                        .font(.subheadline)
-                                        .fontWeight(.semibold)
-                                        .foregroundColor(.white)
-                                }
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 12)
-                                .background(Color.green)
-                                .cornerRadius(12)
-                            }
-                            
-                            Button(action: {
-                                // Show optimal routes for all active trips
-                                // This would show traffic-optimized routes for all vehicles
-                                for trip in filteredTrips.filter({ $0.status == .inProgress }) {
-                                    locationManager.calculateRoute(from: trip.startLocation, to: trip.endLocation) { result in
-                                        // Route is recalculated with live traffic data
-                                    }
-                                }
-                            }) {
-                                HStack {
-                                    Image(systemName: "arrow.triangle.turn.up.right.diamond.fill")
-                                        .foregroundColor(.white)
-                                    Text("Optimize Routes")
-                                        .font(.subheadline)
-                                        .fontWeight(.semibold)
-                                        .foregroundColor(.white)
-                                }
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 12)
-                                .background(Color.blue)
-                                .cornerRadius(12)
-                            }
-                        }
-                        .padding(.horizontal, 16)
-                        .padding(.bottom, 16)
+                    }) {
+                        Label("Switch to List View", systemImage: "list.bullet")
+                            .padding()
+                            .background(Color.accentColor)
+                            .foregroundColor(.white)
+                            .cornerRadius(10)
                     }
-                    .background(
-                        RoundedRectangle(cornerRadius: 16)
-                            .fill(Color(.systemBackground).opacity(0.95))
-                            .shadow(color: Color.black.opacity(0.1), radius: 10, x: 0, y: -5)
-                    )
-                    .frame(width: 300)
-                    .padding(.trailing, 16)
-                    .padding(.bottom, 16)
+                    .padding(.top, 10)
                 }
+                .padding()
             }
         }
     }
@@ -680,12 +520,18 @@ struct TripManagementView: View {
                     
                     VStack(alignment: .leading, spacing: 5) {
                         Text(trip.title)
-                            .font(.headline)
-                            .fontWeight(.semibold)
+                            .font(.title3)
+                            .fontWeight(.bold)
                         
-                        Text(formatDateTime(trip.scheduledStartTime))
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
+                        HStack(spacing: 4) {
+                            Image(systemName: "clock")
+                                .font(.footnote)
+                                .foregroundColor(.secondary)
+                            
+                            Text(formatDateTime(trip.scheduledStartTime))
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                        }
                     }
                 }
                 
@@ -704,152 +550,203 @@ struct TripManagementView: View {
                     .foregroundColor(statusColor(for: trip.status))
                     .overlay(
                         Capsule()
-                            .stroke(statusColor(for: trip.status).opacity(0.3), lineWidth: 1)
+                            .strokeBorder(statusColor(for: trip.status).opacity(0.3), lineWidth: 1)
                     )
-            }
-            .padding(.bottom, 6)
-            
-            Divider()
-                .background(Color(.systemGray4).opacity(0.7))
-                .padding(.vertical, 6)
-            
-            // Trip locations
-            VStack(alignment: .leading, spacing: 18) {
-                HStack(spacing: 14) {
-                    ZStack {
-                        Circle()
-                            .fill(Color.green.opacity(0.15))
-                            .frame(width: 32, height: 32)
-                        
-                        Image(systemName: "mappin.circle.fill")
-                            .font(.system(size: 16))
-                            .foregroundColor(.green)
-                    }
-                    
-                    Text(trip.startLocation)
-                        .font(.subheadline)
-                        .lineLimit(1)
                 }
+                .padding(.bottom, 6)
                 
-                // Connecting line between points
-                HStack {
-                    Rectangle()
-                        .frame(width: 1, height: 30)
-                        .foregroundColor(Color(.systemGray4))
-                        .padding(.leading, 16)
-                    
-                    Spacer()
-                }
-                
-                HStack(spacing: 14) {
-                    ZStack {
-                        Circle()
-                            .fill(Color.red.opacity(0.15))
-                            .frame(width: 32, height: 32)
-                        
-                        Image(systemName: "location.circle.fill")
-                            .font(.system(size: 16))
-                            .foregroundColor(.red)
-                    }
-                    
-                    Text(trip.endLocation)
-                        .font(.subheadline)
-                        .lineLimit(1)
-                }
-            }
-            
-            // If we have driver and vehicle info, show it
-            if trip.driverId != nil || trip.vehicleId != nil {
                 Divider()
                     .background(Color(.systemGray4).opacity(0.7))
                     .padding(.vertical, 6)
                 
-                HStack(spacing: 24) {
-                    if let driverId = trip.driverId,
-                       let driver = driverViewModel.getDriverById(driverId) {
-                        HStack(spacing: 10) {
-                            ZStack {
-                                Circle()
-                                    .fill(Color.blue.opacity(0.15))
-                                    .frame(width: 30, height: 30)
-                                
-                                Image(systemName: "person.fill")
-                                    .font(.system(size: 14))
-                                    .foregroundColor(.blue)
-                            }
+                // Trip locations
+                VStack(alignment: .leading, spacing: 18) {
+                    HStack(spacing: 14) {
+                        ZStack {
+                            Circle()
+                                .fill(Color.green.opacity(0.15))
+                                .frame(width: 32, height: 32)
                             
-                            Text(driver.name)
-                                .font(.callout)
+                            Image(systemName: "mappin.circle.fill")
+                                .font(.system(size: 16))
+                                .foregroundColor(.green)
+                        }
+                        
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("From")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                            
+                            Text(trip.startLocation)
+                                .font(.subheadline)
                                 .fontWeight(.medium)
-                                .foregroundColor(.primary)
                                 .lineLimit(1)
                         }
                     }
                     
-                    if let vehicleId = trip.vehicleId,
-                       let vehicle = vehicleViewModel.getVehicleById(vehicleId) {
-                        HStack(spacing: 10) {
-                            ZStack {
-                                Circle()
-                                    .fill(Color.orange.opacity(0.15))
-                                    .frame(width: 30, height: 30)
-                                
-                                Image(systemName: "car.fill")
-                                    .font(.system(size: 14))
-                                    .foregroundColor(.orange)
-                            }
-                            
-                            Text(vehicle.registrationNumber)
-                                .font(.callout)
-                                .fontWeight(.medium)
-                                .foregroundColor(.primary)
-                                .lineLimit(1)
-                        }
-                    }
-                }
-            }
-            
-            // Trip progress if in progress
-            if trip.status == .inProgress, let actualStartTime = trip.actualStartTime {
-                Divider()
-                    .background(Color(.systemGray4).opacity(0.7))
-                    .padding(.vertical, 6)
-                
-                VStack(alignment: .leading, spacing: 12) {
+                    // Connecting line between points
                     HStack {
-                        Text("Trip Progress")
-                            .font(.callout)
-                            .foregroundColor(.secondary)
+                        VStack(spacing: 2) {
+                            ForEach(0..<3) { _ in
+                                Circle()
+                                    .fill(Color(.systemGray4))
+                                    .frame(width: 4, height: 4)
+                            }
+                        }
+                        .padding(.leading, 14)
                         
                         Spacer()
-                        
-                        Text("\(Int(calculateProgress(for: trip) * 100))%")
-                            .font(.callout)
-                            .fontWeight(.semibold)
-                            .foregroundColor(.blue)
                     }
                     
-                    ProgressView(value: calculateProgress(for: trip))
-                        .progressViewStyle(LinearProgressViewStyle(tint: .blue))
-                        .background(Color(.systemGray6))
-                        .cornerRadius(10)
-                        .frame(height: 8)
+                    HStack(spacing: 14) {
+                        ZStack {
+                            Circle()
+                                .fill(Color.red.opacity(0.15))
+                                .frame(width: 32, height: 32)
+                            
+                            Image(systemName: "location.circle.fill")
+                                .font(.system(size: 16))
+                                .foregroundColor(.red)
+                        }
+                        
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("To")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                            
+                            Text(trip.endLocation)
+                                .font(.subheadline)
+                                .fontWeight(.medium)
+                                .lineLimit(1)
+                        }
+                    }
+                }
+                
+                // If we have driver and vehicle info, show it
+                if trip.driverId != nil || trip.vehicleId != nil {
+                    Divider()
+                        .background(Color(.systemGray4).opacity(0.7))
+                        .padding(.vertical, 6)
+                    
+                    HStack(spacing: 24) {
+                        if let driverId = trip.driverId,
+                           let driver = driverViewModel.getDriverById(driverId) {
+                            HStack(spacing: 10) {
+                                ZStack {
+                                    Circle()
+                                        .fill(Color.blue.opacity(0.15))
+                                        .frame(width: 30, height: 30)
+                                    
+                                    Image(systemName: "person.fill")
+                                        .font(.system(size: 14))
+                                        .foregroundColor(.blue)
+                                }
+                                
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("Driver")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                    
+                                    Text(driver.name)
+                                        .font(.callout)
+                                        .fontWeight(.medium)
+                                        .foregroundColor(.primary)
+                                        .lineLimit(1)
+                                }
+                            }
+                        }
+                        
+                        if let vehicleId = trip.vehicleId,
+                           let vehicle = vehicleViewModel.getVehicleById(vehicleId) {
+                            HStack(spacing: 10) {
+                                ZStack {
+                                    Circle()
+                                        .fill(Color.orange.opacity(0.15))
+                                        .frame(width: 30, height: 30)
+                                    
+                                    Image(systemName: "car.fill")
+                                        .font(.system(size: 14))
+                                        .foregroundColor(.orange)
+                                }
+                                
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("Vehicle")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                    
+                                    Text(vehicle.registrationNumber)
+                                        .font(.callout)
+                                        .fontWeight(.medium)
+                                        .foregroundColor(.primary)
+                                        .lineLimit(1)
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                // Trip progress if in progress
+                if trip.status == .inProgress, let actualStartTime = trip.actualStartTime {
+                    Divider()
+                        .background(Color(.systemGray4).opacity(0.7))
+                        .padding(.vertical, 6)
+                    
+                    VStack(alignment: .leading, spacing: 12) {
+                        HStack {
+                            Text("Trip Progress")
+                                .font(.callout)
+                                .fontWeight(.medium)
+                                .foregroundColor(.secondary)
+                            
+                            Spacer()
+                            
+                            Text("\(Int(calculateProgress(for: trip) * 100))%")
+                                .font(.callout)
+                                .fontWeight(.semibold)
+                                .foregroundColor(.blue)
+                        }
+                        
+                        ProgressView(value: calculateProgress(for: trip))
+                            .progressViewStyle(LinearProgressViewStyle(tint: .blue))
+                            .background(Color(.systemGray6))
+                            .cornerRadius(10)
+                            .frame(height: 8)
+                    }
                 }
             }
+            .padding(24)
+            .background(
+                ZStack {
+                    RoundedRectangle(cornerRadius: 20)
+                        .fill(Color(.systemBackground))
+                    
+                    // Add subtle accent top border based on status
+                    VStack {
+                        Rectangle()
+                            .fill(statusColor(for: trip.status))
+                            .frame(height: 4)
+                            .cornerRadius(2)
+                            .padding(.horizontal, 40)
+                        
+                        Spacer()
+                    }
+                    .padding(.top, 2)
+                }
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 20)
+                    .strokeBorder(Color(.systemGray4).opacity(0.3), lineWidth: 0.5)
+            )
+            .shadow(
+                color: Color.black.opacity(0.08),
+                radius: 15,
+                x: 0,
+                y: 6
+            )
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .frame(minHeight: 250)
         }
-        .padding(24)
-        .background(
-            RoundedRectangle(cornerRadius: 20)
-                .fill(Color(.systemBackground))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 20)
-                .stroke(Color(.systemGray4).opacity(0.5), lineWidth: 1)
-        )
-        .shadow(color: Color.black.opacity(0.06), radius: 12, x: 0, y: 4)
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
-        .frame(minHeight: 250)
     }
     
     // MARK: - Helper Methods
@@ -949,4 +846,4 @@ struct TripManagementView: View {
         .environmentObject(TripViewModel())
         .environmentObject(DriverViewModel())
         .environmentObject(VehicleViewModel())
-} 
+}

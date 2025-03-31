@@ -64,7 +64,7 @@ struct ScheduledTripsCalendarView: View {
                 }
             }
         }
-        .sheet(isPresented: $showingAddTrip) {
+        .fullScreenCover(isPresented: $showingAddTrip) {
             NavigationStack {
                 AddTripView()
             }

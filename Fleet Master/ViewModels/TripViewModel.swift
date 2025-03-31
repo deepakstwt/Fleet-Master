@@ -29,7 +29,7 @@ class TripViewModel: ObservableObject {
     
     // Route and location properties
     private var locationManager = LocationManager()
-    @Published var routeInformation: (distance: CLLocationDistance, time: TimeInterval)?
+    @Published var routeInformation: RouteInformation?
     @Published var isLoadingRoute = false
     @Published var routeError: String?
     
@@ -38,7 +38,7 @@ class TripViewModel: ObservableObject {
     
     init() {
         // Add location access request during initialization
-        locationManager.requestLocationPermission()
+        locationManager.requestWhenInUseAuthorization()
         
         // Setup listeners for address changes to calculate routes
         setupLocationCalculation()
@@ -104,7 +104,7 @@ class TripViewModel: ObservableObject {
                 
                 switch result {
                 case .success(let route):
-                    self.routeInformation = (route.distance, route.expectedTravelTime)
+                    self.routeInformation = RouteInformation(distance: route.distance, time: route.expectedTravelTime)
                     self.distance = route.distance / 1000 // Convert to km
                 case .failure(let error):
                     self.routeError = error.localizedDescription
@@ -155,6 +155,9 @@ class TripViewModel: ObservableObject {
         // Generate a unique ID
         let newId = "T\(trips.count + 1)"
         
+        // Add route information before creating the trip
+        let tripRouteInfo = routeInformation
+        
         // Add the new trip
         let newTrip = Trip(id: newId, 
                            title: title, 
@@ -167,7 +170,8 @@ class TripViewModel: ObservableObject {
                            vehicleId: vehicleId, 
                            description: description,
                            distance: distance,
-                           notes: notes.isEmpty ? nil : notes)
+                           notes: notes.isEmpty ? nil : notes,
+                           routeInfo: tripRouteInfo)
         
         trips.append(newTrip)
         resetForm()
@@ -194,7 +198,10 @@ class TripViewModel: ObservableObject {
                                vehicleId: vehicleId, 
                                description: description,
                                distance: distance,
-                                actualStartTime: selectedTrip.actualStartTime, actualEndTime: selectedTrip.actualEndTime, notes: notes.isEmpty ? nil : notes)
+                               actualStartTime: selectedTrip.actualStartTime, 
+                               actualEndTime: selectedTrip.actualEndTime, 
+                               notes: notes.isEmpty ? nil : notes,
+                               routeInfo: routeInformation ?? selectedTrip.routeInfo)
         }
         
         isShowingEditTrip = false
@@ -281,5 +288,15 @@ class TripViewModel: ObservableObject {
         if let routeInfo = routeInformation {
             self.distance = routeInfo.distance / 1000 // Convert to km
         }
+    }
+    
+    // Updates route info for an existing trip
+    func updateTripRouteInfo(trip: Trip, routeInfo: RouteInformation) {
+        guard let index = trips.firstIndex(where: { $0.id == trip.id }) else { return }
+        
+        // Update the trip with the new route info
+        trips[index].routeInfo = routeInfo
+        // Also update distance for consistency
+        trips[index].distance = routeInfo.distance / 1000
     }
 } 

@@ -50,7 +50,7 @@ struct MapPermissionView: View {
                 .padding(.horizontal)
             } else {
                 Button(action: {
-                    locationManager.requestLocationPermission()
+                    locationManager.requestWhenInUseAuthorization()
                 }) {
                     Text("Allow Location Access")
                         .fontWeight(.semibold)

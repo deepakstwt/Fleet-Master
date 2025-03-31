@@ -59,6 +59,7 @@ struct EmptyStateView: View {
                 .foregroundColor(.secondary.opacity(0.7))
             
             Text(title)
+            
                 .font(.title2)
                 .fontWeight(.semibold)
             
