@@ -6,8 +6,10 @@ struct DashboardView: View {
     @EnvironmentObject private var driverViewModel: DriverViewModel
     @EnvironmentObject private var vehicleViewModel: VehicleViewModel
     @State private var selectedTimeFrame: TimeFrame = .week
+    @StateObject private var locationManager = LocationManager()
     @State private var showingMapView = false
-    @State private var selectedTrip: Trip?
+    @State private var selectedTrip: Trip? = nil
+    @State private var isHindiMode: Bool = false
     
     enum TimeFrame: String, CaseIterable, Identifiable {
         case day = "Day"
@@ -87,7 +89,9 @@ struct DashboardView: View {
                         Spacer()
                         
                         Button(action: {
-                            // Open detailed map view
+                            // Show selected trips on full-screen map
+                            selectedTrip = tripViewModel.inProgressTrips.first
+                            showingMapView = true
                         }) {
                             Text("View All")
                                 .font(.subheadline)
@@ -96,14 +100,21 @@ struct DashboardView: View {
                     }
                     
                     ZStack {
-                        RoundedRectangle(cornerRadius: 12)
-                            .fill(Color(.systemGray6))
-                            .frame(height: 200)
-                        
-                        // Sample map preview (replace with actual map component)
-                        Image(systemName: "map")
-                            .font(.system(size: 40))
-                            .foregroundColor(.gray)
+                        // Professional map preview instead of placeholder
+                        TripMapView(
+                            trips: tripViewModel.inProgressTrips, 
+                            locationManager: locationManager,
+                            isAssignedTrip: true,
+                            showAllRoutes: false,
+                            highlightSelectedRoute: true
+                        )
+                        .frame(height: 220)
+                        .cornerRadius(12)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(Color.gray.opacity(0.2), lineWidth: 1)
+                        )
+                        .shadow(color: Color.black.opacity(0.1), radius: 4, x: 0, y: 2)
                         
                         // Overlay showing active vehicles/trips count
                         VStack {
@@ -120,13 +131,36 @@ struct DashboardView: View {
                                 .padding()
                                 
                                 Spacer()
+                                
+                                if !tripViewModel.inProgressTrips.isEmpty {
+                                    Button(action: {
+                                        // Track all vehicles
+                                        let vehicleIds = tripViewModel.inProgressTrips.compactMap { $0.vehicleId }
+                                        locationManager.startTrackingVehicles(vehicleIds: vehicleIds)
+                                    }) {
+                                        HStack {
+                                            Image(systemName: "location.fill")
+                                                .foregroundColor(.white)
+                                            Text("Track")
+                                                .font(.subheadline)
+                                                .foregroundColor(.white)
+                                        }
+                                        .padding(.horizontal, 12)
+                                        .padding(.vertical, 8)
+                                        .background(Color.green)
+                                        .cornerRadius(20)
+                                    }
+                                    .padding(.trailing, 12)
+                                }
                             }
                             .background(Color.black.opacity(0.6))
                         }
                     }
                     .cornerRadius(12)
                     .onTapGesture {
-                        // Open map view
+                        // Show most recent active trip on tap
+                        selectedTrip = tripViewModel.inProgressTrips.first
+                        showingMapView = true
                     }
                 }
                 .padding(.horizontal)
@@ -246,16 +280,22 @@ struct DashboardView: View {
         .sheet(isPresented: $showingMapView) {
             if let trip = selectedTrip {
                 NavigationStack {
-                    TripMapView(startLocation: trip.startLocation, endLocation: trip.endLocation)
-                        .navigationTitle("Trip Route")
-                        .navigationBarTitleDisplayMode(.inline)
-                        .toolbar {
-                            ToolbarItem(placement: .cancellationAction) {
-                                Button("Close") {
-                                    showingMapView = false
+                    VStack(spacing: 0) {
+                        TripMapView(
+                            trips: [trip], 
+                            locationManager: locationManager,
+                            isAssignedTrip: trip.status == .inProgress && trip.driverId != nil && trip.vehicleId != nil
+                        )
+                            .navigationTitle("Trip Route")
+                            .navigationBarTitleDisplayMode(.inline)
+                            .toolbar {
+                                ToolbarItem(placement: .cancellationAction) {
+                                    Button("Close") {
+                                        showingMapView = false
+                                    }
                                 }
                             }
-                        }
+                    }
                 }
             }
         }

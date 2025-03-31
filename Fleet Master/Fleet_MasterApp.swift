@@ -96,7 +96,7 @@ struct Fleet_MasterApp: App {
                     .environmentObject(tripViewModel)
                     .environmentObject(appStateManager)
                     .onAppear {
-                        locationManager.requestLocationPermission()
+                        locationManager.requestWhenInUseAuthorization()
                     }
             } else {
                 LoginView()
@@ -107,7 +107,7 @@ struct Fleet_MasterApp: App {
                     .environmentObject(appStateManager)
                     .onAppear {
                         // Request location permissions when the app launches
-                        locationManager.requestLocationPermission()
+                        locationManager.requestWhenInUseAuthorization()
                     }
                     .sheet(isPresented: $showPermissionRequest) {
                         MapPermissionView()

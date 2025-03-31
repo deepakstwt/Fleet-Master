@@ -1,6 +1,6 @@
 import Foundation
 
-struct Trip: Identifiable, Codable {
+struct Trip: Identifiable, Codable, Hashable, Equatable {
     var id: String
     var title: String
     var startLocation: String
@@ -15,6 +15,17 @@ struct Trip: Identifiable, Codable {
     var actualStartTime: Date?
     var actualEndTime: Date?
     var notes: String?
+    var routeInfo: RouteInformation?
+    
+    // MARK: - Hashable & Equatable
+    
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(id)
+    }
+    
+    static func == (lhs: Trip, rhs: Trip) -> Bool {
+        return lhs.id == rhs.id
+    }
     
     init(id: String = UUID().uuidString,
          title: String,
@@ -29,7 +40,8 @@ struct Trip: Identifiable, Codable {
          distance: Double? = nil,
          actualStartTime: Date? = nil,
          actualEndTime: Date? = nil,
-         notes: String? = nil) {
+         notes: String? = nil,
+         routeInfo: RouteInformation? = nil) {
         self.id = id
         self.title = title
         self.startLocation = startLocation
@@ -44,6 +56,7 @@ struct Trip: Identifiable, Codable {
         self.actualStartTime = actualStartTime
         self.actualEndTime = actualEndTime
         self.notes = notes
+        self.routeInfo = routeInfo
     }
     
     // MARK: - Preview Helpers
@@ -75,4 +88,13 @@ enum TripStatus: String, Codable, CaseIterable {
     case inProgress = "In Progress"
     case completed = "Completed"
     case cancelled = "Cancelled"
+}
+
+struct RouteInformation: Equatable, Codable {
+    let distance: Double
+    let time: TimeInterval
+    
+    static func == (lhs: RouteInformation, rhs: RouteInformation) -> Bool {
+        return lhs.distance == rhs.distance && lhs.time == rhs.time
+    }
 } 
