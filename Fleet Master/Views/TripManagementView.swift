@@ -27,6 +27,10 @@ struct TripManagementView: View {
     @State private var alertMessage = ""
     @State private var viewMode: ViewMode = .list
     @State private var showFilterOptions = false
+    @State private var isRefreshing = false
+    @State private var isProcessingAction = false
+    @State private var showError = false
+    @State private var errorMessage = ""
     
     enum ViewMode {
         case list
@@ -36,85 +40,168 @@ struct TripManagementView: View {
     
     var body: some View {
         NavigationStack {
-            VStack(spacing: 0) {
-                // Header with stats and search bar
-                headerSection
-                
-                // View type selector and filters
-                controlSection
-                
-                // Content based on view mode
-                contentSection
-            }
-            .navigationTitle("Trip Management")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Image(systemName: "car.fill")
-                        .foregroundColor(.accentColor)
-                        .font(.system(size: 18, weight: .semibold))
+            ZStack {
+                VStack(spacing: 0) {
+                    // Header with stats and search bar
+                    headerSection
+                    
+                    // View type selector and filters
+                    controlSection
+                    
+                    // Content based on view mode
+                    contentSection
+                        .overlay(
+                            Group {
+                                if tripViewModel.isLoading && !isRefreshing {
+                                    ProgressView("Loading trips...")
+                                        .padding()
+                                        .background(Color(.systemBackground).opacity(0.8))
+                                        .cornerRadius(10)
+                                        .shadow(radius: 3)
+                                }
+                            }
+                        )
                 }
-                
-                ToolbarItem(placement: .primaryAction) {
-                    Button(action: {
-                        showAddSheet = true
-                    }) {
-                        Label("", systemImage: "plus")
-                            .font(.system(size: 16, weight: .semibold))
-                            .foregroundColor(.white)
-                            .frame(width: 38, height: 38)
-                            .background(Circle().fill(Color.accentColor))
-                            .shadow(color: Color.accentColor.opacity(0.4), radius: 5, x: 0, y: 2)
+                .navigationTitle("Trip Management")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .navigationBarLeading) {
+                        Image(systemName: "car.fill")
+                            .foregroundColor(.accentColor)
+                            .font(.system(size: 18, weight: .semibold))
+                    }
+                    
+                    ToolbarItem(placement: .navigationBarTrailing) {
+                        Button(action: {
+                            Task {
+                                await refreshData()
+                            }
+                        }) {
+                            Image(systemName: "arrow.clockwise")
+                                .font(.system(size: 16, weight: .semibold))
+                        }
+                        .disabled(isRefreshing || tripViewModel.isLoading || isProcessingAction)
+                    }
+                    
+                    ToolbarItem(placement: .primaryAction) {
+                        Button(action: {
+                            showAddSheet = true
+                        }) {
+                            Label("", systemImage: "plus")
+                                .font(.system(size: 16, weight: .semibold))
+                                .foregroundColor(.white)
+                                .frame(width: 38, height: 38)
+                                .background(Circle().fill(Color.accentColor))
+                                .shadow(color: Color.accentColor.opacity(0.4), radius: 5, x: 0, y: 2)
+                        }
                     }
                 }
-            }
-            .alert(isPresented: $showAlert) {
-                Alert(
-                    title: Text("Status Update"),
-                    message: Text(alertMessage),
-                    dismissButton: .default(Text("OK"))
-                )
-            }
-            .fullScreenCover(isPresented: $showAddSheet) {
-                NavigationStack {
-                    AddTripView()
+                .alert(isPresented: $showAlert) {
+                    Alert(
+                        title: Text("Status Update"),
+                        message: Text(alertMessage),
+                        dismissButton: .default(Text("OK"))
+                    )
                 }
-            }
-            .sheet(isPresented: $showEditSheet) {
-                if let trip = selectedTrip {
+                .fullScreenCover(isPresented: $showAddSheet) {
                     NavigationStack {
-                        EditTripView(selectedTrip: trip)
+                        AddTripView()
+                            .environmentObject(tripViewModel)
+                            .environmentObject(driverViewModel)
+                            .environmentObject(vehicleViewModel)
                     }
-                    .presentationDetents([.large])
                 }
-            }
-            .sheet(isPresented: $showAssignDriverSheet) {
-                if let trip = selectedTrip {
+                .sheet(isPresented: $showEditSheet) {
+                    if let trip = selectedTrip {
+                        NavigationStack {
+                            EditTripView(selectedTrip: trip)
+                        }
+                        .presentationDetents([.large])
+                        .onDisappear {
+                            // Refresh data when edit sheet disappears
+                            Task {
+                                await refreshData()
+                            }
+                        }
+                    }
+                }
+                .sheet(isPresented: $showAssignDriverSheet) {
+                    if let trip = selectedTrip {
+                        NavigationStack {
+                            AssignDriverView(selectedTrip: trip)
+                        }
+                        .presentationDetents([.medium])
+                        .onDisappear {
+                            // Refresh data when assign driver sheet disappears
+                            Task {
+                                await refreshData()
+                            }
+                        }
+                    }
+                }
+                .sheet(item: $selectedTrip) { trip in
                     NavigationStack {
-                        AssignDriverView(selectedTrip: trip)
-                    }
-                    .presentationDetents([.medium])
-                }
-            }
-            .sheet(item: $selectedTrip) { trip in
-                NavigationStack {
-                    TripDetailView(trip: trip)
-                        .onAppear {
-                            // Load route information if not already available
-                            if trip.routeInfo == nil {
-                                locationManager.calculateRoute(from: trip.startLocation, to: trip.endLocation) { result in
-                                    if case .success(let route) = result {
-                                        // Update trip with route info in view model
-                                        let routeInfo = RouteInformation(distance: route.distance, time: route.expectedTravelTime)
-                                        tripViewModel.updateTripRouteInfo(trip: trip, routeInfo: routeInfo)
+                        TripDetailView(trip: trip)
+                            .onAppear {
+                                // Load route information if not already available
+                                if trip.routeInfo == nil {
+                                    locationManager.calculateRoute(from: trip.startLocation, to: trip.endLocation) { [self] result in
+                                        if case .success(let route) = result {
+                                            // Update trip with route info in view model
+                                            let routeInfo = RouteInformation(distance: route.distance, time: route.expectedTravelTime)
+                                            self.tripViewModel.updateTripRouteInfo(trip: trip, routeInfo: routeInfo)
+                                        }
                                     }
                                 }
                             }
-                        }
+                    }
+                    .presentationDetents([.large])
                 }
-                .presentationDetents([.large])
+                
+                // Display overlay for processing state
+                if isProcessingAction {
+                    Color.black.opacity(0.4)
+                        .edgesIgnoringSafeArea(.all)
+                    
+                    VStack {
+                        ProgressView()
+                            .tint(.white)
+                        Text("Processing...")
+                            .foregroundColor(.white)
+                            .padding(.top, 8)
+                    }
+                    .padding()
+                    .background(RoundedRectangle(cornerRadius: 10).fill(Color(.systemGray4)))
+                }
+            }
+            .alert("Error", isPresented: $showError) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(errorMessage)
+            }
+            .onAppear {
+                // Refresh data when the view appears
+                Task {
+                    await refreshData()
+                }
             }
         }
+    }
+    
+    // MARK: - Data Operations
+    
+    private func refreshData() async {
+        isRefreshing = true
+        
+        // Apply any active filters
+        await tripViewModel.loadTrips(withStatus: statusFilter)
+        
+        // If we have an active search, also apply that
+        if !searchText.isEmpty {
+            await tripViewModel.searchTripsFromSupabase()
+        }
+        
+        isRefreshing = false
     }
     
     // MARK: - UI Components
@@ -270,9 +357,20 @@ struct TripManagementView: View {
                 case .list:
                     tripListView
                 case .calendar:
-                    ScheduledTripsCalendarView()
+                    ScrollView {
+                        ScheduledTripsCalendarView()
+                    }
+                    .refreshable {
+                        await refreshData()
+                    }
                 case .map:
-                    mapContent
+                    ScrollView {
+                        mapContent
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    }
+                    .refreshable {
+                        await refreshData()
+                    }
                 }
             }
         }
@@ -299,9 +397,9 @@ struct TripManagementView: View {
                         
                         if trip.status == .scheduled || trip.status == .inProgress {
                             Button(role: .destructive, action: {
-                                tripViewModel.cancelTrip(trip)
-                                alertMessage = "Trip has been cancelled."
-                                showAlert = true
+                                Task {
+                                    await cancelTrip(trip)
+                                }
                             }) {
                                 Label("Cancel", systemImage: "xmark.circle")
                             }
@@ -319,18 +417,18 @@ struct TripManagementView: View {
                         
                         if trip.status == .scheduled {
                             Button(action: {
-                                tripViewModel.updateTripStatus(trip: trip, newStatus: .inProgress)
-                                alertMessage = "Trip has been started."
-                                showAlert = true
+                                Task {
+                                    await updateTripStatus(trip: trip, newStatus: .inProgress)
+                                }
                             }) {
                                 Label("Start", systemImage: "play.circle")
                             }
                             .tint(.green)
                         } else if trip.status == .inProgress {
                             Button(action: {
-                                tripViewModel.updateTripStatus(trip: trip, newStatus: .completed)
-                                alertMessage = "Trip has been completed."
-                                showAlert = true
+                                Task {
+                                    await updateTripStatus(trip: trip, newStatus: .completed)
+                                }
                             }) {
                                 Label("Complete", systemImage: "checkmark.circle")
                             }
@@ -342,6 +440,32 @@ struct TripManagementView: View {
             .listRowSeparator(.hidden)
         }
         .listStyle(.plain)
+        .refreshable {
+            await refreshData()
+        }
+        .overlay(
+            ZStack {
+                if isProcessingAction {
+                    Color.black.opacity(0.3)
+                        .edgesIgnoringSafeArea(.all)
+                    
+                    VStack {
+                        ProgressView()
+                            .tint(.white)
+                        Text("Processing...")
+                            .foregroundColor(.white)
+                            .padding(.top, 8)
+                    }
+                    .padding()
+                    .background(RoundedRectangle(cornerRadius: 10).fill(Color(.systemGray4)))
+                }
+            }
+        )
+        .alert("Error", isPresented: $showError) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(errorMessage)
+        }
     }
     
     private var mapContent: some View {
@@ -594,7 +718,96 @@ struct TripManagementView: View {
         .padding()
     }
     
-    // MARK: - UI Components
+    // MARK: - Helper Methods
+    
+    private var filteredTrips: [Trip] {
+        tripViewModel.trips.filter { trip in
+            // First check if the trip matches the search text
+            let matchesSearch: Bool
+            if searchText.isEmpty {
+                matchesSearch = true
+            } else {
+                matchesSearch = trip.title.localizedCaseInsensitiveContains(searchText) ||
+                    trip.description.localizedCaseInsensitiveContains(searchText) ||
+                    trip.startLocation.localizedCaseInsensitiveContains(searchText) ||
+                    trip.endLocation.localizedCaseInsensitiveContains(searchText)
+            }
+            
+            // Then check if it matches the status filter
+            let matchesStatus = statusFilter == nil || trip.status == statusFilter
+            
+            // Return true only if both conditions are satisfied
+            return matchesSearch && matchesStatus
+        }
+    }
+    
+    private func getDriverName(for trip: Trip) -> String {
+        if let driverId = trip.driverId, 
+           let driver = driverViewModel.getDriverById(driverId) {
+            return driver.name
+        }
+        return "Unassigned"
+    }
+    
+    private func getVehicleName(for trip: Trip) -> String {
+        if let vehicleId = trip.vehicleId, 
+           let vehicle = vehicleViewModel.getVehicleById(vehicleId) {
+            return formatVehicle(vehicle)
+        }
+        return "Unassigned"
+    }
+    
+    private func formatVehicle(_ vehicle: Vehicle?) -> String {
+        guard let vehicle = vehicle else { return "Unknown" }
+        return "\(vehicle.make) \(vehicle.model)"
+    }
+    
+    private func statusIcon(for status: TripStatus) -> some View {
+        switch status {
+        case .scheduled:
+            return Image(systemName: "calendar")
+                .foregroundColor(.blue)
+        case .inProgress:
+            return Image(systemName: "arrow.triangle.swap")
+                .foregroundColor(.orange)
+        case .completed:
+            return Image(systemName: "checkmark.circle.fill")
+                .foregroundColor(.green)
+        case .cancelled:
+            return Image(systemName: "xmark.circle.fill")
+                .foregroundColor(.red)
+        }
+    }
+    
+    private func statusColor(for status: TripStatus) -> Color {
+        switch status {
+        case .scheduled:
+            return .blue
+        case .inProgress:
+            return .orange
+        case .completed:
+            return .green
+        case .cancelled:
+            return .red
+        }
+    }
+    
+    private func calculateProgress(for trip: Trip) -> Double {
+        guard trip.status == .inProgress, 
+              let actualStartTime = trip.actualStartTime else { return 0.0 }
+        
+        let now = Date()
+        let totalDuration = trip.scheduledEndTime.timeIntervalSince(actualStartTime)
+        let elapsedDuration = now.timeIntervalSince(actualStartTime)
+        
+        return max(0, min(1, elapsedDuration / totalDuration))
+    }
+    
+    private func formatDateTime(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "E, MMM d · h:mm a"
+        return formatter.string(from: date)
+    }
     
     private func statCard(count: Int, title: String, icon: String, color: Color) -> some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -852,95 +1065,69 @@ struct TripManagementView: View {
         .frame(minHeight: 250)
     }
     
-    // MARK: - Helper Methods
+    // MARK: - Action Methods
     
-    private var filteredTrips: [Trip] {
-        tripViewModel.trips.filter { trip in
-            // First check if the trip matches the search text
-            let matchesSearch: Bool
-            if searchText.isEmpty {
-                matchesSearch = true
-            } else {
-                matchesSearch = trip.title.localizedCaseInsensitiveContains(searchText) ||
-                    trip.description.localizedCaseInsensitiveContains(searchText) ||
-                    trip.startLocation.localizedCaseInsensitiveContains(searchText) ||
-                    trip.endLocation.localizedCaseInsensitiveContains(searchText)
+    private func cancelTrip(_ trip: Trip) async {
+        isProcessingAction = true
+        
+        do {
+            // Use Task to perform async operation
+            try await tripViewModel.cancelTripAsync(trip)
+            
+            // Update UI on the main thread
+            await MainActor.run {
+                isProcessingAction = false
+                alertMessage = "Trip has been cancelled successfully."
+                showAlert = true
+                
+                // Refresh data to ensure UI is updated
+                Task {
+                    await refreshData()
+                }
             }
-            
-            // Then check if it matches the status filter
-            let matchesStatus = statusFilter == nil || trip.status == statusFilter
-            
-            // Return true only if both conditions are satisfied
-            return matchesSearch && matchesStatus
+        } catch {
+            await MainActor.run {
+                isProcessingAction = false
+                errorMessage = "Failed to cancel trip: \(error.localizedDescription)"
+                showError = true
+            }
         }
     }
     
-    private func getDriverName(for trip: Trip) -> String {
-        if let driverId = trip.driverId, 
-           let driver = driverViewModel.getDriverById(driverId) {
-            return driver.name
-        }
-        return "Unassigned"
-    }
-    
-    private func getVehicleName(for trip: Trip) -> String {
-        if let vehicleId = trip.vehicleId, 
-           let vehicle = vehicleViewModel.getVehicleById(vehicleId) {
-            return formatVehicle(vehicle)
-        }
-        return "Unassigned"
-    }
-    
-    private func formatVehicle(_ vehicle: Vehicle?) -> String {
-        guard let vehicle = vehicle else { return "Unknown" }
-        return "\(vehicle.make) \(vehicle.model)"
-    }
-    
-    private func statusIcon(for status: TripStatus) -> some View {
-        switch status {
-        case .scheduled:
-            return Image(systemName: "calendar")
-                .foregroundColor(.blue)
-        case .inProgress:
-            return Image(systemName: "arrow.triangle.swap")
-                .foregroundColor(.orange)
-        case .completed:
-            return Image(systemName: "checkmark.circle.fill")
-                .foregroundColor(.green)
-        case .cancelled:
-            return Image(systemName: "xmark.circle.fill")
-                .foregroundColor(.red)
-        }
-    }
-    
-    private func statusColor(for status: TripStatus) -> Color {
-        switch status {
-        case .scheduled:
-            return .blue
-        case .inProgress:
-            return .orange
-        case .completed:
-            return .green
-        case .cancelled:
-            return .red
-        }
-    }
-    
-    private func calculateProgress(for trip: Trip) -> Double {
-        guard trip.status == .inProgress, 
-              let actualStartTime = trip.actualStartTime else { return 0.0 }
+    private func updateTripStatus(trip: Trip, newStatus: TripStatus) async {
+        isProcessingAction = true
         
-        let now = Date()
-        let totalDuration = trip.scheduledEndTime.timeIntervalSince(actualStartTime)
-        let elapsedDuration = now.timeIntervalSince(actualStartTime)
-        
-        return max(0, min(1, elapsedDuration / totalDuration))
-    }
-    
-    private func formatDateTime(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "E, MMM d · h:mm a"
-        return formatter.string(from: date)
+        do {
+            // Use Task to perform async operation
+            try await tripViewModel.updateTripStatusAsync(trip: trip, newStatus: newStatus)
+            
+            // Update UI on the main thread
+            await MainActor.run {
+                isProcessingAction = false
+                
+                let statusMessage: String
+                switch newStatus {
+                case .inProgress: statusMessage = "Trip has been started."
+                case .completed: statusMessage = "Trip has been completed."
+                case .cancelled: statusMessage = "Trip has been cancelled."
+                default: statusMessage = "Trip status has been updated."
+                }
+                
+                alertMessage = statusMessage
+                showAlert = true
+                
+                // Refresh data to ensure UI is updated
+                Task {
+                    await refreshData()
+                }
+            }
+        } catch {
+            await MainActor.run {
+                isProcessingAction = false
+                errorMessage = "Failed to update trip status: \(error.localizedDescription)"
+                showError = true
+            }
+        }
     }
 }
 
