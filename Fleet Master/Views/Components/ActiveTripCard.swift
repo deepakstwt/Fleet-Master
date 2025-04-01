@@ -95,19 +95,6 @@ struct ActiveTripCard: View {
         .background(Color(.systemBackground))
         .clipShape(RoundedRectangle(cornerRadius: 12))
         .shadow(color: Color(.systemGray4).opacity(0.5), radius: 5)
-        .sheet(isPresented: $showMap) {
-            NavigationStack {
-                TripMapView(startLocation: trip.startLocation, endLocation: trip.endLocation)
-                    .navigationTitle("Track Vehicle")
-                    .navigationBarTitleDisplayMode(.inline)
-                    .toolbar {
-                        ToolbarItem(placement: .topBarTrailing) {
-                            Button("Close") {
-                                showMap = false
-                            }
-                        }
-                    }
-            }
         }
     }
     
@@ -122,4 +109,4 @@ struct ActiveTripCard: View {
             return "\(minutes)m"
         }
     }
-} 
+

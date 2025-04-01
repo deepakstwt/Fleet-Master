@@ -17,7 +17,7 @@ struct DashboardView: View {
                     // KPI Metrics (Fleet Summary)
                     VStack(spacing: 24) {  // Increased spacing
                         Text("Fleet Summary")
-                            .font(.title)  // Larger title
+                            .font(.title2)  // Larger title
                             .fontWeight(.bold)
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .padding(.horizontal)
@@ -209,7 +209,7 @@ struct KPICard: View {
             // Header with icon and title
             HStack(spacing: 12) {
                 Image(systemName: icon)
-                    .font(.system(size: 35))
+                    .font(.system(size: 28))
                     .foregroundStyle(.white)
                     .frame(width: 48, height: 48)
                     .background(

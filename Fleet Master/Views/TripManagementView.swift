@@ -166,8 +166,8 @@ struct TripManagementView: View {
                                 .stroke(showFilterOptions ? Color.accentColor.opacity(0.5) : Color.clear, lineWidth: 1.5)
                         )
                 }
-                
-                // Search bar
+            
+            // Search bar
                 HStack {
                     Image(systemName: "magnifyingglass")
                         .foregroundColor(.secondary)
@@ -235,16 +235,16 @@ struct TripManagementView: View {
                         .padding(.horizontal, 16)
                         .padding(.top, 4)
                     
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 10) {
-                            filterButton(title: "All Trips", status: nil)
-                            filterButton(title: "Scheduled", status: .scheduled)
-                            filterButton(title: "In Progress", status: .inProgress)
-                            filterButton(title: "Completed", status: .completed)
-                            filterButton(title: "Cancelled", status: .cancelled)
-                        }
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 10) {
+                        filterButton(title: "All Trips", status: nil)
+                        filterButton(title: "Scheduled", status: .scheduled)
+                        filterButton(title: "In Progress", status: .inProgress)
+                        filterButton(title: "Completed", status: .completed)
+                        filterButton(title: "Cancelled", status: .cancelled)
+                    }
                         .padding(.horizontal, 16)
-                        .padding(.vertical, 8)
+                    .padding(.vertical, 8)
                     }
                 }
                 .transition(.move(edge: .top).combined(with: .opacity))
@@ -362,7 +362,7 @@ struct TripManagementView: View {
                     // Fleet Manager Control Panel
                     VStack(spacing: 12) {
                         Text("Fleet Manager Controls")
-                            .font(.headline)
+                        .font(.headline)
                             .padding(.horizontal, 16)
                             .padding(.top, 12)
                             .foregroundColor(.primary)
@@ -408,7 +408,7 @@ struct TripManagementView: View {
                         VStack(alignment: .leading, spacing: 8) {
                             Text("Filter Active Trips")
                                 .font(.subheadline)
-                                .foregroundColor(.secondary)
+                        .foregroundColor(.secondary)
                                 .padding(.horizontal, 16)
                             
                             ScrollView(.horizontal, showsIndicators: false) {
@@ -455,7 +455,7 @@ struct TripManagementView: View {
                                     }
                                     .buttonStyle(ScaleButtonStyle())
                                     
-                                    Button(action: {
+                    Button(action: {
                                         // Clear all filters
                                         statusFilter = nil
                                     }) {
@@ -519,7 +519,7 @@ struct TripManagementView: View {
                                     Text("Optimize Routes")
                                         .font(.subheadline)
                                         .fontWeight(.semibold)
-                                        .foregroundColor(.white)
+                            .foregroundColor(.white)
                                 }
                                 .frame(maxWidth: .infinity)
                                 .padding(.vertical, 12)
@@ -577,13 +577,13 @@ struct TripManagementView: View {
             }) {
                 HStack {
                     Image(systemName: "plus")
-                    Text("Add Trip")
+                Text("Add Trip")
                         .fontWeight(.semibold)
                 }
                 .padding(.horizontal, 32)
                 .padding(.vertical, 16)
-                .background(Color.accentColor)
-                .foregroundColor(.white)
+                    .background(Color.accentColor)
+                    .foregroundColor(.white)
                 .cornerRadius(16)
                 .shadow(color: Color.accentColor.opacity(0.3), radius: 8, x: 0, y: 4)
             }
@@ -604,9 +604,9 @@ struct TripManagementView: View {
                         .fill(color.opacity(0.12))
                         .frame(width: 36, height: 36)
                     
-                    Image(systemName: icon)
+                Image(systemName: icon)
                         .font(.system(size: 18, weight: .semibold))
-                        .foregroundColor(color)
+                    .foregroundColor(color)
                 }
                 
                 Spacer()
@@ -674,7 +674,7 @@ struct TripManagementView: View {
                             .fill(statusColor(for: trip.status).opacity(0.15))
                             .frame(width: 44, height: 44)
                         
-                        statusIcon(for: trip.status)
+                    statusIcon(for: trip.status)
                             .font(.system(size: 18, weight: .semibold))
                     }
                     
@@ -717,7 +717,7 @@ struct TripManagementView: View {
             VStack(alignment: .leading, spacing: 18) {
                 HStack(spacing: 14) {
                     ZStack {
-                        Circle()
+                    Circle()
                             .fill(Color.green.opacity(0.15))
                             .frame(width: 32, height: 32)
                         
@@ -751,16 +751,16 @@ struct TripManagementView: View {
                             .font(.system(size: 16))
                             .foregroundColor(.red)
                     }
-                    
-                    Text(trip.endLocation)
-                        .font(.subheadline)
+                        
+                        Text(trip.endLocation)
+                            .font(.subheadline)
                         .lineLimit(1)
                 }
             }
             
             // If we have driver and vehicle info, show it
             if trip.driverId != nil || trip.vehicleId != nil {
-                Divider()
+            Divider()
                     .background(Color(.systemGray4).opacity(0.7))
                     .padding(.vertical, 6)
                 
@@ -773,7 +773,7 @@ struct TripManagementView: View {
                                     .fill(Color.blue.opacity(0.15))
                                     .frame(width: 30, height: 30)
                                 
-                                Image(systemName: "person.fill")
+                    Image(systemName: "person.fill")
                                     .font(.system(size: 14))
                                     .foregroundColor(.blue)
                             }
@@ -949,4 +949,4 @@ struct TripManagementView: View {
         .environmentObject(TripViewModel())
         .environmentObject(DriverViewModel())
         .environmentObject(VehicleViewModel())
-} 
+}

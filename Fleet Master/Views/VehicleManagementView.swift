@@ -9,13 +9,13 @@ struct VehicleManagementView: View {
     @State private var showAddVehicleSheet = false
     @State private var showEditVehicleSheet = false
     @State private var selectedVehicle: Vehicle?
-    @State private var selectedSortOption: SortOption = .newest
+    @State private var selectedSortOption: SortOption = .available
     @State private var showFilterMenu = false
     @State private var selectedVehicleTypeFilter: VehicleType?
     @State private var showActiveOnly = true
     
     enum SortOption {
-        case newest, oldest, makeAsc, makeDesc
+        case available, underMaintenance, onTrip, assigned
     }
     
     private var sortedVehicles: [Vehicle] {
@@ -40,13 +40,13 @@ struct VehicleManagementView: View {
         }
         
         switch selectedSortOption {
-        case .newest:
+        case .available:
             return filteredVehicles.sorted(by: { $0.year > $1.year })
-        case .oldest:
+            case .underMaintenance:
             return filteredVehicles.sorted(by: { $0.year < $1.year })
-        case .makeAsc:
+            case .onTrip:
             return filteredVehicles.sorted(by: { $0.make < $1.make })
-        case .makeDesc:
+            case .assigned:
             return filteredVehicles.sorted(by: { $0.make > $1.make })
         }
     }
@@ -139,31 +139,31 @@ struct VehicleManagementView: View {
             Divider()
             
                 Button {
-                    selectedSortOption = .newest
+                    selectedSortOption = .available
                 } label: {
-                    Label("Newest First", systemImage: "arrow.down")
-                        .foregroundColor(selectedSortOption == .newest ? .blue : .primary)
+                    Label("Available", systemImage: "arrow.down")
+                        .foregroundColor(selectedSortOption == .available ? .blue : .primary)
                 }
                 
                 Button {
-                    selectedSortOption = .oldest
+                    selectedSortOption = .underMaintenance
                 } label: {
-                    Label("Oldest First", systemImage: "arrow.up")
-                        .foregroundColor(selectedSortOption == .oldest ? .blue : .primary)
+                    Label("Under Maintenance", systemImage: "arrow.up")
+                        .foregroundColor(selectedSortOption == .underMaintenance ? .blue : .primary)
                 }
                 
                 Button {
-                    selectedSortOption = .makeAsc
+                    selectedSortOption = .onTrip
                 } label: {
-                    Label("Make (A-Z)", systemImage: "arrow.up")
-                        .foregroundColor(selectedSortOption == .makeAsc ? .blue : .primary)
+                    Label("On Trip", systemImage: "arrow.up")
+                        .foregroundColor(selectedSortOption == .onTrip ? .blue : .primary)
                 }
                 
                 Button {
-                    selectedSortOption = .makeDesc
+                    selectedSortOption = .assigned
                 } label: {
-                    Label("Make (Z-A)", systemImage: "arrow.down")
-                        .foregroundColor(selectedSortOption == .makeDesc ? .blue : .primary)
+                    Label("Assigned Trip", systemImage: "arrow.down")
+                        .foregroundColor(selectedSortOption == .assigned ? .blue : .primary)
             }
         } label: {
             Image(systemName: "slider.horizontal.3")
@@ -176,7 +176,6 @@ struct VehicleManagementView: View {
             .sheet(isPresented: $showFilterMenu) {
                 filterView
     }
-    
             // Add vehicle button
                     Button(action: {
                 showAddVehicleSheet = true
@@ -364,21 +363,6 @@ struct VehicleManagementView: View {
                     Text("Vehicle Info")
                         .font(.subheadline.bold())
                         .foregroundStyle(.primary)
-                    
-                                Button {
-                        withAnimation {
-                            if selectedSortOption == .makeAsc {
-                                selectedSortOption = .makeDesc
-                            } else {
-                                selectedSortOption = .makeAsc
-                            }
-                        }
-                                } label: {
-                        Image(systemName: selectedSortOption == .makeDesc ? "arrow.down" : "arrow.up")
-                            .font(.caption)
-                            .foregroundStyle(selectedSortOption == .makeAsc || selectedSortOption == .makeDesc ? .blue : .secondary)
-                    }
-                    .buttonStyle(BorderlessButtonStyle())
                 }
                 .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
                 .layoutPriority(2)
@@ -389,28 +373,11 @@ struct VehicleManagementView: View {
                     .frame(width: 80, alignment: .center)
                     .layoutPriority(1)
                 
-                // Year column with sort button
-                HStack(spacing: 4) {
-                    Text("Year")
-                        .font(.subheadline.bold())
-                                
-                                Button {
-                        withAnimation {
-                            if selectedSortOption == .newest {
-                                selectedSortOption = .oldest
-                            } else {
-                                selectedSortOption = .newest
-                            }
-                        }
-                                } label: {
-                        Image(systemName: selectedSortOption == .oldest ? "arrow.down" : "arrow.up")
-                            .font(.caption)
-                            .foregroundStyle(selectedSortOption == .newest || selectedSortOption == .oldest ? .blue : .secondary)
-                    }
-                    .buttonStyle(BorderlessButtonStyle())
-                }
-                .frame(width: 70, alignment: .center)
-                .layoutPriority(1)
+                // Year column
+                Text("Year")
+                    .font(.subheadline.bold())
+                    .frame(width: 70, alignment: .center)
+                    .layoutPriority(1)
                 
                 // Status column
                 Text("Status")

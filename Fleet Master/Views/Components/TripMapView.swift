@@ -192,7 +192,7 @@ struct TripMapView: View {
     private func makeLookAroundView() -> some View {
         Group {
             if let lookAroundScene = lookAroundScene, #available(iOS 16.0, *) {
-            VStack {
+                VStack {
                     // Look Around Preview
                     LookAroundPreview(initialScene: lookAroundScene)
                         .frame(height: 200)
@@ -346,11 +346,11 @@ struct TripMapView: View {
     }
     
     private func makeBottomControls() -> some View {
-        VStack {
+            VStack {
             Spacer()
             
             if isAssignedTrip {
-                    HStack {
+                HStack {
                     Spacer()
                     
                     // Apple Maps Style Bottom Control Bar
@@ -378,7 +378,7 @@ struct TripMapView: View {
     }
     
     private func makeVehicleTrackingButton() -> some View {
-        Button(action: {
+                    Button(action: {
             if let trip = selectedTrip ?? trips.first, let vehicleId = trip.vehicleId {
                 locationManager.startTrackingVehicles(vehicleIds: [vehicleId])
                 trackUserLocation = true
@@ -433,7 +433,7 @@ struct TripMapView: View {
             
             TripAnalyticsView(trips: trips.filter { $0.status == .inProgress })
                 .frame(height: 200)
-                .padding(.horizontal)
+                        .padding(.horizontal)
                 .padding(.bottom, isAssignedTrip ? 200 : 16)
                 .transition(.move(edge: .bottom))
         }
