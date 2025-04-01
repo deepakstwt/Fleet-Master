@@ -67,6 +67,9 @@ struct ScheduledTripsCalendarView: View {
         .fullScreenCover(isPresented: $showingAddTrip) {
             NavigationStack {
                 AddTripView()
+                    .environmentObject(tripViewModel)
+                    .environmentObject(driverViewModel)
+                    .environmentObject(vehicleViewModel)
             }
         }
     }

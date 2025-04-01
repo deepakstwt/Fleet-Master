@@ -338,7 +338,7 @@ struct TripMapView: View {
             }
         }) {
             AppleMapControl(
-                symbol: "compass",
+                symbol: "safari",
                 backgroundColor: .ultraThinMaterial,
                 foregroundColor: .primary
             )

@@ -13,6 +13,8 @@ class TripViewModel: ObservableObject {
     @Published var alertMessage = ""
     @Published var showAlert = false
     @Published var filterStatus: TripStatus?
+    @Published var isLoading: Bool = false
+    @Published var errorMessage: String? = nil
     
     // Form properties
     @Published var title = ""
@@ -35,12 +37,20 @@ class TripViewModel: ObservableObject {
     
     private var cancellables = Set<AnyCancellable>()
     
+    // Supabase manager for CRUD operations
+    private let tripSupabaseManager = TripSupabaseManager.shared
+    
     init() {
         // Add location access request during initialization
         locationManager.requestWhenInUseAuthorization()
         
         // Setup listeners for address changes to calculate routes
         setupLocationCalculation()
+        
+        // Load trips from Supabase
+        Task {
+            await loadTrips()
+        }
     }
     
     private func setupLocationCalculation() {
@@ -76,6 +86,8 @@ class TripViewModel: ObservableObject {
         }
     }
     
+    // MARK: - Computed Properties
+    
     var filteredTrips: [Trip] {
         let filtered = trips.filter { trip in
             if let filterStatus = filterStatus, trip.status != filterStatus {
@@ -107,6 +119,68 @@ class TripViewModel: ObservableObject {
             .sorted { $0.scheduledStartTime < $1.scheduledStartTime }
     }
     
+    // MARK: - Supabase CRUD Operations
+    
+    /// Load all trips from Supabase
+    @MainActor
+    func loadTrips() async {
+        isLoading = true
+        errorMessage = nil
+        
+        do {
+            trips = try await tripSupabaseManager.fetchAllTrips()
+        } catch {
+            errorMessage = "Failed to load trips: \(error.localizedDescription)"
+            print("Error loading trips: \(error)")
+        }
+        
+        isLoading = false
+    }
+    
+    /// Load trips with status filter from Supabase
+    @MainActor
+    func loadTrips(withStatus status: TripStatus? = nil) async {
+        isLoading = true
+        errorMessage = nil
+        
+        do {
+            trips = try await tripSupabaseManager.fetchTrips(status: status)
+        } catch {
+            errorMessage = "Failed to load trips: \(error.localizedDescription)"
+            print("Error loading trips: \(error)")
+        }
+        
+        isLoading = false
+    }
+    
+    /// Search trips from Supabase
+    @MainActor
+    func searchTripsFromSupabase() async {
+        guard !searchText.isEmpty else {
+            await loadTrips(withStatus: filterStatus)
+            return
+        }
+        
+        isLoading = true
+        errorMessage = nil
+        
+        do {
+            trips = try await tripSupabaseManager.searchTrips(searchText: searchText)
+            
+            // Apply filter if needed
+            if let status = filterStatus {
+                trips = trips.filter { $0.status == status }
+            }
+        } catch {
+            errorMessage = "Failed to search trips: \(error.localizedDescription)"
+            print("Error searching trips: \(error)")
+        }
+        
+        isLoading = false
+    }
+    
+    /// Add a new trip to Supabase
+    @MainActor
     func addTrip() {
         guard !title.isEmpty, !startLocation.isEmpty, !endLocation.isEmpty, !description.isEmpty else {
             alertMessage = "Please fill in all required fields"
@@ -114,32 +188,52 @@ class TripViewModel: ObservableObject {
             return
         }
         
-        // Generate a unique ID
-        let newId = "T\(trips.count + 1)"
-        
-        // Add route information before creating the trip
-        let tripRouteInfo = routeInformation
-        
         // Add the new trip
-        let newTrip = Trip(id: newId, 
-                           title: title, 
-                           startLocation: startLocation, 
-                           endLocation: endLocation, 
-                           scheduledStartTime: scheduledStartTime, 
-                           scheduledEndTime: scheduledEndTime, 
-                           status: status, 
-                           driverId: driverId, 
-                           vehicleId: vehicleId, 
-                           description: description,
-                           distance: distance,
-                           notes: notes.isEmpty ? nil : notes,
-                           routeInfo: tripRouteInfo)
+        let newTrip = Trip(
+            id: UUID().uuidString, // Supabase will handle this, but we need a value
+            title: title, 
+            startLocation: startLocation, 
+            endLocation: endLocation, 
+            scheduledStartTime: scheduledStartTime, 
+            scheduledEndTime: scheduledEndTime, 
+            status: status, 
+            driverId: driverId, 
+            vehicleId: vehicleId, 
+            description: description,
+            distance: distance,
+            notes: notes.isEmpty ? nil : notes,
+            routeInfo: routeInformation
+        )
         
-        trips.append(newTrip)
-        resetForm()
-        isShowingAddTrip = false
+        Task {
+            isLoading = true
+            
+            do {
+                let addedTrip = try await tripSupabaseManager.addTrip(newTrip)
+                await MainActor.run {
+                    trips.append(addedTrip)
+                    resetForm()
+                    isShowingAddTrip = false
+                    alertMessage = "Trip added successfully!"
+                    showAlert = true
+                }
+            } catch {
+                await MainActor.run {
+                    errorMessage = "Failed to add trip: \(error.localizedDescription)"
+                    print("Error adding trip: \(error)")
+                    showAlert = true
+                    alertMessage = "Failed to add trip: \(error.localizedDescription)"
+                }
+            }
+            
+            await MainActor.run {
+                isLoading = false
+            }
+        }
     }
     
+    /// Update an existing trip in Supabase
+    @MainActor
     func updateTrip() {
         guard let selectedTrip = selectedTrip else { return }
         guard !title.isEmpty, !startLocation.isEmpty, !endLocation.isEmpty, !description.isEmpty else {
@@ -148,59 +242,213 @@ class TripViewModel: ObservableObject {
             return
         }
         
-        if let index = trips.firstIndex(where: { $0.id == selectedTrip.id }) {
-            trips[index] = Trip(id: selectedTrip.id, 
-                               title: title, 
-                               startLocation: startLocation, 
-                               endLocation: endLocation, 
-                               scheduledStartTime: scheduledStartTime, 
-                               scheduledEndTime: scheduledEndTime, 
-                               status: status, 
-                               driverId: driverId, 
-                               vehicleId: vehicleId, 
-                               description: description,
-                               distance: distance,
-                               actualStartTime: selectedTrip.actualStartTime, 
-                               actualEndTime: selectedTrip.actualEndTime, 
-                               notes: notes.isEmpty ? nil : notes,
-                               routeInfo: routeInformation ?? selectedTrip.routeInfo)
+        let updatedTrip = Trip(
+            id: selectedTrip.id, 
+            title: title, 
+            startLocation: startLocation, 
+            endLocation: endLocation, 
+            scheduledStartTime: scheduledStartTime, 
+            scheduledEndTime: scheduledEndTime, 
+            status: status, 
+            driverId: driverId, 
+            vehicleId: vehicleId, 
+            description: description,
+            distance: distance,
+            actualStartTime: selectedTrip.actualStartTime, 
+            actualEndTime: selectedTrip.actualEndTime, 
+            notes: notes.isEmpty ? nil : notes,
+            routeInfo: routeInformation ?? selectedTrip.routeInfo
+        )
+        
+        Task {
+            isLoading = true
+            
+            do {
+                let updated = try await tripSupabaseManager.updateTrip(updatedTrip)
+                await MainActor.run {
+                    if let index = trips.firstIndex(where: { $0.id == updated.id }) {
+                        trips[index] = updated
+                    }
+                    resetForm()
+                    isShowingEditTrip = false
+                    alertMessage = "Trip updated successfully!"
+                    showAlert = true
+                }
+            } catch {
+                await MainActor.run {
+                    errorMessage = "Failed to update trip: \(error.localizedDescription)"
+                    print("Error updating trip: \(error)")
+                    showAlert = true
+                    alertMessage = "Failed to update trip: \(error.localizedDescription)"
+                }
+            }
+            
+            await MainActor.run {
+                isLoading = false
+            }
+        }
+    }
+    
+    /// Assign a driver and vehicle to a trip in Supabase
+    func assignDriver(to trip: Trip, driverId: String?, vehicleId: String?) {
+        guard let driverId = driverId, let vehicleId = vehicleId else {
+            alertMessage = "Please select both a driver and a vehicle"
+            showAlert = true
+            return
         }
         
-        isShowingEditTrip = false
-        resetForm()
+        Task {
+            isLoading = true
+            
+            do {
+                let updatedTrip = try await tripSupabaseManager.assignDriverAndVehicle(tripId: trip.id, driverId: driverId, vehicleId: vehicleId)
+                
+                await MainActor.run {
+                    if let index = trips.firstIndex(where: { $0.id == updatedTrip.id }) {
+                        trips[index] = updatedTrip
+                    }
+                    
+                    alertMessage = "Driver assigned to trip successfully!"
+                    showAlert = true
+                }
+            } catch {
+                await MainActor.run {
+                    errorMessage = "Failed to assign driver: \(error.localizedDescription)"
+                    print("Error assigning driver: \(error)")
+                    alertMessage = "Failed to assign driver: \(error.localizedDescription)"
+                    showAlert = true
+                }
+            }
+            
+            await MainActor.run {
+                isLoading = false
+            }
+        }
     }
     
-    func assignDriver(to trip: Trip, driverId: String?, vehicleId: String?) {
-        guard let index = trips.firstIndex(where: { $0.id == trip.id }) else { return }
-        
-        trips[index].driverId = driverId
-        trips[index].vehicleId = vehicleId
-        
-        alertMessage = "Driver assigned to trip successfully!"
-        showAlert = true
-    }
-    
+    /// Update trip status in Supabase
     func updateTripStatus(trip: Trip, newStatus: TripStatus) {
-        guard let index = trips.firstIndex(where: { $0.id == trip.id }) else { return }
-        
+        var actualStart: Date? = nil
+        var actualEnd: Date? = nil
         let now = Date()
         
+        // Set actual start/end times based on status
         switch newStatus {
         case .inProgress:
-            trips[index].actualStartTime = now
+            actualStart = now
         case .completed:
-            trips[index].actualEndTime = now
+            actualEnd = now
         default:
             break
         }
         
-        trips[index].status = newStatus
+        Task {
+            isLoading = true
+            
+            do {
+                let updatedTrip = try await tripSupabaseManager.updateTripStatus(
+                    tripId: trip.id,
+                    status: newStatus,
+                    actualStartTime: actualStart,
+                    actualEndTime: actualEnd
+                )
+                
+                await MainActor.run {
+                    if let index = trips.firstIndex(where: { $0.id == updatedTrip.id }) {
+                        trips[index] = updatedTrip
+                    }
+                    
+                    alertMessage = "Trip status updated successfully!"
+                    showAlert = true
+                }
+            } catch {
+                await MainActor.run {
+                    errorMessage = "Failed to update trip status: \(error.localizedDescription)"
+                    print("Error updating trip status: \(error)")
+                    alertMessage = "Failed to update trip status: \(error.localizedDescription)"
+                    showAlert = true
+                }
+            }
+            
+            await MainActor.run {
+                isLoading = false
+            }
+        }
     }
     
+    /// Cancel a trip in Supabase
     func cancelTrip(_ trip: Trip) {
-        guard let index = trips.firstIndex(where: { $0.id == trip.id }) else { return }
-        trips[index].status = .cancelled
+        updateTripStatus(trip: trip, newStatus: .cancelled)
     }
+    
+    /// Async version of updateTripStatus that throws errors
+    func updateTripStatusAsync(trip: Trip, newStatus: TripStatus) async throws {
+        var actualStart: Date? = nil
+        var actualEnd: Date? = nil
+        let now = Date()
+        
+        // Set actual start/end times based on status
+        switch newStatus {
+        case .inProgress:
+            actualStart = now
+        case .completed:
+            actualEnd = now
+        default:
+            break
+        }
+        
+        // Direct call to the Supabase manager, no wrapping in Task since caller manages that
+        let updatedTrip = try await tripSupabaseManager.updateTripStatus(
+            tripId: trip.id,
+            status: newStatus,
+            actualStartTime: actualStart,
+            actualEndTime: actualEnd
+        )
+                
+        // Update local state on success
+        await MainActor.run {
+            if let index = trips.firstIndex(where: { $0.id == updatedTrip.id }) {
+                trips[index] = updatedTrip
+            }
+        }
+        
+        return
+    }
+    
+    /// Async version of cancelTrip that throws errors
+    func cancelTripAsync(_ trip: Trip) async throws {
+        try await updateTripStatusAsync(trip: trip, newStatus: .cancelled)
+    }
+    
+    /// Delete a trip from Supabase
+    func deleteTrip(_ trip: Trip) {
+        Task {
+            isLoading = true
+            
+            do {
+                try await tripSupabaseManager.deleteTrip(id: trip.id)
+                
+                await MainActor.run {
+                    trips.removeAll { $0.id == trip.id }
+                    alertMessage = "Trip deleted successfully!"
+                    showAlert = true
+                }
+            } catch {
+                await MainActor.run {
+                    errorMessage = "Failed to delete trip: \(error.localizedDescription)"
+                    print("Error deleting trip: \(error)")
+                    alertMessage = "Failed to delete trip: \(error.localizedDescription)"
+                    showAlert = true
+                }
+            }
+            
+            await MainActor.run {
+                isLoading = false
+            }
+        }
+    }
+    
+    // MARK: - Helper Methods
     
     func selectTripForEdit(trip: Trip) {
         selectedTrip = trip
@@ -215,6 +463,7 @@ class TripViewModel: ObservableObject {
         description = trip.description
         distance = trip.distance
         notes = trip.notes ?? ""
+        routeInformation = trip.routeInfo
         isShowingEditTrip = true
     }
     
@@ -230,6 +479,7 @@ class TripViewModel: ObservableObject {
         description = ""
         distance = nil
         notes = ""
+        routeInformation = nil
         isShowingAddTrip = false
     }
     
@@ -254,11 +504,32 @@ class TripViewModel: ObservableObject {
     
     // Updates route info for an existing trip
     func updateTripRouteInfo(trip: Trip, routeInfo: RouteInformation) {
-        guard let index = trips.firstIndex(where: { $0.id == trip.id }) else { return }
+        // Create updated trip with new route info
+        var updatedTrip = trip
+        updatedTrip.routeInfo = routeInfo
+        updatedTrip.distance = routeInfo.distance / 1000 // Convert to km
         
-        // Update the trip with the new route info
-        trips[index].routeInfo = routeInfo
-        // Also update distance for consistency
-        trips[index].distance = routeInfo.distance / 1000
+        // Update locally first for UI responsiveness
+        if let index = trips.firstIndex(where: { $0.id == trip.id }) {
+            trips[index].routeInfo = routeInfo
+            trips[index].distance = routeInfo.distance / 1000
+        }
+        
+        // Then update in Supabase
+        Task {
+            do {
+                _ = try await tripSupabaseManager.updateTrip(updatedTrip)
+                print("Trip route info updated successfully in database")
+            } catch {
+                print("Error updating trip route info: \(error)")
+            }
+        }
+    }
+    
+    // Refreshes all trips from Supabase
+    func refreshTrips() {
+        Task {
+            await loadTrips()
+        }
     }
 } 

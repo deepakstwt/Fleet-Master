@@ -21,6 +21,11 @@ struct EditTripView: View {
     @State private var driverId: String?
     @State private var vehicleId: String?
     
+    // UI state
+    @State private var isUpdating = false
+    @State private var showError = false
+    @State private var errorMessage = ""
+    
     init(selectedTrip: Trip) {
         self.selectedTrip = selectedTrip
         _title = State(initialValue: selectedTrip.title)
@@ -38,91 +43,126 @@ struct EditTripView: View {
     
     var body: some View {
         NavigationStack {
-            Form {
-                Section("Trip Information") {
-                    TextField("Trip Title", text: $title)
-                    
-                    TextField("Start Location", text: $startLocation)
-                    TextField("End Location", text: $endLocation)
-                    
-                    DatePicker("Scheduled Start", selection: $scheduledStartTime)
-                    DatePicker("Scheduled End", selection: $scheduledEndTime)
-                    
-                    Picker("Status", selection: $tripStatus) {
-                        ForEach(TripStatus.allCases, id: \.self) { status in
-                            Text(status.rawValue).tag(status)
-                        }
-                    }
-                    .pickerStyle(.menu)
-                    
-                    HStack {
-                        Text("Expected Distance (km)")
-                        Spacer()
-                        TextField("Distance", value: $distance, format: .number)
-                            .keyboardType(.decimalPad)
-                            .multilineTextAlignment(.trailing)
-                            .frame(width: 100)
-                    }
-                }
-                
-                Section("Description") {
-                    TextEditor(text: $tripDescription)
-                        .frame(minHeight: 100)
-                }
-                
-                Section("Notes (Optional)") {
-                    TextEditor(text: $notes)
-                        .frame(minHeight: 100)
-                }
-                
-                Section("Assignment") {
-                    Picker("Driver", selection: $driverId) {
-                        Text("Unassigned").tag(nil as String?)
+            ZStack {
+                Form {
+                    Section("Trip Information") {
+                        TextField("Trip Title", text: $title)
                         
-                        ForEach(driverViewModel.availableDrivers) { driver in
-                            Text(driver.name).tag(driver.id as String?)
-                        }
-                    }
-                    .pickerStyle(.menu)
-                    
-                    Picker("Vehicle", selection: $vehicleId) {
-                        Text("Unassigned").tag(nil as String?)
+                        TextField("Start Location", text: $startLocation)
+                        TextField("End Location", text: $endLocation)
                         
-                        ForEach(vehicleViewModel.activeVehicles) { vehicle in
-                            Text("\(vehicle.make) \(vehicle.model) (\(vehicle.registrationNumber))").tag(vehicle.id as String?)
+                        DatePicker("Scheduled Start", selection: $scheduledStartTime)
+                        DatePicker("Scheduled End", selection: $scheduledEndTime)
+                        
+                        Picker("Status", selection: $tripStatus) {
+                            ForEach(TripStatus.allCases, id: \.self) { status in
+                                Text(status.rawValue).tag(status)
+                            }
+                        }
+                        .pickerStyle(.menu)
+                        
+                        HStack {
+                            Text("Expected Distance (km)")
+                            Spacer()
+                            TextField("Distance", value: $distance, format: .number)
+                                .keyboardType(.decimalPad)
+                                .multilineTextAlignment(.trailing)
+                                .frame(width: 100)
                         }
                     }
-                    .pickerStyle(.menu)
+                    
+                    Section("Description") {
+                        TextEditor(text: $tripDescription)
+                            .frame(minHeight: 100)
+                    }
+                    
+                    Section("Notes (Optional)") {
+                        TextEditor(text: $notes)
+                            .frame(minHeight: 100)
+                    }
+                    
+                    Section("Assignment") {
+                        Picker("Driver", selection: $driverId) {
+                            Text("Unassigned").tag(nil as String?)
+                            
+                            ForEach(driverViewModel.availableDrivers) { driver in
+                                Text(driver.name).tag(driver.id as String?)
+                            }
+                        }
+                        .pickerStyle(.menu)
+                        
+                        Picker("Vehicle", selection: $vehicleId) {
+                            Text("Unassigned").tag(nil as String?)
+                            
+                            ForEach(vehicleViewModel.activeVehicles) { vehicle in
+                                Text("\(vehicle.make) \(vehicle.model) (\(vehicle.registrationNumber))").tag(vehicle.id as String?)
+                            }
+                        }
+                        .pickerStyle(.menu)
+                    }
+                    
+                    Section {
+                        Button(action: {
+                            Task {
+                                await updateTrip()
+                            }
+                        }) {
+                            HStack {
+                                Spacer()
+                                Text("Update Trip")
+                                    .fontWeight(.semibold)
+                                Spacer()
+                            }
+                        }
+                        .disabled(title.isEmpty || 
+                                  startLocation.isEmpty || 
+                                  endLocation.isEmpty ||
+                                  tripDescription.isEmpty ||
+                                  isUpdating)
+                    }
                 }
+                .navigationTitle("Edit Trip")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Cancel") {
+                            dismiss()
+                        }
+                    }
+                }
+                .onAppear {
+                    // Set the selected trip for editing in the view model
+                    tripViewModel.selectedTrip = selectedTrip
+                }
+                .alert("Error Updating Trip", isPresented: $showError) {
+                    Button("OK", role: .cancel) {}
+                } message: {
+                    Text(errorMessage)
+                }
+                .disabled(isUpdating)
                 
-                Section {
-                    Button("Update Trip") {
-                        prepareAndUpdateTrip()
-                        dismiss()
+                // Overlay the loading indicator
+                if isUpdating {
+                    Color.black.opacity(0.4)
+                        .edgesIgnoringSafeArea(.all)
+                    
+                    VStack {
+                        ProgressView()
+                            .tint(.white)
+                        Text("Updating trip...")
+                            .foregroundColor(.white)
+                            .padding(.top, 8)
                     }
-                    .disabled(title.isEmpty || 
-                              startLocation.isEmpty || 
-                              endLocation.isEmpty ||
-                              tripDescription.isEmpty)
+                    .padding()
+                    .background(RoundedRectangle(cornerRadius: 10).fill(Color(.systemGray4)))
                 }
-            }
-            .navigationTitle("Edit Trip")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") {
-                        dismiss()
-                    }
-                }
-            }
-            .onAppear {
-                // Set the selected trip for editing in the view model
-                tripViewModel.selectedTrip = selectedTrip
             }
         }
     }
     
-    private func prepareAndUpdateTrip() {
+    private func updateTrip() async {
+        isUpdating = true
+        
         // Transfer form data to view model
         tripViewModel.title = title
         tripViewModel.startLocation = startLocation
@@ -136,8 +176,49 @@ struct EditTripView: View {
         tripViewModel.driverId = driverId
         tripViewModel.vehicleId = vehicleId
         
-        // Call TripViewModel to update the trip
-        tripViewModel.updateTrip()
+        do {
+            // Create updated trip directly
+            let updatedTrip = Trip(
+                id: selectedTrip.id, 
+                title: title, 
+                startLocation: startLocation, 
+                endLocation: endLocation, 
+                scheduledStartTime: scheduledStartTime, 
+                scheduledEndTime: scheduledEndTime, 
+                status: tripStatus, 
+                driverId: driverId, 
+                vehicleId: vehicleId, 
+                description: tripDescription,
+                distance: distance,
+                actualStartTime: selectedTrip.actualStartTime, 
+                actualEndTime: selectedTrip.actualEndTime, 
+                notes: notes.isEmpty ? nil : notes,
+                routeInfo: selectedTrip.routeInfo
+            )
+            
+            // Update directly using TripSupabaseManager
+            let updated = try await TripSupabaseManager.shared.updateTrip(updatedTrip)
+            
+            // Update the viewModel's local data
+            await MainActor.run {
+                if let index = tripViewModel.trips.firstIndex(where: { $0.id == updated.id }) {
+                    tripViewModel.trips[index] = updated
+                }
+                
+                tripViewModel.resetForm()
+                tripViewModel.isShowingEditTrip = false
+                isUpdating = false
+                
+                // Dismiss this sheet
+                dismiss()
+            }
+        } catch {
+            await MainActor.run {
+                isUpdating = false
+                errorMessage = "Failed to update trip: \(error.localizedDescription)"
+                showError = true
+            }
+        }
     }
 }
 
