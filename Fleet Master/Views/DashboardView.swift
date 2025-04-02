@@ -237,7 +237,7 @@ struct KPICard: View {
             // Header with icon and title
             HStack(spacing: 12) {
                 Image(systemName: icon)
-                    .font(.system(size: 28))
+                    .font(.title2)
                     .foregroundStyle(.white)
                     .frame(width: 48, height: 48)
                     .background(
@@ -250,7 +250,7 @@ struct KPICard: View {
                                 )
                             )
                     )
-                    .shadow(color: iconGradient[0].opacity(0.3), radius: 8, x: 0, y: 4)
+//                    .shadow(color: iconGradient[0].opacity(0.3), radius: 8, x: 0, y: 4)
                 
                 Text(title)
                     .font(.system(size: 25, weight: .semibold))
