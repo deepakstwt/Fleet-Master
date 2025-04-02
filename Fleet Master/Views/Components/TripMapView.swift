@@ -108,10 +108,12 @@ struct TripMapView: View {
         let mapViewContent = ZStack(alignment: .topTrailing) {
             // Helper function to prepare ProMapViewRepresentable with clear type annotations
             makeMapView()
+                .edgesIgnoringSafeArea(.all)
             
             // Look Around view if available and active
             if showLookAround {
                 makeLookAroundView()
+                    .edgesIgnoringSafeArea(.all)
             }
             
             // Map Controls - Top Right (Apple Maps style)
@@ -350,7 +352,7 @@ struct TripMapView: View {
             Spacer()
             
             if isAssignedTrip {
-                    HStack {
+                HStack {
                     Spacer()
                     
                     // Apple Maps Style Bottom Control Bar
@@ -685,8 +687,9 @@ struct ProMapViewRepresentable: UIViewRepresentable {
             mapView.camera = camera
         }
         
-        // Configure tracking mode
-        mapView.userTrackingMode = trackUserLocation ? .follow : .none
+        // IMPORTANT: Disable auto-tracking to prevent auto-zooming
+        // Instead of using follow mode, we'll manually update the center
+        mapView.userTrackingMode = .none
         
         // Initialize search completer
         context.coordinator.initializeSearchCompleter()
@@ -709,59 +712,79 @@ struct ProMapViewRepresentable: UIViewRepresentable {
     }
     
     func updateUIView(_ mapView: MKMapView, context: Context) {
-        // Hide the Apple Maps logo and legal text
-        mapView.layoutMargins.bottom = 100
+        // Only update the map type and 3D mode if they change
+        updateMapConfiguration(mapView)
         
-        // Update map configuration based on type change
-        switch mapType {
-        case .standard:
-            mapView.preferredConfiguration = is3DMode ? 
-                MKStandardMapConfiguration(elevationStyle: .realistic) : 
-                MKStandardMapConfiguration()
-        case .hybrid:
-            let config = MKHybridMapConfiguration(elevationStyle: is3DMode ? .realistic : .flat)
-            config.pointOfInterestFilter = .includingAll
-            config.showsTraffic = true
-            mapView.preferredConfiguration = config
-        case .terrain:
-            let config = MKHybridMapConfiguration(elevationStyle: .realistic)
-            config.pointOfInterestFilter = .includingAll
-            mapView.preferredConfiguration = config
-        case .flyover:
-            let config = MKHybridMapConfiguration(elevationStyle: .realistic)
-            config.pointOfInterestFilter = .includingAll
-            config.showsTraffic = true
-            mapView.preferredConfiguration = config
+        // Store the current user region if the user has moved the map
+        if context.coordinator.userHasChangedRegion {
+            // Don't change the region that the user has set
+            // Just update annotations and overlays
+            updateAnnotationsAndOverlays(mapView)
+            return
         }
         
-        // Update user tracking mode
-        mapView.userTrackingMode = trackUserLocation ? .follow : .none
+        // Check if the route overlays have changed
+        let hasNewOverlays = context.coordinator.previousOverlaysCount != routeOverlays.count
+        context.coordinator.previousOverlaysCount = routeOverlays.count
         
-        // Update camera if region changed and 3D mode is enabled
-        if is3DMode && (
-            mapView.region.center.latitude != region.center.latitude ||
-            mapView.region.center.longitude != region.center.longitude ||
-            mapView.region.span.latitudeDelta != region.span.latitudeDelta ||
-            mapView.region.span.longitudeDelta != region.span.longitudeDelta
-        ) {
-            let camera = MKMapCamera(
-                lookingAtCenter: region.center,
-                fromDistance: Double(region.span.latitudeDelta * 111000),
-                pitch: 65,
-                heading: 45
-            )
-            mapView.setCamera(camera, animated: true)
-        } else if !is3DMode && (
-            mapView.region.center.latitude != region.center.latitude ||
-            mapView.region.center.longitude != region.center.longitude ||
-            mapView.region.span.latitudeDelta != region.span.latitudeDelta ||
-            mapView.region.span.longitudeDelta != region.span.longitudeDelta
-        ) {
-            mapView.setRegion(region, animated: true)
+        // Only set region if we have a new selected trip, new overlays, or it's the initial setup
+        if context.coordinator.initialSetupDone == false || 
+           context.coordinator.previousSelectedTripId != selectedTrip?.id ||
+           hasNewOverlays {
+            
+            context.coordinator.initialSetupDone = true
+            context.coordinator.previousSelectedTripId = selectedTrip?.id
+            
+            // Set the region based on route if available
+            if let trip = selectedTrip, let routeOverlay = routeOverlays[trip.id] {
+                let routeBounds = routeOverlay.route.polyline.boundingMapRect
+                mapView.setVisibleMapRect(
+                    routeBounds.insetBy(dx: -routeBounds.width * 0.2, dy: -routeBounds.height * 0.2),
+                    animated: true
+                )
+            } else if is3DMode {
+                let camera = MKMapCamera(
+                    lookingAtCenter: region.center,
+                    fromDistance: Double(region.span.latitudeDelta * 111000),
+                    pitch: 65,
+                    heading: 45
+                )
+                mapView.setCamera(camera, animated: true)
+            } else {
+                mapView.setRegion(region, animated: true)
+            }
         }
         
+        updateAnnotationsAndOverlays(mapView)
+        
+        // Track user location without changing zoom if requested
+        if trackUserLocation && mapView.userLocation.location != nil {
+            // Instead of using built-in tracking (which auto-zooms),
+            // we'll manually update the center if needed
+            if !context.coordinator.userHasChangedRegion {
+                let currentRegion = mapView.region
+                let userLocation = mapView.userLocation.location!.coordinate
+                
+                // Create a new region with the same zoom level but centered on user
+                let newRegion = MKCoordinateRegion(
+                    center: userLocation,
+                    span: currentRegion.span
+                )
+                
+                // Only update if significantly different
+                if abs(currentRegion.center.latitude - userLocation.latitude) > 0.001 ||
+                   abs(currentRegion.center.longitude - userLocation.longitude) > 0.001 {
+                    mapView.setRegion(newRegion, animated: true)
+                }
+            }
+        }
+    }
+    
+    // Helper to update annotations and overlays
+    private func updateAnnotationsAndOverlays(_ mapView: MKMapView) {
         // Remove existing annotations and overlays
-        mapView.removeAnnotations(mapView.annotations)
+        let nonUserAnnotations = mapView.annotations.filter { !($0 is MKUserLocation) }
+        mapView.removeAnnotations(nonUserAnnotations)
         mapView.removeOverlays(mapView.overlays)
         
         // Add annotations and route overlays for trips
@@ -773,28 +796,50 @@ struct ProMapViewRepresentable: UIViewRepresentable {
             }
         }
         
-        // Update vehicle positions
+        // Update vehicle annotations if tracking
         if isAssignedTrip || showAllRoutes {
-            // Update vehicle annotations
-            for annotation in mapView.annotations {
-                if let vehicleAnnotation = annotation as? VehicleAnnotation,
-                   let vehicleLocationInfo = locationManager.vehicleLocations[vehicleAnnotation.vehicleId] {
-                    
-                    // Animate vehicle position update
-                    UIView.animate(withDuration: 1.0) {
-                        vehicleAnnotation.coordinate = vehicleLocationInfo.coordinate
-                        vehicleAnnotation.heading = vehicleLocationInfo.heading
-                        
-                        // If this is a selected vehicle, update its view
-                        if let annotationView = mapView.view(for: annotation) as? MKAnnotationView {
-                            annotationView.transform = CGAffineTransform(rotationAngle: CGFloat(vehicleLocationInfo.heading) * .pi / 180)
-                        }
-                    }
-                }
+            // Safely access the coordinator
+            if let coordinator = mapView.delegate as? Coordinator {
+                coordinator.addVehicleAnnotations(to: mapView)
             }
         }
     }
     
+    // Helper to update map configuration if needed
+    private func updateMapConfiguration(_ mapView: MKMapView) {
+        // Update map type if needed
+        switch mapType {
+        case .standard:
+            let newConfig = is3DMode ? 
+                MKStandardMapConfiguration(elevationStyle: .realistic) : 
+                MKStandardMapConfiguration()
+            if !(mapView.preferredConfiguration is MKStandardMapConfiguration) {
+                mapView.preferredConfiguration = newConfig
+            }
+        case .hybrid:
+            let newConfig = MKHybridMapConfiguration(elevationStyle: is3DMode ? .realistic : .flat)
+            newConfig.pointOfInterestFilter = .includingAll
+            newConfig.showsTraffic = true
+            if !(mapView.preferredConfiguration is MKHybridMapConfiguration) {
+                mapView.preferredConfiguration = newConfig
+            }
+        case .terrain:
+            let newConfig = MKHybridMapConfiguration(elevationStyle: .realistic)
+            newConfig.pointOfInterestFilter = .includingAll
+            if !(mapView.preferredConfiguration is MKHybridMapConfiguration) {
+                mapView.preferredConfiguration = newConfig
+            }
+        case .flyover:
+            let newConfig = MKHybridMapConfiguration(elevationStyle: .realistic)
+            newConfig.pointOfInterestFilter = .includingAll
+            newConfig.showsTraffic = true
+            if !(mapView.preferredConfiguration is MKHybridMapConfiguration) {
+                mapView.preferredConfiguration = newConfig
+            }
+        }
+    }
+    
+    // Add missing methods for Trip annotations
     private func addTripAnnotations(_ trip: Trip, to mapView: MKMapView) {
         // Geocode start location
         locationManager.geocodeAddress(trip.startLocation) { result in
@@ -836,6 +881,7 @@ struct ProMapViewRepresentable: UIViewRepresentable {
         }
     }
     
+    // Add missing waypoint annotations method
     private func addWaypointAnnotations(for route: MKRoute, trip: Trip, to mapView: MKMapView) {
         // Add waypoint annotations at key points along the route
         if route.steps.count > 2 {
@@ -858,12 +904,14 @@ struct ProMapViewRepresentable: UIViewRepresentable {
         }
     }
     
+    // Helper for significant maneuvers
     private func isSignificantManeuver(_ instructions: String) -> Bool {
         // Check if the instruction contains keywords indicating major maneuvers
         let significantTerms = ["turn", "exit", "merge", "highway", "freeway", "roundabout", "u-turn"]
         return significantTerms.contains { instructions.lowercased().contains($0) }
     }
     
+    // Format distance helper
     private func formatDistance(_ meters: Double) -> String {
         if meters >= 1000 {
             return String(format: "%.1f km", meters / 1000)
@@ -872,27 +920,7 @@ struct ProMapViewRepresentable: UIViewRepresentable {
         }
     }
     
-    private func addVehicleAnnotations(to mapView: MKMapView) {
-        // Clear existing vehicle annotations
-        let existingVehicleAnnotations = mapView.annotations.filter { $0 is VehicleAnnotation }
-        mapView.removeAnnotations(existingVehicleAnnotations)
-        
-        // Add vehicle annotations for each active trip
-        for trip in trips.filter({ $0.status == .inProgress && $0.vehicleId != nil }) {
-            if let vehicleId = trip.vehicleId,
-               let vehicleLocationInfo = locationManager.vehicleLocations[vehicleId] {
-                let annotation = VehicleAnnotation(
-                    coordinate: vehicleLocationInfo.coordinate,
-                    title: "Vehicle \(vehicleId)",
-                    vehicleId: vehicleId,
-                    tripId: trip.id,
-                    heading: vehicleLocationInfo.heading
-                )
-                mapView.addAnnotation(annotation)
-            }
-        }
-    }
-    
+    // Required by UIViewRepresentable - creates Coordinator
     func makeCoordinator() -> Coordinator {
         Coordinator(self)
     }
@@ -904,6 +932,12 @@ struct ProMapViewRepresentable: UIViewRepresentable {
         // Search related properties
         private var searchCompleter = MKLocalSearchCompleter()
         private var searchResults: [MKLocalSearchCompletion] = []
+        
+        // Track map state to prevent unnecessary updates
+        var userHasChangedRegion: Bool = false
+        var initialSetupDone: Bool = false
+        var previousSelectedTripId: String? = nil
+        var previousOverlaysCount: Int = 0
         
         init(_ parent: ProMapViewRepresentable) {
             self.parent = parent
@@ -925,7 +959,7 @@ struct ProMapViewRepresentable: UIViewRepresentable {
             searchCompleter.pointOfInterestFilter = .excludingAll
         }
         
-        // Add vehicle annotations to map
+        // Helper function to add vehicle annotations
         func addVehicleAnnotations(to mapView: MKMapView) {
             // Clear existing vehicle annotations
             let existingVehicleAnnotations = mapView.annotations.filter { $0 is VehicleAnnotation }
@@ -949,6 +983,29 @@ struct ProMapViewRepresentable: UIViewRepresentable {
         
         // MARK: - MKMapViewDelegate Methods
         
+        // Track when user manually changes the map region
+        func mapView(_ mapView: MKMapView, regionWillChangeAnimated animated: Bool) {
+            // Detect if this is a user-initiated change
+            if let view = mapView.subviews.first,
+               let gestureRecognizers = view.gestureRecognizers {
+                for recognizer in gestureRecognizers {
+                    if recognizer.state == .began || recognizer.state == .changed {
+                        userHasChangedRegion = true
+                        break
+                    }
+                }
+            }
+        }
+        
+        // Update the bound region with the user's chosen region
+        func mapView(_ mapView: MKMapView, regionDidChangeAnimated animated: Bool) {
+            if userHasChangedRegion {
+                // Update the bound region when user finishes moving the map
+                parent.region = mapView.region
+            }
+        }
+        
+        // MKMapViewDelegate methods for annotation views
         func mapView(_ mapView: MKMapView, viewFor annotation: MKAnnotation) -> MKAnnotationView? {
             if annotation is MKUserLocation {
                 return nil
@@ -1032,53 +1089,7 @@ struct ProMapViewRepresentable: UIViewRepresentable {
             return nil
         }
         
-        // Handle map region changes
-        func mapView(_ mapView: MKMapView, regionDidChangeAnimated animated: Bool) {
-            // Update the parent binding with the new region
-            parent.region = mapView.region
-            
-            // If zoom level is high enough, search for POIs
-            if mapView.region.span.latitudeDelta < 0.05, parent.showLookAround, #available(iOS 16.0, *) {
-                let center = mapView.region.center
-                searchCompleter.region = MKCoordinateRegion(
-                    center: center,
-                    span: MKCoordinateSpan(latitudeDelta: 0.01, longitudeDelta: 0.01)
-                )
-                searchCompleter.queryFragment = ""
-            }
-        }
-        
-        // MARK: - MKLocalSearchCompleterDelegate
-        
-        func completerDidUpdateResults(_ completer: MKLocalSearchCompleter) {
-            searchResults = completer.results
-            
-            // If places of interest found and Look Around is enabled, show them on the map
-            if !searchResults.isEmpty, parent.showLookAround, #available(iOS 16.0, *) {
-                // Select the first result to show its place card
-                if let firstResult = searchResults.first {
-                    let searchRequest = MKLocalSearch.Request(completion: firstResult)
-                    let search = MKLocalSearch(request: searchRequest)
-                    
-                    search.start { [weak self] (response, error) in
-                        guard let self = self, let response = response else { return }
-                        
-                        if let mapItem = response.mapItems.first {
-                            // Pass the found place to parent
-                            DispatchQueue.main.async {
-                                self.parent.onPlaceSelected(mapItem)
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        
-        func completer(_ completer: MKLocalSearchCompleter, didFailWithError error: Error) {
-            print("Search completer error: \(error.localizedDescription)")
-        }
-        
-        // Annotation view configuration methods remain the same
+        // Annotation view configuration methods
         private func configureTripPointAnnotationView(for annotation: ProTripPointAnnotation, in mapView: MKMapView) -> MKAnnotationView {
             let identifier = "TripPoint"
             var annotationView = mapView.dequeueReusableAnnotationView(withIdentifier: identifier) as? MKMarkerAnnotationView
@@ -1161,117 +1172,208 @@ struct ProMapViewRepresentable: UIViewRepresentable {
             }
         }
         
-        // Function to pulse polyline for selected route
-        func pulsePolyline(polylineID: String, renderer: MKGradientPolylineRenderer, mapView: MKMapView) {
-            // Toggle between two styles for pulsing effect
-            if renderer.lineWidth == 8 {
-                renderer.lineWidth = 10
-                renderer.strokeColor = UIColor.white.withAlphaComponent(0.4)
-            } else {
-                renderer.lineWidth = 8
-                renderer.strokeColor = UIColor.white.withAlphaComponent(0.3)
-            }
-            
-            // Refresh the map view to show the change
-            mapView.setNeedsDisplay()
-        }
-        
+        // Overlay renderer
         func mapView(_ mapView: MKMapView, rendererFor overlay: MKOverlay) -> MKOverlayRenderer {
             if let polyline = overlay as? MKPolyline {
-                let renderer = MKPolylineRenderer(overlay: polyline)
-                
                 // Find the trip associated with this polyline
                 if let trip = findTripForOverlay(overlay) {
-                    // Special rendering for assigned routes - make them very Apple Maps like
+                    // Create a special premium gradient renderer with enhanced visual effects
+                    let gradientRenderer = MKGradientPolylineRenderer(overlay: overlay)
+                    
+                    // Special rendering for assigned routes
                     if parent.isAssignedTrip, let selectedTripId = parent.selectedTrip?.id, trip.id == selectedTripId {
-                        // Create a special gradient renderer for assigned routes
-                        let assignedRenderer = MKGradientPolylineRenderer(overlay: overlay)
+                        // Premium Apple Maps inspired style with vibrant gradient
+                        gradientRenderer.setColors([
+                            UIColor(red: 0.0, green: 0.6, blue: 1.0, alpha: 1.0),   // Bright blue
+                            UIColor(red: 0.0, green: 0.7, blue: 0.9, alpha: 1.0),   // Sky blue
+                            UIColor(red: 0.0, green: 0.8, blue: 0.8, alpha: 1.0),   // Turquoise
+                            UIColor(red: 0.0, green: 0.7, blue: 0.9, alpha: 1.0),   // Sky blue
+                            UIColor(red: 0.0, green: 0.6, blue: 1.0, alpha: 1.0)    // Bright blue
+                        ], locations: [0.0, 0.25, 0.5, 0.75, 1.0])
                         
-                        // Apple Maps style blue gradient (bright, vibrant blue)
-                        assignedRenderer.setColors([
-                            UIColor(red: 0.0, green: 0.478, blue: 1.0, alpha: 1.0),  // Apple blue
-                            UIColor(red: 0.204, green: 0.596, blue: 0.859, alpha: 1.0),  // Lighter blue
-                            UIColor(red: 0.0, green: 0.478, blue: 1.0, alpha: 1.0)   // Apple blue again
-                        ], locations: [0.0, 0.5, 1.0])
+                        // Enhanced line styling
+                        gradientRenderer.lineWidth = 10
+                        gradientRenderer.lineCap = .round
+                        gradientRenderer.lineJoin = .round
                         
-                        // Make the line wider for emphasis - Apple Maps style
-                        assignedRenderer.lineWidth = 9
-                        assignedRenderer.lineCap = .round
-                        assignedRenderer.lineJoin = .round
+                        // Premium glow effect
+                        gradientRenderer.strokeColor = UIColor.white.withAlphaComponent(0.5)
                         
-                        // Apple-style glow effect
-                        assignedRenderer.strokeColor = UIColor.white.withAlphaComponent(0.4)
-                        
-                        // Add a special Apple Maps style pulsing effect
+                        // Create pulsing effect timer with premium animation
                         let polylineID = "assigned-\(selectedTripId)"
                         if animationTimers[polylineID] == nil {
-                            // Create pulsing effect timer with faster interval for more Apple-like dynamic effect
-                            animationTimers[polylineID] = Timer.scheduledTimer(withTimeInterval: 0.7, repeats: true) { [weak self, weak assignedRenderer, weak mapView] _ in
-                                guard let renderer = assignedRenderer, let mapView = mapView else { return }
+                            animationTimers[polylineID] = Timer.scheduledTimer(withTimeInterval: 1.2, repeats: true) { [weak self, weak gradientRenderer, weak mapView] _ in
+                                guard let renderer = gradientRenderer, let mapView = mapView else { return }
                                 
-                                // Apple Maps style subtle pulsing animation
-                                UIView.animate(withDuration: 0.35, delay: 0, options: .curveEaseInOut) {
-                                    if renderer.lineWidth == 9 {
-                                        // Expanded state - subtle change
-                                        renderer.lineWidth = 11
-                                        renderer.strokeColor = UIColor.white.withAlphaComponent(0.5)
-                                        // Brighter blue when pulsing
+                                // Elegant pulsing animation with smooth transitions
+                                UIView.animate(withDuration: 0.6, delay: 0, options: .curveEaseInOut) {
+                                    if renderer.lineWidth == 10 {
+                                        // Expanded state
+                                        renderer.lineWidth = 12
+                                        renderer.strokeColor = UIColor.white.withAlphaComponent(0.6)
+                                        // Enhanced colors during pulse
                                         renderer.setColors([
-                                            UIColor(red: 0.0, green: 0.6, blue: 1.0, alpha: 1.0),
-                                            UIColor(red: 0.3, green: 0.7, blue: 1.0, alpha: 1.0),
-                                            UIColor(red: 0.0, green: 0.6, blue: 1.0, alpha: 1.0)
-                                        ], locations: [0.0, 0.5, 1.0])
+                                            UIColor(red: 0.1, green: 0.7, blue: 1.0, alpha: 1.0),   // Brighter blue
+                                            UIColor(red: 0.1, green: 0.8, blue: 0.9, alpha: 1.0),   // Brighter sky
+                                            UIColor(red: 0.1, green: 0.9, blue: 0.8, alpha: 1.0),   // Brighter turquoise
+                                            UIColor(red: 0.1, green: 0.8, blue: 0.9, alpha: 1.0),   // Brighter sky
+                                            UIColor(red: 0.1, green: 0.7, blue: 1.0, alpha: 1.0)    // Brighter blue
+                                        ], locations: [0.0, 0.25, 0.5, 0.75, 1.0])
                                     } else {
                                         // Contracted state
-                                        renderer.lineWidth = 9
-                                        renderer.strokeColor = UIColor.white.withAlphaComponent(0.4)
-                                        // Standard Apple blue
+                                        renderer.lineWidth = 10
+                                        renderer.strokeColor = UIColor.white.withAlphaComponent(0.5)
+                                        // Original colors
                                         renderer.setColors([
-                                            UIColor(red: 0.0, green: 0.478, blue: 1.0, alpha: 1.0),
-                                            UIColor(red: 0.204, green: 0.596, blue: 0.859, alpha: 1.0),
-                                            UIColor(red: 0.0, green: 0.478, blue: 1.0, alpha: 1.0)
-                                        ], locations: [0.0, 0.5, 1.0])
+                                            UIColor(red: 0.0, green: 0.6, blue: 1.0, alpha: 1.0),
+                                            UIColor(red: 0.0, green: 0.7, blue: 0.9, alpha: 1.0),
+                                            UIColor(red: 0.0, green: 0.8, blue: 0.8, alpha: 1.0),
+                                            UIColor(red: 0.0, green: 0.7, blue: 0.9, alpha: 1.0),
+                                            UIColor(red: 0.0, green: 0.6, blue: 1.0, alpha: 1.0)
+                                        ], locations: [0.0, 0.25, 0.5, 0.75, 1.0])
                                     }
                                     
-                                    // Redraw map with smoother animation
+                                    // Smooth redraw
                                     mapView.setNeedsDisplay()
                                 }
                             }
                         }
                         
-                        return assignedRenderer
+                        return gradientRenderer
                     }
-                    // If highlighting selected route but not assigned - Apple Maps alternative route style
+                    // If highlighting selected route but not assigned - premium style with different color scheme
                     else if parent.highlightSelectedRoute, let selectedTripId = parent.selectedTrip?.id, trip.id == selectedTripId {
-                        // Use gradient polyline for the selected trip
-                        let gradientRenderer = MKGradientPolylineRenderer(overlay: overlay)
+                        // Premium google-maps inspired gradient for selected routes
+                        switch trip.status {
+                        case .scheduled:
+                            // Deep blue to light blue gradient for scheduled trips
+                            gradientRenderer.setColors([
+                                UIColor(red: 0.1, green: 0.3, blue: 0.9, alpha: 0.9),  // Deep blue
+                                UIColor(red: 0.3, green: 0.5, blue: 1.0, alpha: 0.9),  // Medium blue
+                                UIColor(red: 0.1, green: 0.3, blue: 0.9, alpha: 0.9)   // Deep blue
+                            ], locations: [0.0, 0.5, 1.0])
+                            
+                        case .inProgress:
+                            // Orange to yellow gradient for in-progress trips - vibrant
+                            gradientRenderer.setColors([
+                                UIColor(red: 1.0, green: 0.6, blue: 0.0, alpha: 0.9),  // Deep orange
+                                UIColor(red: 1.0, green: 0.8, blue: 0.0, alpha: 0.9),  // Yellow-orange
+                                UIColor(red: 1.0, green: 0.6, blue: 0.0, alpha: 0.9)   // Deep orange
+                            ], locations: [0.0, 0.5, 1.0])
+                            
+                            // Add animated pulsing for in-progress routes
+                            let polylineID = "selected-\(selectedTripId)"
+                            if animationTimers[polylineID] == nil {
+                                animationTimers[polylineID] = Timer.scheduledTimer(withTimeInterval: 1.5, repeats: true) { [weak self, weak gradientRenderer, weak mapView] _ in
+                                    guard let renderer = gradientRenderer, let mapView = mapView else { return }
+                                    
+                                    UIView.animate(withDuration: 0.75, delay: 0, options: .curveEaseInOut) {
+                                        if renderer.lineWidth == 8 {
+                                            // Expanded state - more vibrant
+                                            renderer.lineWidth = 10
+                                            renderer.strokeColor = UIColor.white.withAlphaComponent(0.5)
+                                            // Brighter orange-yellow during pulse
+                                            renderer.setColors([
+                                                UIColor(red: 1.0, green: 0.7, blue: 0.0, alpha: 0.9),
+                                                UIColor(red: 1.0, green: 0.9, blue: 0.0, alpha: 0.9),
+                                                UIColor(red: 1.0, green: 0.7, blue: 0.0, alpha: 0.9)
+                                            ], locations: [0.0, 0.5, 1.0])
+                                        } else {
+                                            // Contracted state
+                                            renderer.lineWidth = 8
+                                            renderer.strokeColor = UIColor.white.withAlphaComponent(0.4)
+                                            // Normal orange-yellow
+                                            renderer.setColors([
+                                                UIColor(red: 1.0, green: 0.6, blue: 0.0, alpha: 0.9),
+                                                UIColor(red: 1.0, green: 0.8, blue: 0.0, alpha: 0.9),
+                                                UIColor(red: 1.0, green: 0.6, blue: 0.0, alpha: 0.9)
+                                            ], locations: [0.0, 0.5, 1.0])
+                                        }
+                                        
+                                        mapView.setNeedsDisplay()
+                                    }
+                                }
+                            }
+                            
+                        case .completed:
+                            // Green gradient for completed trips
+                            gradientRenderer.setColors([
+                                UIColor(red: 0.0, green: 0.7, blue: 0.3, alpha: 0.9),  // Deep green
+                                UIColor(red: 0.3, green: 0.9, blue: 0.4, alpha: 0.9),  // Light green
+                                UIColor(red: 0.0, green: 0.7, blue: 0.3, alpha: 0.9)   // Deep green
+                            ], locations: [0.0, 0.5, 1.0])
+                            
+                        case .cancelled:
+                            // Red gradient for cancelled trips
+                            gradientRenderer.setColors([
+                                UIColor(red: 0.8, green: 0.0, blue: 0.0, alpha: 0.8),  // Dark red
+                                UIColor(red: 1.0, green: 0.3, blue: 0.3, alpha: 0.8),  // Light red
+                                UIColor(red: 0.8, green: 0.0, blue: 0.0, alpha: 0.8)   // Dark red
+                            ], locations: [0.0, 0.5, 1.0])
+                        }
                         
-                        // Apple Maps alternative route style
-                        gradientRenderer.setColors([
-                            UIColor(red: 0.4, green: 0.4, blue: 0.9, alpha: 0.85),  // Purple-blue
-                            UIColor(red: 0.5, green: 0.5, blue: 0.95, alpha: 0.85),  // Lighter purple-blue
-                            UIColor(red: 0.4, green: 0.4, blue: 0.9, alpha: 0.85)   // Purple-blue again
-                        ], locations: [0.0, 0.5, 1.0])
-                        
-                        gradientRenderer.lineWidth = 7
+                        // Premium line styling for all selected routes
+                        gradientRenderer.lineWidth = 8
                         gradientRenderer.lineCap = .round
                         gradientRenderer.lineJoin = .round
                         
-                        // Apple-style subtle glow
+                        // Enhanced glow effect
+                        gradientRenderer.strokeColor = UIColor.white.withAlphaComponent(0.4)
+                        
+                        return gradientRenderer
+                    }
+                    // Standard routes with enhanced styling based on status
+                    else {
+                        // Default enhancement for non-selected routes
+                        var baseColor: UIColor
+                        var pulseColor: UIColor
+                        
+                        switch trip.status {
+                        case .scheduled:
+                            baseColor = UIColor(red: 0.2, green: 0.4, blue: 0.8, alpha: 0.7)
+                            pulseColor = UIColor(red: 0.3, green: 0.5, blue: 0.9, alpha: 0.7)
+                        case .inProgress:
+                            baseColor = UIColor(red: 0.9, green: 0.5, blue: 0.0, alpha: 0.7)
+                            pulseColor = UIColor(red: 1.0, green: 0.6, blue: 0.0, alpha: 0.7)
+                        case .completed:
+                            baseColor = UIColor(red: 0.0, green: 0.6, blue: 0.2, alpha: 0.7)
+                            pulseColor = UIColor(red: 0.0, green: 0.7, blue: 0.3, alpha: 0.7)
+                        case .cancelled:
+                            baseColor = UIColor(red: 0.7, green: 0.0, blue: 0.0, alpha: 0.6)
+                            pulseColor = UIColor(red: 0.8, green: 0.1, blue: 0.1, alpha: 0.6)
+                        }
+                        
+                        // Create a more subtle gradient for non-selected routes
+                        gradientRenderer.setColors([
+                            baseColor,
+                            pulseColor,
+                            baseColor
+                        ], locations: [0.0, 0.5, 1.0])
+                        
+                        // Slimmer line for non-selected routes
+                        gradientRenderer.lineWidth = 5
+                        gradientRenderer.lineCap = .round
+                        gradientRenderer.lineJoin = .round
+                        
+                        // Light glow effect
                         gradientRenderer.strokeColor = UIColor.white.withAlphaComponent(0.3)
                         
                         return gradientRenderer
                     }
                 }
                 
-                // Default polyline renderer for other routes
+                // Fallback renderer for polylines without associated trips
+                let renderer = MKPolylineRenderer(overlay: polyline)
+                
                 if polyline.title == "History Trail" {
                     renderer.strokeColor = UIColor(Color.gray.opacity(0.6))
                     renderer.lineWidth = 3
                     renderer.lineDashPattern = [2, 5]
                 } else {
-                    renderer.strokeColor = UIColor(Color.blue.opacity(0.6))
-                    renderer.lineWidth = 4
+                    renderer.strokeColor = UIColor(Color.blue.opacity(0.7))
+                renderer.lineWidth = 5
+                    renderer.lineCap = .round
+                    renderer.lineJoin = .round
                 }
                 
                 return renderer
@@ -1306,6 +1408,51 @@ struct ProMapViewRepresentable: UIViewRepresentable {
                 }
             }
             return nil
+        }
+        
+        // MARK: - MKLocalSearchCompleterDelegate
+        
+        func completerDidUpdateResults(_ completer: MKLocalSearchCompleter) {
+            searchResults = completer.results
+            
+            // If places of interest found and Look Around is enabled, show them on the map
+            if !searchResults.isEmpty, parent.showLookAround, #available(iOS 16.0, *) {
+                // Select the first result to show its place card
+                if let firstResult = searchResults.first {
+                    let searchRequest = MKLocalSearch.Request(completion: firstResult)
+                    let search = MKLocalSearch(request: searchRequest)
+                    
+                    search.start { [weak self] (response, error) in
+                        guard let self = self, let response = response else { return }
+                        
+                        if let mapItem = response.mapItems.first {
+                            // Pass the found place to parent
+                            DispatchQueue.main.async {
+                                self.parent.onPlaceSelected(mapItem)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        func completer(_ completer: MKLocalSearchCompleter, didFailWithError error: Error) {
+            print("Search completer error: \(error.localizedDescription)")
+        }
+        
+        // Function to pulse polyline for selected route
+        func pulsePolyline(polylineID: String, renderer: MKGradientPolylineRenderer, mapView: MKMapView) {
+            // Toggle between two styles for pulsing effect
+            if renderer.lineWidth == 8 {
+                renderer.lineWidth = 10
+                renderer.strokeColor = UIColor.white.withAlphaComponent(0.4)
+            } else {
+                renderer.lineWidth = 8
+                renderer.strokeColor = UIColor.white.withAlphaComponent(0.3)
+            }
+            
+            // Refresh the map view to show the change
+            mapView.setNeedsDisplay()
         }
     }
 }
