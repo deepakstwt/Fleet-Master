@@ -161,7 +161,7 @@ struct DashboardView: View {
                             .padding(.horizontal)
                         } else {
                             VStack(spacing: 12) {
-                                ForEach(tripViewModel.inProgressTrips) { trip in
+                                ForEach(Array(tripViewModel.inProgressTrips.prefix(2))) { trip in
                                     ActiveTripCard(trip: trip)
                                 }
                             }
