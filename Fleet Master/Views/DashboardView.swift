@@ -135,7 +135,7 @@ struct DashboardView: View {
                         
                         Spacer()
                         
-                            NavigationLink(destination: TripManagementView()) {
+                            NavigationLink(destination: TripManagementView(initialFilter: .inProgress)) {
                             Text("View All")
                                     .foregroundStyle(.blue)
                             }

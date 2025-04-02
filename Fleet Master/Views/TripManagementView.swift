@@ -17,7 +17,7 @@ struct TripManagementView: View {
     @StateObject private var locationManager = LocationManager()
     
     @State private var searchText = ""
-    @State private var statusFilter: TripStatus? = nil
+    @State private var statusFilter: TripStatus?
     @State private var selectedTrip: Trip?
     @State private var showDetailView = false
     @State private var showAddSheet = false
@@ -36,6 +36,13 @@ struct TripManagementView: View {
     @State private var selectedDate: Date = Date()
     @State private var currentMonth: Date = Date()
     @State private var showingExpandedTrip: Trip? = nil
+    
+    let initialFilter: TripStatus?
+    
+    init(initialFilter: TripStatus? = nil) {
+        self.initialFilter = initialFilter
+        _statusFilter = State(initialValue: initialFilter)
+    }
     
     enum ViewMode {
         case list
