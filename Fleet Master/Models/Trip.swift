@@ -217,7 +217,7 @@ struct Trip: Identifiable, Codable, Hashable, Equatable {
 
 enum TripStatus: String, Codable, CaseIterable {
     case scheduled = "scheduled"
-    case inProgress = "inprogress"
+    case inProgress = "ongoing"
     case completed = "completed"
     case cancelled = "cancelled"
 }
