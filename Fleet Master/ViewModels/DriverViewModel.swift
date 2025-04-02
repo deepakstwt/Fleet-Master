@@ -74,7 +74,6 @@ class DriverViewModel: ObservableObject,@unchecked Sendable{
         isLoading = true
         errorMessage = nil
         
-        print("Starting driver fetch operation...")
         Task {
             do {
                 let fetchedDrivers = try await driverManager.fetchAllDrivers()
@@ -82,13 +81,12 @@ class DriverViewModel: ObservableObject,@unchecked Sendable{
                 DispatchQueue.main.async {
                     self.drivers = fetchedDrivers
                     self.isLoading = false
-                    print("Successfully loaded \(fetchedDrivers.count) drivers")
                 }
             } catch {
                 DispatchQueue.main.async {
                     self.errorMessage = "Failed to load drivers: \(error.localizedDescription)"
                     self.isLoading = false
-                    print("Error loading drivers: \(error)")
+                    
                 }
             }
         }

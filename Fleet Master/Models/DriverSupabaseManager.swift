@@ -3,46 +3,29 @@ import Supabase
 
 /// Manager class for all Driver-related Supabase operations
 final class DriverSupabaseManager {
-    /// Shared instance (singleton)
     static let shared = DriverSupabaseManager()
     
-    /// Supabase client instance from SupabaseManager
     private let supabase = SupabaseManager.shared.supabase
     
-    /// Private initializer for singleton
     private init() {}
     
     // MARK: - Driver CRUD Operations
-    
-    /// Fetch all drivers from the database
-    /// - Returns: Array of Driver objects
-    /// - Throws: Database errors
     func fetchAllDrivers() async throws -> [Driver] {
         do {
-            print("Fetching drivers from Supabase...")
-            
-            // Perform the query and decode in one step
             let response = try await supabase
                 .from("drivers")
                 .select()
                 .execute()
             
-            print("Raw Supabase response: \(response)")
-            
-            // Directly use the data since it's not optional
             let jsonData = response.data
             
-            print("JSON data: \(String(describing: String(data: jsonData, encoding: .utf8)))")
-            
-            // Decode the JSON data into Driver objects
             let decoder = JSONDecoder()
-            // Configure the decoder to handle ISO dates
             decoder.dateDecodingStrategy = .iso8601
             
             let drivers = try decoder.decode([Driver].self, from: jsonData)
             
-            print("Successfully decoded \(drivers.count) drivers")
             return drivers
+            
         } catch let error as PostgrestError {
             print("Postgrest error fetching drivers: \(error)")
             print("Error details: \(error.localizedDescription)")

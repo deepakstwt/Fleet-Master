@@ -129,7 +129,7 @@ struct DashboardView: View {
                     // Active Trips Section
                     VStack(alignment: .leading, spacing: 16) {
                     HStack {
-                            Text("Active Trips")
+                            Text("Ongoing Trips")
                                 .font(.title2)
                                 .fontWeight(.bold)
                         
