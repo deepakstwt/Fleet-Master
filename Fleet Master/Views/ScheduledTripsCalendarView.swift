@@ -329,7 +329,7 @@ struct ScheduledTripsCalendarView: View {
             switch status {
             case .scheduled:
                 return .blue
-            case .inProgress:
+            case .ongoing:
                 return .orange
             case .completed:
                 return .green
@@ -482,7 +482,7 @@ struct ScheduledTripsCalendarView: View {
             switch status {
             case .scheduled:
                 return .blue
-            case .inProgress:
+            case .ongoing:
                 return .orange
             case .completed:
                 return .green
@@ -510,7 +510,7 @@ struct ScheduledTripsCalendarView: View {
             switch status {
             case .scheduled:
                 return Color.blue.opacity(0.2)
-            case .inProgress:
+            case .ongoing:
                 return Color.orange.opacity(0.2)
             case .completed:
                 return Color.green.opacity(0.2)
@@ -523,7 +523,7 @@ struct ScheduledTripsCalendarView: View {
             switch status {
             case .scheduled:
                 return .blue
-            case .inProgress:
+            case .ongoing:
                 return .orange
             case .completed:
                 return .green

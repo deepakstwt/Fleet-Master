@@ -195,11 +195,15 @@ struct TripManagementView: View {
     private func refreshData() async {
         isRefreshing = true
         
-        // Apply any active filters
-        await tripViewModel.loadTrips(withStatus: statusFilter)
+        // First load ALL trips regardless of filter
+        await tripViewModel.loadTrips()
+        
+        // Then apply the filter again for UI display
+        tripViewModel.filterStatus = statusFilter
         
         // If we have an active search, also apply that
         if !searchText.isEmpty {
+            tripViewModel.searchText = searchText
             await tripViewModel.searchTripsFromSupabase()
         }
         
@@ -396,7 +400,13 @@ struct TripManagementView: View {
                         await refreshData()
                     }
                 case .map:
-                    mapContent
+                    ScrollView {
+                        mapContent
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    }
+                    .refreshable {
+                        await refreshData()
+                    }
                 }
             }
         }
@@ -411,16 +421,6 @@ struct TripManagementView: View {
                         selectedTrip = trip
                     }
                     .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                        if trip.status == .scheduled {
-                            Button(action: {
-                                selectedTrip = trip
-                                showAssignDriverSheet = true
-                            }) {
-                                Label("Assign", systemImage: "person.fill.badge.plus")
-                            }
-                            .tint(.blue)
-                        }
-                        
                         if trip.status == .scheduled || trip.status == .inProgress {
                             Button(role: .destructive, action: {
                                 Task {
@@ -508,6 +508,186 @@ struct TripManagementView: View {
                         highlightSelectedRoute: true // Highlight routes when selected
                     )
                     .edgesIgnoringSafeArea(.all)
+                    
+                    // Fleet Manager Control Panel
+                    VStack(spacing: 12) {
+                        Text("Fleet Manager Controls")
+                        .font(.headline)
+                            .padding(.horizontal, 16)
+                            .padding(.top, 12)
+                            .foregroundColor(.primary)
+                        
+                        Divider()
+                        
+                        // Trip Statistics
+                        HStack(spacing: 20) {
+                            VStack {
+                                Text("\(filteredTrips.filter { $0.status == .inProgress }.count)")
+                                    .font(.title2.bold())
+                                    .foregroundColor(.blue)
+                                Text("Active")
+                                    .font(.caption)
+                        .foregroundColor(.secondary)
+                            }
+                            
+                            VStack {
+                                Text("\(filteredTrips.filter { $0.status == .scheduled }.count)")
+                                    .font(.title2.bold())
+                                    .foregroundColor(.orange)
+                                Text("Scheduled")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                            
+                            VStack {
+                                let driverCount = filteredTrips.compactMap { $0.driverId }.count
+                                Text("\(driverCount)")
+                                    .font(.title2.bold())
+                                    .foregroundColor(.green)
+                                Text("Drivers")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 8)
+                        
+                        Divider()
+                        
+                        // Trip Filter Controls
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Filter Active Trips")
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                                .padding(.horizontal, 16)
+                            
+                            ScrollView(.horizontal, showsIndicators: false) {
+                                HStack(spacing: 10) {
+                    Button(action: {
+                                        // Filter for vehicles that need attention
+                                        statusFilter = .inProgress
+                                    }) {
+                                        HStack {
+                                            Image(systemName: "exclamationmark.triangle")
+                                                .foregroundColor(.orange)
+                                            Text("Attention Needed")
+                                                .font(.caption)
+                                        }
+                                        .padding(.vertical, 8)
+                                        .padding(.horizontal, 12)
+                                        .background(statusFilter == .inProgress ? Color.orange.opacity(0.2) : Color(.systemBackground))
+                                        .cornerRadius(20)
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 20)
+                                                .stroke(Color.orange.opacity(0.5), lineWidth: statusFilter == .inProgress ? 1.5 : 0)
+                                        )
+                                    }
+                                    .buttonStyle(ScaleButtonStyle())
+                                    
+                                    Button(action: {
+                                        // Show all in-progress trips
+                                        statusFilter = .inProgress
+                                    }) {
+                                        HStack {
+                                            Image(systemName: "arrow.triangle.swap")
+                                                .foregroundColor(.blue)
+                                            Text("In Progress")
+                                                .font(.caption)
+                                        }
+                                        .padding(.vertical, 8)
+                                        .padding(.horizontal, 12)
+                                        .background(statusFilter == .inProgress ? Color.blue.opacity(0.2) : Color(.systemBackground))
+                                        .cornerRadius(20)
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 20)
+                                                .stroke(Color.blue.opacity(0.5), lineWidth: statusFilter == .inProgress ? 1.5 : 0)
+                                        )
+                                    }
+                                    .buttonStyle(ScaleButtonStyle())
+                                    
+                                    Button(action: {
+                                        // Clear all filters
+                                        statusFilter = nil
+                                    }) {
+                                        HStack {
+                                            Image(systemName: "arrow.clockwise")
+                                                .foregroundColor(.green)
+                                            Text("All Trips")
+                                                .font(.caption)
+                                        }
+                                        .padding(.vertical, 8)
+                                        .padding(.horizontal, 12)
+                                        .background(statusFilter == nil ? Color.green.opacity(0.2) : Color(.systemBackground))
+                                        .cornerRadius(20)
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 20)
+                                                .stroke(Color.green.opacity(0.5), lineWidth: statusFilter == nil ? 1.5 : 0)
+                                        )
+                                    }
+                                    .buttonStyle(ScaleButtonStyle())
+                                }
+                                .padding(.horizontal, 16)
+                            }
+                        }
+                        
+                        Divider()
+                            .padding(.vertical, 4)
+                        
+                        // Live tracking controls
+                        VStack(spacing: 10) {
+                            Button(action: {
+                                // Enable live tracking for all vehicles on the map
+                                let vehicleIds = filteredTrips.compactMap { $0.vehicleId }
+                                locationManager.startTrackingVehicles(vehicleIds: vehicleIds)
+                            }) {
+                                HStack {
+                                    Image(systemName: "location.fill")
+                            .foregroundColor(.white)
+                                    Text("Track All Vehicles")
+                                        .font(.subheadline)
+                                        .fontWeight(.semibold)
+                                        .foregroundColor(.white)
+                                }
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 12)
+                                .background(Color.green)
+                                .cornerRadius(12)
+                            }
+                            
+                            Button(action: {
+                                // Show optimal routes for all active trips
+                                // This would show traffic-optimized routes for all vehicles
+                                for trip in filteredTrips.filter({ $0.status == .inProgress }) {
+                                    locationManager.calculateRoute(from: trip.startLocation, to: trip.endLocation) { result in
+                                        // Route is recalculated with live traffic data
+                                    }
+                                }
+                            }) {
+                                HStack {
+                                    Image(systemName: "arrow.triangle.turn.up.right.diamond.fill")
+                                        .foregroundColor(.white)
+                                    Text("Optimize Routes")
+                                        .font(.subheadline)
+                                        .fontWeight(.semibold)
+                                        .foregroundColor(.white)
+                                }
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 12)
+                                .background(Color.blue)
+                                .cornerRadius(12)
+                            }
+                        }
+                        .padding(.horizontal, 16)
+                        .padding(.bottom, 16)
+                    }
+                    .background(
+                        RoundedRectangle(cornerRadius: 16)
+                            .fill(Color(.systemBackground).opacity(0.95))
+                            .shadow(color: Color.black.opacity(0.1), radius: 10, x: 0, y: -5)
+                    )
+                    .frame(width: 300)
+                    .padding(.trailing, 16)
+                    .padding(.bottom, 16)
                 }
             }
         }
@@ -773,19 +953,21 @@ struct TripManagementView: View {
                 
                     // Status badge with enhanced design
                 Text(trip.status.rawValue)
-                        .font(.system(size: 12, weight: .bold))
-                        .kerning(0.5)
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 8)
+                    .font(.system(size: 14, weight: .bold))
+                    .kerning(0.5)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 10)
                     .background(
                         Capsule()
-                                .fill(statusColor(for: trip.status).opacity(0.1))
+                            .fill(statusColor(for: trip.status).opacity(0.15))
                     )
                     .overlay(
                         Capsule()
-                                .strokeBorder(statusColor(for: trip.status).opacity(0.5), lineWidth: 1.5)
-                        )
-                        .foregroundColor(statusColor(for: trip.status))
+                            .strokeBorder(statusColor(for: trip.status).opacity(0.7), lineWidth: 2)
+                    )
+                    .foregroundColor(statusColor(for: trip.status))
+                    // Add a slight shadow for better visibility
+                    .shadow(color: Color.black.opacity(0.15), radius: 2, x: 0, y: 1)
                 }
             }
             .padding(.horizontal, 24)

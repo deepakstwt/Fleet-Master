@@ -284,7 +284,7 @@ struct DashboardView: View {
                         TripMapView(
                             trips: [trip], 
                             locationManager: locationManager,
-                            isAssignedTrip: trip.status == .inProgress && trip.driverId != nil && trip.vehicleId != nil
+                            isAssignedTrip: trip.status == .ongoing && trip.driverId != nil && trip.vehicleId != nil
                         )
                             .navigationTitle("Trip Route")
                             .navigationBarTitleDisplayMode(.inline)
@@ -532,7 +532,7 @@ struct TripChart: View {
             }
             
             let scheduledCount = dayTrips.filter { $0.status == .scheduled }.count
-            let inProgressCount = dayTrips.filter { $0.status == .inProgress }.count
+            let inProgressCount = dayTrips.filter { $0.status == .ongoing }.count
             let completedCount = dayTrips.filter { $0.status == .completed }.count
             let cancelledCount = dayTrips.filter { $0.status == .cancelled }.count
             
