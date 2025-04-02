@@ -41,6 +41,12 @@ struct AddTripView: View {
     @State private var startCoordinate: CLLocationCoordinate2D?
     @State private var endCoordinate: CLLocationCoordinate2D?
     
+    // Add search completers for location suggestions
+    @StateObject private var startLocationSearch = MapSearch()
+    @StateObject private var endLocationSearch = MapSearch()
+    @State private var showStartSuggestions = false
+    @State private var showEndSuggestions = false
+    
     private let sections = ["Trip Details", "Assignment", "Additional Info"]
     private let accentGradient = LinearGradient(
         gradient: Gradient(colors: [Color.blue, Color.blue.opacity(0.7)]),
@@ -264,10 +270,35 @@ struct AddTripView: View {
                                 
                                 TextField("Enter starting point", text: $tripViewModel.startLocation)
                                     .font(.system(size: 16))
+                                    .onChange(of: tripViewModel.startLocation) { _, newValue in
+                                        if newValue.count > 2 {
+                                            startLocationSearch.update(queryFragment: newValue)
+                                            withAnimation {
+                                                showStartSuggestions = true
+                                                showEndSuggestions = false
+                                            }
+                                        } else {
+                                            withAnimation {
+                                                showStartSuggestions = false
+                                            }
+                                        }
+                                    }
                             }
                             .padding(.vertical, 16)
                             
                             Spacer()
+                            
+                            if !tripViewModel.startLocation.isEmpty {
+                                Button(action: {
+                                    tripViewModel.startLocation = ""
+                                    showStartSuggestions = false
+                                }) {
+                                    Image(systemName: "xmark.circle.fill")
+                                        .foregroundColor(.secondary)
+                                        .font(.system(size: 16))
+                                }
+                                .padding(.trailing, 8)
+                            }
                             
                             Button(action: {
                                 showStartLocationPicker = true
@@ -280,6 +311,54 @@ struct AddTripView: View {
                                     .clipShape(Circle())
                             }
                             .padding(.trailing, 16)
+                        }
+                        
+                        // Location suggestions for start location
+                        if showStartSuggestions && !startLocationSearch.locationResults.isEmpty {
+                            ZStack {
+                                VStack(alignment: .leading, spacing: 0) {
+                                    ForEach(startLocationSearch.locationResults.prefix(4), id: \.self) { location in
+                                        Button(action: {
+                                            selectStartLocation(location)
+                                        }) {
+                                            HStack(spacing: 12) {
+                                                Image(systemName: "mappin.circle.fill")
+                                                    .foregroundColor(.green)
+                                                    .font(.system(size: 18))
+                                                
+                                                VStack(alignment: .leading, spacing: 2) {
+                                                    Text(location.title)
+                                                        .foregroundColor(.primary)
+                                                        .font(.system(size: 15))
+                                                        .lineLimit(1)
+                                                    
+                                                    Text(location.subtitle)
+                                                        .foregroundColor(.secondary)
+                                                        .font(.system(size: 12))
+                                                        .lineLimit(1)
+                                                }
+                                                
+                                                Spacer()
+                                            }
+                                            .padding(.vertical, 8)
+                                            .padding(.horizontal, 12)
+                                        }
+                                        
+                                        if startLocationSearch.locationResults.first != location {
+                                            Divider()
+                                                .padding(.leading, 42)
+                                                .padding(.trailing, 12)
+                                        }
+                                    }
+                                }
+                                .padding(.vertical, 8)
+                                .background(Color(.systemBackground))
+                                .cornerRadius(12)
+                                .shadow(color: Color.black.opacity(0.1), radius: 6, x: 0, y: 3)
+                            }
+                            .padding(.horizontal, 16)
+                            .padding(.bottom, 8)
+                            .transition(.opacity.combined(with: .move(edge: .top)))
                         }
                         
                         Divider()
@@ -321,10 +400,35 @@ struct AddTripView: View {
                                 
                                 TextField("Enter destination", text: $tripViewModel.endLocation)
                                     .font(.system(size: 16))
+                                    .onChange(of: tripViewModel.endLocation) { _, newValue in
+                                        if newValue.count > 2 {
+                                            endLocationSearch.update(queryFragment: newValue)
+                                            withAnimation {
+                                                showEndSuggestions = true
+                                                showStartSuggestions = false
+                                            }
+                                        } else {
+                                            withAnimation {
+                                                showEndSuggestions = false
+                                            }
+                                        }
+                                    }
                             }
                             .padding(.vertical, 16)
                             
                             Spacer()
+                            
+                            if !tripViewModel.endLocation.isEmpty {
+                                Button(action: {
+                                    tripViewModel.endLocation = ""
+                                    showEndSuggestions = false
+                                }) {
+                                    Image(systemName: "xmark.circle.fill")
+                                        .foregroundColor(.secondary)
+                                        .font(.system(size: 16))
+                                }
+                                .padding(.trailing, 8)
+                            }
                             
                             Button(action: {
                                 showEndLocationPicker = true
@@ -337,6 +441,54 @@ struct AddTripView: View {
                                     .clipShape(Circle())
                             }
                             .padding(.trailing, 16)
+                        }
+                        
+                        // Location suggestions for end location
+                        if showEndSuggestions && !endLocationSearch.locationResults.isEmpty {
+                            ZStack {
+                                VStack(alignment: .leading, spacing: 0) {
+                                    ForEach(endLocationSearch.locationResults.prefix(4), id: \.self) { location in
+                                        Button(action: {
+                                            selectEndLocation(location)
+                                        }) {
+                                            HStack(spacing: 12) {
+                                                Image(systemName: "location.circle.fill")
+                                                    .foregroundColor(.red)
+                                                    .font(.system(size: 18))
+                                                
+                                                VStack(alignment: .leading, spacing: 2) {
+                                                    Text(location.title)
+                                                        .foregroundColor(.primary)
+                                                        .font(.system(size: 15))
+                                                        .lineLimit(1)
+                                                    
+                                                    Text(location.subtitle)
+                                                        .foregroundColor(.secondary)
+                                                        .font(.system(size: 12))
+                                                        .lineLimit(1)
+                                                }
+                                                
+                                                Spacer()
+                                            }
+                                            .padding(.vertical, 8)
+                                            .padding(.horizontal, 12)
+                                        }
+                                        
+                                        if endLocationSearch.locationResults.first != location {
+                                            Divider()
+                                                .padding(.leading, 42)
+                                                .padding(.trailing, 12)
+                                        }
+                                    }
+                                }
+                                .padding(.vertical, 8)
+                                .background(Color(.systemBackground))
+                                .cornerRadius(12)
+                                .shadow(color: Color.black.opacity(0.1), radius: 6, x: 0, y: 3)
+                            }
+                            .padding(.horizontal, 16)
+                            .padding(.bottom, 8)
+                            .transition(.opacity.combined(with: .move(edge: .top)))
                         }
                     }
                     .background(
@@ -3238,6 +3390,63 @@ struct LocationSelectionView: View {
             withAnimation {
                 isLoadingLocation = false
             }
+        }
+    }
+} 
+
+// Add these helper methods after the existing code - likely at the end of the file
+extension AddTripView {
+    // Helper method to handle start location selection from suggestions
+    private func selectStartLocation(_ location: MKLocalSearchCompletion) {
+        let searchRequest = MKLocalSearch.Request(completion: location)
+        let search = MKLocalSearch(request: searchRequest)
+        
+        search.start { response, error in
+            guard let coordinate = response?.mapItems.first?.placemark.coordinate else { return }
+            
+            // Update the coordinate and address
+            self.startCoordinate = coordinate
+            self.tripViewModel.startLocation = "\(location.title), \(location.subtitle)"
+            
+            // Hide suggestions
+            withAnimation {
+                self.showStartSuggestions = false
+            }
+            
+            // Calculate route if both locations are set
+            if !self.tripViewModel.startLocation.isEmpty && !self.tripViewModel.endLocation.isEmpty {
+                self.tripViewModel.calculateRouteForForm(from: self.tripViewModel.startLocation, to: self.tripViewModel.endLocation)
+            }
+            
+            // Dismiss keyboard
+            UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+        }
+    }
+    
+    // Helper method to handle end location selection from suggestions
+    private func selectEndLocation(_ location: MKLocalSearchCompletion) {
+        let searchRequest = MKLocalSearch.Request(completion: location)
+        let search = MKLocalSearch(request: searchRequest)
+        
+        search.start { response, error in
+            guard let coordinate = response?.mapItems.first?.placemark.coordinate else { return }
+            
+            // Update the coordinate and address
+            self.endCoordinate = coordinate
+            self.tripViewModel.endLocation = "\(location.title), \(location.subtitle)"
+            
+            // Hide suggestions
+            withAnimation {
+                self.showEndSuggestions = false
+            }
+            
+            // Calculate route if both locations are set
+            if !self.tripViewModel.startLocation.isEmpty && !self.tripViewModel.endLocation.isEmpty {
+                self.tripViewModel.calculateRouteForForm(from: self.tripViewModel.startLocation, to: self.tripViewModel.endLocation)
+            }
+            
+            // Dismiss keyboard
+            UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
         }
     }
 } 

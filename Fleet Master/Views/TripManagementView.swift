@@ -753,8 +753,8 @@ struct TripManagementView: View {
                             .stroke(statusColor(for: trip.status).opacity(0.7), lineWidth: 3)
                             .frame(width: 50, height: 50)
                             .rotationEffect(.degrees(trip.status == .inProgress ? 360 : 0))
-                            .animation(trip.status == .inProgress ?
-                                      Animation.linear(duration: 1.5).repeatForever(autoreverses: false) :
+                            .animation(trip.status == .inProgress ? 
+                                      Animation.linear(duration: 1.5).repeatForever(autoreverses: false) : 
                                       .default, value: trip.status == .inProgress)
                     )
                     
@@ -1801,5 +1801,5 @@ struct TripManagementView: View {
         .environmentObject(TripViewModel())
         .environmentObject(DriverViewModel())
         .environmentObject(VehicleViewModel())
-}
+} 
 
