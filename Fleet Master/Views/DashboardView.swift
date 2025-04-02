@@ -6,9 +6,11 @@ struct DashboardView: View {
     @EnvironmentObject private var tripViewModel: TripViewModel
     @EnvironmentObject private var driverViewModel: DriverViewModel
     @EnvironmentObject private var vehicleViewModel: VehicleViewModel
+    @EnvironmentObject private var maintenanceViewModel: MaintenanceViewModel
     @State private var showNotificationCenter = false
     @State private var selectedTrip: Trip?
     @State private var showTripDetail = false
+    @State private var isRefreshing = false
     
     var body: some View {
         NavigationStack {
@@ -178,6 +180,26 @@ struct DashboardView: View {
                             .foregroundStyle(.blue)
                     }
                 }
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button {
+                        isRefreshing = true
+                        Task {
+                            // Use the public methods from view models
+                            await refreshAllData()
+                            isRefreshing = false
+                        }
+                    } label: {
+                        Image(systemName: "arrow.clockwise")
+                            .font(.system(size: 16, weight: .medium))
+                            .rotationEffect(.degrees(isRefreshing ? 360 : 0))
+                            .animation(
+                                isRefreshing ? 
+                                    .linear(duration: 1).repeatForever(autoreverses: false) : 
+                                    .default,
+                                value: isRefreshing
+                            )
+                    }
+                }
             }
             .sheet(isPresented: $showNotificationCenter) {
                 NotificationCenterView()
@@ -186,6 +208,12 @@ struct DashboardView: View {
                 TripDetailView(trip: trip)
             }
         }
+    }
+    
+    private func refreshAllData() async {
+        // Use public methods to refresh data
+        await tripViewModel.loadTrips()
+        await vehicleViewModel.fetchVehicles()
     }
 }
 
@@ -239,13 +267,13 @@ struct KPICard: View {
                             .frame(width: 8, height: 8)
                         
                         // Label and value
-                        HStack {
+            HStack {
                             Text(detail.label)
                                 .font(.system(size: 20))
                                 .foregroundStyle(.secondary)
-                            
-                            Spacer()
-                            
+                
+                Spacer()
+                
                             Text(detail.value)
                                 .font(.system(size: 20, weight: .medium))
                                 .foregroundStyle(iconGradient[0])
