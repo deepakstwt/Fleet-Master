@@ -13,21 +13,59 @@ struct VehicleManagementView: View {
     @State private var showFilterMenu = false
     @State private var selectedVehicleTypeFilter: VehicleType?
     @State private var showActiveOnly = true
+    @State private var selectedStatusFilter: VehicleStatus?
     
     enum SortOption {
         case newest, oldest, makeAsc, makeDesc
     }
     
+    enum VehicleStatus: String {
+        case available = "Available"
+        case underMaintenance = "Under Maintenance"
+        case onTrip = "On Trip"
+        case idle = "Idle"
+    }
+    
     private var sortedVehicles: [Vehicle] {
         let filteredVehicles = viewModel.vehicles.filter { vehicle in
+            // Filter by vehicle type if selected
             if let typeFilter = selectedVehicleTypeFilter, vehicle.vehicleType != typeFilter {
                 return false
             }
             
+            // Filter by status if selected
+            if let statusFilter = selectedStatusFilter {
+                switch statusFilter {
+                case .available:
+                    // Available means the vehicle is active and not due for service
+                    if !vehicle.isActive || (vehicle.nextServiceDue ?? Date.distantFuture) <= Date() {
+                        return false
+                    }
+                case .underMaintenance:
+                    // Under maintenance means the vehicle is due for service
+                    if (vehicle.nextServiceDue ?? Date.distantFuture) > Date() {
+                        return false
+                    }
+                case .onTrip:
+                    // For now, we'll consider a vehicle on trip if it's active
+                    // This should be updated once trip tracking is implemented
+                    if !vehicle.isActive {
+                        return false
+                    }
+                case .idle:
+                    // Idle means active but not due for service
+                    if !vehicle.isActive || (vehicle.nextServiceDue ?? Date.distantFuture) <= Date() {
+                        return false
+                    }
+                }
+            }
+            
+            // Filter by active status
             if showActiveOnly && !vehicle.isActive {
                 return false
             }
             
+            // Filter by search text
             if !searchText.isEmpty {
                 let searchQuery = searchText.lowercased()
                 return vehicle.make.lowercased().contains(searchQuery) ||
@@ -91,7 +129,7 @@ struct VehicleManagementView: View {
                         viewModel.selectVehicleForEdit(vehicle: vehicle)
                     }
             }
-            .onChange(of: searchText) { newValue in
+            .onChange(of: searchText) { oldValue, newValue in
                 Task {
                     await viewModel.searchVehiclesInDatabase()
                 }
@@ -108,88 +146,121 @@ struct VehicleManagementView: View {
     }
     
     private var searchAndFilterBar: some View {
+        VStack(spacing: 12) {
+            // Search bar and menu buttons
             HStack(spacing: 12) {
                 HStack {
                     Image(systemName: "magnifyingglass")
-                    .foregroundColor(.secondary)
-                
-                TextField("Search by make, model, or registration", text: $searchText)
-                    .autocorrectionDisabled()
-                
-                if !searchText.isEmpty {
-                    Button(action: {
-                        searchText = ""
-                    }) {
-                        Image(systemName: "xmark.circle.fill")
-                            .foregroundColor(.secondary)
-                    }
+                        .foregroundColor(.secondary)
+                    
+                    TextField("Search by make, model, or registration", text: $searchText)
+                        .autocorrectionDisabled()
+                    
+                    if !searchText.isEmpty {
+                        Button(action: {
+                            searchText = ""
+                        }) {
+                            Image(systemName: "xmark.circle.fill")
+                                .foregroundColor(.secondary)
                         }
+                    }
                 }
                 .padding(10)
-            .background(Color(.systemGray6))
-            .cornerRadius(10)
-            
-        Menu {
-                Button {
-                    showFilterMenu = true
-            } label: {
-                    Label("Filter Options", systemImage: "line.3.horizontal.decrease.circle")
-            }
-            
-            Divider()
-            
-                Button {
-                    selectedSortOption = .newest
-                } label: {
-                    Label("Newest First", systemImage: "arrow.down")
-                        .foregroundColor(selectedSortOption == .newest ? .blue : .primary)
-                }
-                
-                Button {
-                    selectedSortOption = .oldest
-                } label: {
-                    Label("Oldest First", systemImage: "arrow.up")
-                        .foregroundColor(selectedSortOption == .oldest ? .blue : .primary)
-                }
-                
-                Button {
-                    selectedSortOption = .makeAsc
-                } label: {
-                    Label("Make (A-Z)", systemImage: "arrow.up")
-                        .foregroundColor(selectedSortOption == .makeAsc ? .blue : .primary)
-                }
-                
-                Button {
-                    selectedSortOption = .makeDesc
-                } label: {
-                    Label("Make (Z-A)", systemImage: "arrow.down")
-                        .foregroundColor(selectedSortOption == .makeDesc ? .blue : .primary)
-            }
-        } label: {
-            Image(systemName: "slider.horizontal.3")
-                .font(.system(size: 16, weight: .medium))
-                .foregroundStyle(.primary)
-                .frame(width: 36, height: 36)
                 .background(Color(.systemGray6))
-                .clipShape(Circle())
+                .cornerRadius(10)
+                
+                Menu {
+                    Button {
+                        selectedSortOption = .newest
+                    } label: {
+                        Label("Newest First", systemImage: "arrow.down")
+                            .foregroundColor(selectedSortOption == .newest ? .blue : .primary)
+                    }
+                    
+                    Button {
+                        selectedSortOption = .oldest
+                    } label: {
+                        Label("Oldest First", systemImage: "arrow.up")
+                            .foregroundColor(selectedSortOption == .oldest ? .blue : .primary)
+                    }
+                    
+                    Button {
+                        selectedSortOption = .makeAsc
+                    } label: {
+                        Label("Make (A-Z)", systemImage: "arrow.up")
+                            .foregroundColor(selectedSortOption == .makeAsc ? .blue : .primary)
+                    }
+                    
+                    Button {
+                        selectedSortOption = .makeDesc
+                    } label: {
+                        Label("Make (Z-A)", systemImage: "arrow.down")
+                            .foregroundColor(selectedSortOption == .makeDesc ? .blue : .primary)
+                    }
+                } label: {
+                    Image(systemName: "slider.horizontal.3")
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundStyle(.primary)
+                        .frame(width: 36, height: 36)
+                        .background(Color(.systemGray6))
+                        .clipShape(Circle())
+                }
+                
+                // Add vehicle button
+                Button(action: {
+                    showAddVehicleSheet = true
+                }) {
+                    Image(systemName: "plus")
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundStyle(.white)
+                        .frame(width: 36, height: 36)
+                        .background(Color.blue)
+                        .clipShape(Circle())
+                        .shadow(color: Color.blue.opacity(0.3), radius: 2, x: 0, y: 1)
+                }
+            }
+            
+            // Filter buttons
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 10) {
+                    filterButton(title: "All", status: nil, icon: "car.fill", color: .gray)
+                    filterButton(title: "Available", status: .available, icon: "checkmark.circle.fill", color: .green)
+                    filterButton(title: "Under Maintenance", status: .underMaintenance, icon: "wrench.fill", color: .orange)
+                    filterButton(title: "On Trip", status: .onTrip, icon: "car.side.fill", color: .blue)
+                    filterButton(title: "Idle", status: .idle, icon: "car.circle.fill", color: .gray)
+                }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 8)
+            }
         }
-            .sheet(isPresented: $showFilterMenu) {
-                filterView
     }
     
-            // Add vehicle button
+    private func filterButton(title: String, status: VehicleStatus?, icon: String, color: Color) -> some View {
         Button(action: {
-                showAddVehicleSheet = true
-        }) {
-            Image(systemName: "plus")
-                .font(.system(size: 16, weight: .medium))
-                .foregroundStyle(.white)
-                .frame(width: 36, height: 36)
-                .background(Color.blue)
-                .clipShape(Circle())
-                .shadow(color: Color.blue.opacity(0.3), radius: 2, x: 0, y: 1)
+            withAnimation(.spring(response: 0.3)) {
+                if selectedStatusFilter == status {
+                    selectedStatusFilter = nil
+                } else {
+                    selectedStatusFilter = status
+                }
             }
+        }) {
+            HStack(spacing: 6) {
+                Text(title)
+                    .font(.system(size: 14, weight: .medium))
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .foregroundColor(selectedStatusFilter == status ? .white : .primary)
+            .background(
+                RoundedRectangle(cornerRadius: 10)
+                    .fill(selectedStatusFilter == status ? Color.accentColor : Color(.systemGray6))            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 10)
+                    .stroke(selectedStatusFilter == status ? Color.clear : Color(.systemGray4), lineWidth: 1)
+            )
         }
+        .buttonStyle(ScaleButtonStyle())
     }
     
     private var filterView: some View {
@@ -2013,7 +2084,7 @@ struct EditVehicleView: View {
                         .onSubmit {
                             advanceToNextField(from: .insuranceNumber)
                         }
-                    }
+                }
                     .padding()
                 .background(
                     RoundedRectangle(cornerRadius: 10)
@@ -2372,11 +2443,11 @@ struct EditVehicleView: View {
         case .diesel:
             return "fuelpump"
         case .cng:
-            return "leaf.fill"
+            return "seal.fill"
         case .electric:
             return "bolt.fill"
         case .hybrid:
-            return "link"
+            return "leaf.fill"
         }
     }
 }
