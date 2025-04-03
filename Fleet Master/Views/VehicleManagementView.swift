@@ -664,6 +664,7 @@ struct VehicleRow: View {
     let onTap: () -> Void
     
     @State private var isHovered = false
+    @State private var showMaintenanceSheet = false
     
     var body: some View {
         Button(action: onTap) {
@@ -718,27 +719,32 @@ struct VehicleRow: View {
                     .frame(width: 80, alignment: .center)
                     .layoutPriority(1)
                 
-                // Actions column
-                HStack(spacing: 16) {
+                // Actions column with Menu
+                Menu {
                     Button(action: onEdit) {
-                        Image(systemName: "pencil")
-                            .font(.caption)
-                            .foregroundStyle(.blue)
+                        Label("Edit", systemImage: "pencil")
                     }
-                    .buttonStyle(BorderlessButtonStyle())
                     
                     Button(action: onToggleStatus) {
-                        Image(systemName: vehicle.isActive ? "trash" : "checkmark.circle")
-                            .font(.caption)
-                            .foregroundStyle(vehicle.isActive ? .red : .green)
+                        Label("Delete", systemImage: "trash")
+                            .foregroundColor(.red)
                     }
-                    .buttonStyle(BorderlessButtonStyle())
+                    
+                    Button(action: { showMaintenanceSheet = true }) {
+                        Label("Schedule Maintenance", systemImage: "wrench.fill")
+                    }
+                } label: {
+                    Image(systemName: "ellipsis")
+                        .font(.system(size: 16, weight: .bold))
+                        .foregroundStyle(.secondary)
+                        .frame(width: 32, height: 32)
+                        .contentShape(Rectangle())
                 }
                 .opacity(isHovered ? 1 : 0.6)
                 .frame(width: 80, alignment: .center)
                 .layoutPriority(1)
             }
-        .padding(.horizontal, 16)
+            .padding(.horizontal, 16)
             .frame(maxWidth: .infinity)
             .frame(height: 72)
             .background(
@@ -757,6 +763,10 @@ struct VehicleRow: View {
                 .opacity(0.5),
             alignment: .bottom
         )
+        .sheet(isPresented: $showMaintenanceSheet) {
+            ScheduleMaintenanceView(vehicle: vehicle)
+                .presentationDetents([.large])
+        }
     }
     
     private var statusText: String {
