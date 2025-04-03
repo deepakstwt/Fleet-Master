@@ -108,7 +108,7 @@ class VehicleViewModel: ObservableObject {
         }
     }
     
-    func addVehicle() {
+    func addVehicle(status: VehicleStatus = .available) {
         let newVehicle = Vehicle(
             registrationNumber: registrationNumber,
             make: make,
@@ -118,6 +118,8 @@ class VehicleViewModel: ObservableObject {
             color: color,
             fuelType: selectedFuelType,
             vehicleType: selectedVehicleType,
+            isActive: true,
+            vehicle_status: status,
             rcExpiryDate: rcExpiryDate,
             insuranceNumber: insuranceNumber,
             insuranceExpiryDate: insuranceExpiryDate,
@@ -153,7 +155,7 @@ class VehicleViewModel: ObservableObject {
         }
     }
     
-    func updateVehicle() {
+    func updateVehicle(status: VehicleStatus? = nil) {
         guard let selectedVehicle = selectedVehicle else { return }
         
         // Create updated vehicle object
@@ -169,6 +171,11 @@ class VehicleViewModel: ObservableObject {
         updatedVehicle.nextServiceDue = nextServiceDue
         updatedVehicle.currentOdometer = currentOdometer
         updatedVehicle.additionalNotes = additionalNotes.isEmpty ? nil : additionalNotes
+        
+        // Update the vehicle status if provided
+        if let status = status {
+            updatedVehicle.vehicle_status = status
+        }
         
         Task {
             await updateVehicleInDatabase(updatedVehicle)
@@ -214,38 +221,32 @@ class VehicleViewModel: ObservableObject {
         }
     }
     
-    func toggleVehicleStatus(vehicle: Vehicle) {
+    func updateVehicleStatus(vehicle: Vehicle, status: VehicleStatus) {
         Task {
-            await toggleVehicleStatusInDatabase(vehicle)
+            await updateVehicleStatusInDatabase(vehicle, status: status)
         }
     }
     
-    @MainActor
-    private func toggleVehicleStatusInDatabase(_ vehicle: Vehicle) async {
+    private func updateVehicleStatusInDatabase(_ vehicle: Vehicle, status: VehicleStatus) async {
         isLoading = true
         errorMessage = nil
         
         do {
-            let updatedVehicle = try await vehicleManager.toggleVehicleStatus(
-                vehicleId: vehicle.id, 
-                isActive: !vehicle.isActive
-            )
+            var updatedVehicle = vehicle
+            updatedVehicle.vehicle_status = status
+            
+            let savedVehicle = try await vehicleManager.updateVehicle(updatedVehicle)
             
             // Update local array
-            if let index = vehicles.firstIndex(where: { $0.id == updatedVehicle.id }) {
-                vehicles[index] = updatedVehicle
+            if let index = vehicles.firstIndex(where: { $0.id == savedVehicle.id }) {
+                vehicles[index] = savedVehicle
             }
             
             isLoading = false
         } catch {
             isLoading = false
-            errorMessage = "Failed to toggle vehicle status: \(error.localizedDescription)"
-            print("Error toggling vehicle status: \(error)")
-            
-            // For development fallback only - remove in production
-            if let index = vehicles.firstIndex(where: { $0.id == vehicle.id }) {
-                vehicles[index].isActive.toggle()
-            }
+            errorMessage = "Failed to update vehicle status: \(error.localizedDescription)"
+            print("Error updating vehicle status: \(error)")
         }
     }
     

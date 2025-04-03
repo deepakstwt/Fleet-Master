@@ -13,7 +13,7 @@ struct TripDetailView: View {
     @State private var estimatedTime: String = "Calculating..."
     @State private var estimatedDistance: Double = 0.0
     @State private var estimatedDuration: TimeInterval = 0
-    @State private var isCustomSchedule: Bool = true
+    @State private var isCustomSchedule: Bool = false
     @State private var customStartTime: Date = Date()
     @State private var customEndTime: Date = Date().addingTimeInterval(3600) // Default 1 hour later
     @State private var userHasEditedEndTime: Bool = false
@@ -26,7 +26,23 @@ struct TripDetailView: View {
     @EnvironmentObject private var tripViewModel: TripViewModel
     
     init(trip: Trip) {
-        _tripData = State(initialValue: trip)
+        _tripData = State(initialValue: Trip(
+            id: trip.id,
+            title: trip.title,
+            startLocation: trip.startLocation,
+            endLocation: trip.endLocation,
+            scheduledStartTime: trip.scheduledStartTime,
+            scheduledEndTime: trip.scheduledEndTime,
+            status: trip.status,
+            driverId: trip.driverId,
+            vehicleId: trip.vehicleId,
+            description: trip.description,
+            distance: trip.distance,
+            actualStartTime: trip.actualStartTime,
+            actualEndTime: trip.actualEndTime,
+            notes: trip.notes,
+            routeInfo: trip.routeInfo
+        ))
     }
     
     var body: some View {
@@ -115,7 +131,7 @@ struct TripDetailView: View {
                     ZStack(alignment: .bottom) {
                         // Map view with Indian region focus and route zoom
                         TripMapView(
-                            trips: [tripData],
+                            trips: [tripData], 
                             locationManager: locationManager,
                             isAssignedTrip: tripData.status == .ongoing && tripData.driverId != nil && tripData.vehicleId != nil
                         )
@@ -246,10 +262,6 @@ struct TripDetailView: View {
             ActivityViewController(activityItems: [tripDetails])
         }
         .onAppear {
-            // Initialize custom time controls with the trip's scheduled times
-            customStartTime = tripData.scheduledStartTime
-            customEndTime = tripData.scheduledEndTime
-            
             // First load any existing data if available
             if let routeInfo = tripData.routeInfo {
                 // Initialize from existing trip data immediately
@@ -265,10 +277,28 @@ struct TripDetailView: View {
                     let mins = Int(timeInMinutes.truncatingRemainder(dividingBy: 60))
                     estimatedTime = "\(hrs)h \(mins)m"
                 }
+                
+                // Update time schedule immediately
+                if !isCustomSchedule {
+                    updateScheduledTimes()
+                }
             }
             
-            // Calculate fresh route info but don't update times
+            // Then calculate fresh route info regardless
             calculateRouteInfo()
+            
+            // Schedule a timer to update the times according to current time
+            let timer = Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { _ in
+                if !isCustomSchedule {
+                    updateScheduledTimes()
+                } else {
+                    // When in custom mode, preserve the user-set times
+                    // Only update the trip data with the static custom times
+                    tripData.scheduledStartTime = customStartTime
+                    tripData.scheduledEndTime = customEndTime
+                }
+            }
+            timer.tolerance = 10
             
             // Animate content with a slight delay to ensure data is loaded
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
@@ -377,311 +407,247 @@ struct TripDetailView: View {
     
     private var statusCard: some View {
         VStack(spacing: 16) {
-            // Clean header with icon and toggle
-            HStack {
-                Label {
-                    Text("Time Schedule")
-                        .font(.system(size: 20, weight: .bold))
-                        .foregroundColor(.primary)
-                } icon: {
-                    Image(systemName: "clock.fill")
-                    .foregroundColor(.blue)
-                        .font(.system(size: 18))
-                }
-                
-                Spacer()
-                
-                // Modern toggle switch for Auto/Manual mode
-                Toggle("", isOn: $isCustomSchedule.animation())
-                    .labelsHidden()
-                    .toggleStyle(SwitchToggleStyle(tint: .blue))
-                    .overlay(
-                        Text("Auto")
-                            .font(.system(size: 16, weight: .medium))
-                            .foregroundColor(.secondary)
-                            .padding(.trailing, 60),
-                        alignment: .trailing
-                    )
-                .onChange(of: isCustomSchedule) { newValue in
-                    if !newValue {
-                            withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
-                        updateScheduledTimes()
-                            }
-                        }
-                    }
-            }
+            // Header Section
+            statusCardHeader
             
-            // Info banner with auto-update message
+            // Info Banner
             if !isCustomSchedule {
-                HStack(spacing: 10) {
-                    Image(systemName: "info.circle.fill")
-                        .foregroundColor(.blue)
-                        .font(.system(size: 16))
-                    
-                    Text("Schedule automatically updates based on route duration (\(estimatedTime))")
-                        .font(.system(size: 14))
-                        .foregroundColor(.secondary)
-                        .lineLimit(1)
-                }
-                .padding(12)
-                .background(
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(Color.blue.opacity(0.08))
-                )
+                statusInfoBanner
             }
             
-            // Custom time inputs (only shown in manual mode)
+            // Custom Time Inputs
             if isCustomSchedule {
-                VStack(spacing: 16) {
-                    // Start time
-                    HStack(alignment: .center, spacing: 16) {
-                        ZStack {
-                            Circle()
-                                .fill(Color.blue.opacity(0.15))
-                                .frame(width: 40, height: 40)
-                            
-                            Image(systemName: "clock")
-                                .font(.system(size: 18))
-                                .foregroundColor(.blue)
+                customTimeInputs
+            }
+            
+            // Timeline View
+            timelineView
+        }
+    }
+    
+    private var statusCardHeader: some View {
+        HStack {
+            Label {
+                Text("Time Schedule")
+                    .font(.system(size: 20, weight: .bold))
+                    .foregroundColor(.primary)
+            } icon: {
+                Image(systemName: "clock.fill")
+                    .foregroundColor(.blue)
+                    .font(.system(size: 18))
+            }
+            
+            Spacer()
+            
+            Toggle("", isOn: $isCustomSchedule.animation())
+                .labelsHidden()
+                .toggleStyle(SwitchToggleStyle(tint: .blue))
+                .overlay(
+                    Text("Auto")
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundColor(.secondary)
+                        .padding(.trailing, 60),
+                    alignment: .trailing
+                )
+                .onChange(of: isCustomSchedule) { newValue in
+                    if newValue {
+                        // When switching to custom mode, keep the current values
+                        // We don't need to do anything here as the current values are already in the state
+                        
+                        // Important: Update trip data with custom times
+                        tripData.scheduledStartTime = customStartTime
+                        tripData.scheduledEndTime = customEndTime
+                    } else {
+                        // When switching back to auto mode, update with current time
+                        // But preserve the custom time values for when user switches back to custom
+                        let savedCustomStartTime = customStartTime
+                        let savedCustomEndTime = customEndTime
+                        
+                        withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
+                            updateScheduledTimes(preserveCustomTime: true)
                         }
                         
-                    VStack(alignment: .leading, spacing: 4) {
-                            Text("Departure Time")
-                                .font(.system(size: 14, weight: .medium))
-                            .foregroundColor(.secondary)
-                        
-                        DatePicker("", selection: $customStartTime, displayedComponents: [.date, .hourAndMinute])
-                            .labelsHidden()
-                                .accentColor(.blue)
-                            .onChange(of: customStartTime) { _ in
-                                    withAnimation {
-                                tripData.scheduledStartTime = customStartTime
-                                if !userHasEditedEndTime {
-                                    customEndTime = customStartTime.addingTimeInterval(estimatedDuration)
-                                    tripData.scheduledEndTime = customEndTime
-                                }
-                            }
-                                }
-                        }
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                        // Restore the saved custom times (only for the custom controls)
+                        customStartTime = savedCustomStartTime
+                        customEndTime = savedCustomEndTime
                     }
-                    
-                    // Vertical connector
-                    HStack {
-                        Rectangle()
-                            .fill(Color.blue.opacity(0.4))
-                            .frame(width: 2, height: 24)
-                            .padding(.leading, 19)
-                        
-                        Spacer()
-                    }
-                    
-                    // End time
-                    HStack(alignment: .center, spacing: 16) {
-                        ZStack {
-                            Circle()
-                                .fill(Color.purple.opacity(0.15))
-                                .frame(width: 40, height: 40)
-                            
-                            Image(systemName: "flag.checkered")
-                                .font(.system(size: 18))
-                                .foregroundColor(.purple)
-                    }
-                    
-                    VStack(alignment: .leading, spacing: 4) {
-                            Text("Arrival Time")
-                                .font(.system(size: 14, weight: .medium))
-                            .foregroundColor(.secondary)
-                        
-                        DatePicker("", selection: $customEndTime, displayedComponents: [.date, .hourAndMinute])
-                            .labelsHidden()
-                                .accentColor(.purple)
-                            .onChange(of: customEndTime) { _ in
-                                    withAnimation {
-                                userHasEditedEndTime = true
-                                tripData.scheduledEndTime = customEndTime
-                            }
-                                }
-                        }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                    }
-                    
-                    // Warning message for custom duration
-                    if userHasEditedEndTime {
-                        HStack(spacing: 8) {
-                            Image(systemName: "exclamationmark.triangle.fill")
-                                .foregroundColor(.orange)
-                                .font(.system(size: 14))
-                            
-                            Text("Custom duration differs from route estimate (\(estimatedTime))")
-                                .font(.system(size: 13))
-                                .foregroundColor(.secondary)
-                            
-                            Spacer()
-                            
-                            Button(action: {
-                                withAnimation(.spring(response: 0.3)) {
-                                userHasEditedEndTime = false
+                }
+        }
+    }
+    
+    private var statusInfoBanner: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "info.circle.fill")
+                .foregroundColor(.blue)
+                .font(.system(size: 16))
+            
+            Text("Schedule automatically updates based on route duration (\(estimatedTime))")
+                .font(.system(size: 14))
+                .foregroundColor(.secondary)
+                .lineLimit(1)
+        }
+        .padding(12)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color.blue.opacity(0.08))
+        )
+    }
+    
+    private var customTimeInputs: some View {
+        VStack(spacing: 16) {
+            startTimeInput
+            timeConnector
+            endTimeInput
+            if userHasEditedEndTime {
+                customDurationWarning
+            }
+        }
+        .padding(16)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(Color(.systemBackground).opacity(0.8))
+                .shadow(color: Color.black.opacity(0.05), radius: 2, x: 0, y: 1)
+        )
+    }
+    
+    private var startTimeInput: some View {
+        HStack(alignment: .center, spacing: 16) {
+            ZStack {
+                Circle()
+                    .fill(Color.blue.opacity(0.15))
+                    .frame(width: 40, height: 40)
+                
+                Image(systemName: "clock")
+                    .font(.system(size: 18))
+                    .foregroundColor(.blue)
+            }
+            
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Departure Time")
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundColor(.secondary)
+                
+                DatePicker("", selection: $customStartTime, displayedComponents: [.date, .hourAndMinute])
+                    .labelsHidden()
+                    .accentColor(.blue)
+                    .onChange(of: customStartTime) { _ in
+                        withAnimation {
+                            tripData.scheduledStartTime = customStartTime
+                            if !userHasEditedEndTime {
                                 customEndTime = customStartTime.addingTimeInterval(estimatedDuration)
                                 tripData.scheduledEndTime = customEndTime
-                                }
-                            }) {
-                                Text("Reset")
-                                    .font(.system(size: 13, weight: .medium))
-                                    .foregroundColor(.blue)
-                                    .padding(.horizontal, 8)
-                                    .padding(.vertical, 4)
-                                    .background(
-                                        Capsule()
-                                            .fill(Color.blue.opacity(0.1))
-                                    )
                             }
                         }
-                        .padding(.vertical, 10)
-                .padding(.horizontal, 12)
-                        .background(
-                            RoundedRectangle(cornerRadius: 12)
-                                .fill(Color.orange.opacity(0.08))
-                        )
-                        .padding(.top, 8)
                     }
-                }
-                .padding(16)
-                .background(
-                    RoundedRectangle(cornerRadius: 16)
-                        .fill(Color(.systemBackground).opacity(0.8))
-                        .shadow(color: Color.black.opacity(0.05), radius: 2, x: 0, y: 1)
-                )
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+    
+    private var timeConnector: some View {
+        HStack {
+            Rectangle()
+                .fill(Color.blue.opacity(0.4))
+                .frame(width: 2, height: 24)
+                .padding(.leading, 19)
+            
+            Spacer()
+        }
+    }
+    
+    private var endTimeInput: some View {
+        HStack(alignment: .center, spacing: 16) {
+            ZStack {
+                Circle()
+                    .fill(Color.purple.opacity(0.15))
+                    .frame(width: 40, height: 40)
+                
+                Image(systemName: "flag.checkered")
+                    .font(.system(size: 18))
+                    .foregroundColor(.purple)
             }
             
-            // Main timeline view - simplified horizontal layout matching screenshot
-            VStack(spacing: 12) {
-                ZStack(alignment: .center) {
-                    // Timeline track
-                    Rectangle()
-                        .fill(Color(.systemGray5))
-                        .frame(height: 4)
-                        .cornerRadius(2)
-                    
-                    // Progress dots - simpler design with 3 dots
-                    HStack(spacing: 0) {
-                        ForEach(0..<3) { i in
-                            ZStack {
-                                // Background circle
-                            Circle()
-                                .fill(getTripProgressColor(stage: i))
-                                    .frame(width: 10, height: 10)
-                                
-                                // Animated pulse for current point
-                                if i == 1 && tripData.status == .ongoing {
-                                    Circle()
-                                        .stroke(Color.blue, lineWidth: 2)
-                                        .frame(width: 18, height: 18)
-                                        .scaleEffect(1.2)
-                                        .opacity(0.5)
-                                        .animation(
-                                            Animation.easeInOut(duration: 1.0)
-                                                .repeatForever(autoreverses: true),
-                                            value: tripData.status == .ongoing
-                                        )
-                                }
-                            }
-                            .frame(maxWidth: .infinity)
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Arrival Time")
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundColor(.secondary)
+                
+                DatePicker("", selection: $customEndTime, displayedComponents: [.date, .hourAndMinute])
+                    .labelsHidden()
+                    .accentColor(.purple)
+                    .onChange(of: customEndTime) { _ in
+                        withAnimation {
+                            userHasEditedEndTime = true
+                            tripData.scheduledEndTime = customEndTime
                         }
                     }
-                }
-                .padding(.horizontal, 20)
-                .padding(.bottom, 4)
-                .padding(.top, 8)
-                
-                // Time display in large format
-                HStack(alignment: .top) {
-                    // Start time
-                    VStack(alignment: .center, spacing: 4) {
-                        Text(formatTimeWithoutAmPm(tripData.scheduledStartTime))
-                            .font(.system(size: 36, weight: .bold))
-                            .foregroundColor(.primary)
-                            .minimumScaleFactor(0.7)
-                            .lineLimit(1)
-                            .padding(.bottom, -5)
-                        
-                        Text(getAmPm(tripData.scheduledStartTime))
-                            .font(.system(size: 36, weight: .bold))
-                            .foregroundColor(.primary)
-                            .minimumScaleFactor(0.7)
-                            .lineLimit(1)
-                            .padding(.bottom, 8)
-                        
-                        Text("START")
-                            .font(.system(size: 12, weight: .medium))
-                            .foregroundColor(.secondary)
-                        
-                        Text(formatDateOnly(tripData.scheduledStartTime))
-                            .font(.system(size: 16, weight: .medium))
-                            .foregroundColor(.blue)
-                    }
-                    .frame(maxWidth: .infinity)
-                    
-                    // End time
-                    VStack(alignment: .center, spacing: 4) {
-                        Text(formatTimeWithoutAmPm(tripData.scheduledEndTime))
-                            .font(.system(size: 36, weight: .bold))
-                            .foregroundColor(.primary)
-                            .minimumScaleFactor(0.7)
-                            .lineLimit(1)
-                            .padding(.bottom, -5)
-                        
-                        Text(getAmPm(tripData.scheduledEndTime))
-                            .font(.system(size: 36, weight: .bold))
-                            .foregroundColor(.primary)
-                            .minimumScaleFactor(0.7)
-                            .lineLimit(1)
-                            .padding(.bottom, 8)
-                    
-                    Text("END")
-                            .font(.system(size: 12, weight: .medium))
-                        .foregroundColor(.secondary)
-                    
-                    Text(formatDateOnly(tripData.scheduledEndTime))
-                            .font(.system(size: 16, weight: .medium))
-                            .foregroundColor(.red.opacity(0.8))
-                    }
-                    .frame(maxWidth: .infinity)
-                }
-                .padding(.bottom, 8)
-                
-                // Duration pill at bottom
-                HStack(spacing: 8) {
-                    Image(systemName: "timer")
-                        .font(.system(size: 14))
-                        .foregroundColor(.white)
-                    
-                    Text(estimatedTime)
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundColor(.white)
-                }
-                .frame(width: 120)
-                .padding(.vertical, 10)
-                .background(
-                    Capsule()
-                        .fill(
-                            LinearGradient(
-                                gradient: Gradient(colors: [.blue, .purple.opacity(0.8)]),
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            )
-                        )
-                )
-                .shadow(color: Color.black.opacity(0.1), radius: 4, x: 0, y: 2)
             }
-            .padding(.top, 8)
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .padding(20)
-        .background(Color(.systemBackground))
-        .cornerRadius(16)
-        .shadow(color: Color.black.opacity(0.05), radius: 8, x: 0, y: 2)
-        .offset(y: animateContent ? 0 : 20)
-        .opacity(animateContent ? 1 : 0)
+    }
+    
+    private var customDurationWarning: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .foregroundColor(.orange)
+                .font(.system(size: 14))
+            
+            Text("Custom duration differs from route estimate (\(estimatedTime))")
+                .font(.system(size: 13))
+                .foregroundColor(.secondary)
+            
+            Spacer()
+            
+            Button(action: {
+                withAnimation(.spring(response: 0.3)) {
+                    userHasEditedEndTime = false
+                    customEndTime = customStartTime.addingTimeInterval(estimatedDuration)
+                    tripData.scheduledEndTime = customEndTime
+                }
+            }) {
+                Text("Reset")
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundColor(.blue)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(
+                        Capsule()
+                            .fill(Color.blue.opacity(0.1))
+                    )
+            }
+        }
+        .padding(.vertical, 10)
+        .padding(.horizontal, 12)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(Color.orange.opacity(0.08))
+        )
+        .padding(.top, 8)
+    }
+    
+    private var timelineView: some View {
+        VStack(spacing: 12) {
+            ZStack(alignment: .center) {
+                // Timeline track
+                Rectangle()
+                    .fill(Color(.systemGray5))
+                    .frame(height: 4)
+                    .cornerRadius(2)
+                
+                // Progress dots
+                HStack(spacing: 0) {
+                    ForEach(0..<3) { i in
+                        Circle()
+                            .fill(i == 0 ? Color.green : (i == 1 ? Color.orange : Color.red))
+                            .frame(width: 12, height: 12)
+                            .overlay(
+                                Circle()
+                                    .stroke(Color.white, lineWidth: 2)
+                            )
+                    }
+                }
+            }
+        }
     }
     
     private var locationsCard: some View {
@@ -1019,7 +985,7 @@ struct TripDetailView: View {
     }
     
     private var driverName: String {
-        if let driverId = tripData.driverId,
+        if let driverId = tripData.driverId, 
            let driver = driverViewModel.getDriverById(driverId) {
             return driver.name
         }
@@ -1070,9 +1036,20 @@ struct TripDetailView: View {
                 let mins = Int(timeInMinutes.truncatingRemainder(dividingBy: 60))
                 self.estimatedTime = "\(hrs)h \(mins)m"
             }
+            
+            // Update schedules based on existing info
+            if !isCustomSchedule {
+                updateScheduledTimes()
+            }
         } else {
             // Set loading state if no pre-existing data
             self.estimatedTime = "Calculating..."
+            
+            // Also update the schedule display to indicate loading
+            if !isCustomSchedule {
+                tripData.scheduledStartTime = Date()
+                tripData.scheduledEndTime = Date()
+            }
         }
         
         // Calculate fresh route info using the LocationManager
@@ -1101,6 +1078,20 @@ struct TripDetailView: View {
                             distance: route.distance,
                             time: route.expectedTravelTime
                         )
+                        
+                        // Always update the custom end time based on the calculated duration
+                        // if user hasn't manually edited it
+                        if !self.userHasEditedEndTime {
+                            self.customEndTime = self.customStartTime.addingTimeInterval(route.expectedTravelTime)
+                        }
+                        
+                        // Auto update schedule immediately if not in custom mode
+                        if !self.isCustomSchedule {
+                            // Immediate update with visual feedback
+                            withAnimation(.easeInOut(duration: 0.3)) {
+                                self.updateScheduledTimes()
+                            }
+                        }
                     }
             case .failure(let error):
                 DispatchQueue.main.async {
@@ -1110,30 +1101,36 @@ struct TripDetailView: View {
         }
     }
     
-    private func updateScheduledTimes() {
+    private func updateScheduledTimes(preserveCustomTime: Bool = false) {
+        // Get the exact current time
+        let startTime = Date()
+        
         // Format the current time for debugging
         let currentTimeFormatter = DateFormatter()
         currentTimeFormatter.dateFormat = "h:mm:ss a"
+        let currentTimeString = currentTimeFormatter.string(from: startTime)
         
-        // Calculate end time by adding the estimated duration to the original scheduled start time
-        let endTime = tripData.scheduledStartTime.addingTimeInterval(estimatedDuration)
+        // Calculate end time by precisely adding the estimated duration to current time
+        let endTime = startTime.addingTimeInterval(estimatedDuration)
         
-        // Format the time strings for debugging
-        let startTimeString = currentTimeFormatter.string(from: tripData.scheduledStartTime)
+        // Format the end time for debugging
         let endTimeString = currentTimeFormatter.string(from: endTime)
         
-        // Update only the end time based on the duration
+        // Update the trip data
+        tripData.scheduledStartTime = startTime
         tripData.scheduledEndTime = endTime
         
-        // Update custom time values for when custom mode is toggled on
-        customStartTime = tripData.scheduledStartTime
-        customEndTime = endTime
-        userHasEditedEndTime = false
+        // Only update custom time values if not in custom mode AND not preserving custom time
+        if !isCustomSchedule && !preserveCustomTime {
+            customStartTime = startTime
+            customEndTime = endTime
+            userHasEditedEndTime = false
+        }
         
-        // Log the update with time details
-        print("Schedule updated based on original times")
-        print("Start: \(formatDate(tripData.scheduledStartTime)) (preserved original time)")
-        print("End: \(formatDate(endTime)) (start time + \(Int(estimatedDuration/60)) minutes)")
+        // Log the update with precise time details
+        print("Schedule updated at real time: \(currentTimeString)")
+        print("Start: \(formatDate(startTime))")
+        print("End: \(formatDate(endTime)) (current time + \(Int(estimatedDuration/60)) minutes)")
         print("Duration: \(estimatedTime)")
     }
     
@@ -1213,4 +1210,4 @@ struct LocationMarker: View {
         .environmentObject(DriverViewModel())
         .environmentObject(VehicleViewModel())
     }
-}
+} 

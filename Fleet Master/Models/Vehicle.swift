@@ -11,6 +11,7 @@ struct Vehicle: Identifiable, Codable {
     var fuelType: FuelType
     var vehicleType: VehicleType
     var isActive: Bool
+    var vehicle_status: VehicleStatus = .available
     
     // Documents and certification details
     var rcExpiryDate: Date
@@ -37,6 +38,7 @@ struct Vehicle: Identifiable, Codable {
         case fuelType = "fuel_type"
         case vehicleType = "vehicle_type"
         case isActive = "is_active"
+        case vehicle_status = "vehicle_status"
         case rcExpiryDate = "rc_expiry_date"
         case insuranceNumber = "insurance_number"
         case insuranceExpiryDate = "insurance_expiry_date"
@@ -63,6 +65,14 @@ struct Vehicle: Identifiable, Codable {
         fuelType = try container.decode(FuelType.self, forKey: .fuelType)
         vehicleType = try container.decode(VehicleType.self, forKey: .vehicleType)
         isActive = try container.decode(Bool.self, forKey: .isActive)
+        
+        // Try to decode vehicle_status, default to available if missing
+        if let statusString = try? container.decode(String.self, forKey: .vehicle_status),
+           let status = VehicleStatus(rawValue: statusString) {
+            vehicle_status = status
+        } else {
+            vehicle_status = .available
+        }
         
         // Decode required dates
         let dateFormatter = ISO8601DateFormatter()
@@ -120,6 +130,7 @@ struct Vehicle: Identifiable, Codable {
          fuelType: FuelType,
          vehicleType: VehicleType = .lmvTr,
          isActive: Bool = true,
+         vehicle_status: VehicleStatus = .available,
          rcExpiryDate: Date,
          insuranceNumber: String,
          insuranceExpiryDate: Date,
@@ -139,6 +150,7 @@ struct Vehicle: Identifiable, Codable {
         self.fuelType = fuelType
         self.vehicleType = vehicleType
         self.isActive = isActive
+        self.vehicle_status = vehicle_status
         self.rcExpiryDate = rcExpiryDate
         self.insuranceNumber = insuranceNumber
         self.insuranceExpiryDate = insuranceExpiryDate
@@ -165,6 +177,7 @@ struct Vehicle: Identifiable, Codable {
         try container.encode(fuelType, forKey: .fuelType)
         try container.encode(vehicleType, forKey: .vehicleType)
         try container.encode(isActive, forKey: .isActive)
+        try container.encode(vehicle_status.rawValue, forKey: .vehicle_status)
         
         // Format dates to ISO8601 for Supabase
         let dateFormatter = ISO8601DateFormatter()
@@ -226,6 +239,12 @@ enum FuelType: String, Codable, CaseIterable {
     case cng = "CNG"
     case electric = "Electric"
     case hybrid = "Hybrid"
+}
+
+enum VehicleStatus: String, Codable, CaseIterable {
+    case available = "available"
+    case underMaintenance = "underMaintenance"
+    case onTrip = "onTrip"
 }
 
 enum VehicleType: String, Codable, CaseIterable {

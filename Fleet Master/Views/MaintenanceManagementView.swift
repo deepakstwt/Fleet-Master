@@ -336,12 +336,6 @@ struct MaintenanceCard: View {
             }
             
             Spacer()
-            
-            // Right side indicators
-            Image(systemName: "chevron.right")
-                .font(.caption)
-                .foregroundColor(.secondary)
-                .padding(.trailing, 4)
         }
         .padding()
         .background(Color(.systemBackground))

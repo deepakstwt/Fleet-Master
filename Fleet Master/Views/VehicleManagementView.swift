@@ -12,18 +12,18 @@ struct VehicleManagementView: View {
     @State private var selectedSortOption: SortOption = .newest
     @State private var showFilterMenu = false
     @State private var selectedVehicleTypeFilter: VehicleType?
-    @State private var showActiveOnly = true
     @State private var selectedStatusFilter: VehicleStatus?
+    @State private var selectedVehicleStatus: VehicleStatus = .available
     
     enum SortOption {
         case newest, oldest, makeAsc, makeDesc
     }
     
     enum VehicleStatus: String {
-        case available = "Available"
-        case underMaintenance = "Under Maintenance"
-        case onTrip = "On Trip"
-        case idle = "Idle"
+        case available = "available"
+        case underMaintenance = "underMaintenance"
+        case onTrip = "onTrip"
+        case idle = "idle"
     }
     
     private var sortedVehicles: [Vehicle] {
@@ -37,32 +37,22 @@ struct VehicleManagementView: View {
             if let statusFilter = selectedStatusFilter {
                 switch statusFilter {
                 case .available:
-                    // Available means the vehicle is active and not due for service
-                    if !vehicle.isActive || (vehicle.nextServiceDue ?? Date.distantFuture) <= Date() {
+                    if vehicle.vehicle_status != .available {
                         return false
                     }
                 case .underMaintenance:
-                    // Under maintenance means the vehicle is due for service
-                    if (vehicle.nextServiceDue ?? Date.distantFuture) > Date() {
+                    if vehicle.vehicle_status != .underMaintenance {
                         return false
                     }
                 case .onTrip:
-                    // For now, we'll consider a vehicle on trip if it's active
-                    // This should be updated once trip tracking is implemented
-                    if !vehicle.isActive {
+                    if vehicle.vehicle_status != .onTrip {
                         return false
                     }
                 case .idle:
-                    // Idle means active but not due for service
-                    if !vehicle.isActive || (vehicle.nextServiceDue ?? Date.distantFuture) <= Date() {
-                        return false
-                    }
+                    // We don't have an idle status in our VehicleStatus enum
+                    // so we'll skip this filter
+                    break
                 }
-            }
-            
-            // Filter by active status
-            if showActiveOnly && !vehicle.isActive {
-                return false
             }
             
             // Filter by search text
@@ -227,7 +217,6 @@ struct VehicleManagementView: View {
                     filterButton(title: "Available", status: .available, icon: "checkmark.circle.fill", color: .green)
                     filterButton(title: "Under Maintenance", status: .underMaintenance, icon: "wrench.fill", color: .orange)
                     filterButton(title: "On Trip", status: .onTrip, icon: "car.side.fill", color: .blue)
-                    filterButton(title: "Idle", status: .idle, icon: "car.circle.fill", color: .gray)
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 8)
@@ -271,7 +260,6 @@ struct VehicleManagementView: View {
                     // Available button
                     Button {
                         selectedVehicleTypeFilter = nil
-                        showActiveOnly = true
                         showFilterMenu = false
                     } label: {
                         HStack {
@@ -293,7 +281,6 @@ struct VehicleManagementView: View {
                     // Under Maintenance button
                     Button {
                         selectedVehicleTypeFilter = nil
-                        showActiveOnly = false
                         showFilterMenu = false
                     } label: {
                         HStack {
@@ -315,7 +302,6 @@ struct VehicleManagementView: View {
                     // On Trip button
                     Button {
                         selectedVehicleTypeFilter = nil
-                        showActiveOnly = true
                         showFilterMenu = false
                     } label: {
                         HStack {
@@ -337,7 +323,6 @@ struct VehicleManagementView: View {
                     // Idle button
                     Button {
                         selectedVehicleTypeFilter = nil
-                        showActiveOnly = true
                         showFilterMenu = false
                     } label: {
                         HStack {
@@ -463,16 +448,13 @@ struct VehicleManagementView: View {
                     .font(.title2)
                     .fontWeight(.bold)
                 
-                Text(showActiveOnly ?
-                     "No active vehicles match your search. Try adjusting your filter settings or including inactive vehicles." :
-                     "No vehicles match your search criteria. Try adjusting your filters.")
+                Text("No vehicles match your search criteria. Try adjusting your filters.")
                     .font(.subheadline)
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 40)
                 
                 Button(action: {
-                    showActiveOnly = false
                     selectedVehicleTypeFilter = nil
                     searchText = ""
                 }) {
@@ -497,76 +479,46 @@ struct VehicleManagementView: View {
             HStack(spacing: 0) {
                 // Vehicle Info Column (with icon space)
                 HStack(spacing: 8) {
-                    // Space for icon
-                    Spacer()
-                        .frame(width: 60)
-                    
                     Text("Vehicle Info")
-                        .font(.subheadline.bold())
-                        .foregroundStyle(.primary)
-                    
-                    Button {
-                        withAnimation {
-                            if selectedSortOption == .makeAsc {
-                                selectedSortOption = .makeDesc
-                            } else {
-                                selectedSortOption = .makeAsc
-                            }
-                        }
-                    } label: {
-                        Image(systemName: selectedSortOption == .makeDesc ? "arrow.down" : "arrow.up")
-                            .font(.caption)
-                            .foregroundStyle(selectedSortOption == .makeAsc || selectedSortOption == .makeDesc ? .blue : .secondary)
-                    }
-                    .buttonStyle(BorderlessButtonStyle())
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(.secondary)
                 }
                 .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
+                .padding(.leading, 76)
+                .padding(.trailing, 16)
                 .layoutPriority(2)
                 
                 // Type column
                 Text("Type")
-                    .font(.subheadline.bold())
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(.secondary)
                     .frame(width: 80, alignment: .center)
                     .layoutPriority(1)
                 
-                // Year column with sort button
-                HStack(spacing: 4) {
-                    Text("Year")
-                        .font(.subheadline.bold())
-                    
-                    Button {
-                        withAnimation {
-                            if selectedSortOption == .newest {
-                                selectedSortOption = .oldest
-                            } else {
-                                selectedSortOption = .newest
-                            }
-                        }
-                    } label: {
-                        Image(systemName: selectedSortOption == .oldest ? "arrow.down" : "arrow.up")
-                            .font(.caption)
-                            .foregroundStyle(selectedSortOption == .newest || selectedSortOption == .oldest ? .blue : .secondary)
-                    }
-                    .buttonStyle(BorderlessButtonStyle())
-                }
-                .frame(width: 70, alignment: .center)
-                .layoutPriority(1)
+                // Year column
+                Text("Year")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(.secondary)
+                    .frame(width: 70, alignment: .center)
+                    .layoutPriority(1)
                 
                 // Status column
                 Text("Status")
-                    .font(.subheadline.bold())
-                    .frame(width: 80, alignment: .center)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(.secondary)
+                    .frame(width: 120, alignment: .center)
                     .layoutPriority(1)
                 
                 // Actions column
                 Text("Actions")
-                    .font(.subheadline.bold())
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(.secondary)
                     .frame(width: 80, alignment: .center)
                     .layoutPriority(1)
+                    
             }
-            .padding(.vertical, 14)
+            .padding(.vertical, 12)
             .padding(.horizontal, 16)
-            .frame(maxWidth: .infinity)
             .background(
                 ZStack {
                     Rectangle()
@@ -591,7 +543,8 @@ struct VehicleManagementView: View {
                             viewModel.selectVehicleForEdit(vehicle: vehicle)
                             selectedVehicle = vehicle
                         }, onToggleStatus: {
-                            viewModel.toggleVehicleStatus(vehicle: vehicle)
+                            // This is now a delete action
+                            // We could implement a delete confirmation here
                         }, onTap: {
                             selectedVehicle = vehicle
                         })
@@ -662,6 +615,7 @@ struct VehicleRow: View {
     let onEdit: () -> Void
     let onToggleStatus: () -> Void
     let onTap: () -> Void
+    @EnvironmentObject private var viewModel: VehicleViewModel
     
     @State private var isHovered = false
     @State private var showMaintenanceSheet = false
@@ -687,7 +641,7 @@ struct VehicleRow: View {
                 Text("\(vehicle.make) \(vehicle.model)")
                             .font(.subheadline)
                     .fontWeight(.semibold)
-                    .foregroundColor(vehicle.isActive ? .primary : .secondary)
+                    .foregroundColor(.primary)
                             .lineLimit(1)
                 
                 Text(vehicle.registrationNumber)
@@ -716,13 +670,38 @@ struct VehicleRow: View {
                 
                 // Status column
                 CommonStatusBadge(text: statusText, color: statusColor)
-                    .frame(width: 80, alignment: .center)
+                    .frame(width: 120, alignment: .center)
                     .layoutPriority(1)
                 
                 // Actions column with Menu
                 Menu {
                     Button(action: onEdit) {
                         Label("Edit", systemImage: "pencil")
+                    }
+                    
+                    Menu {
+                        Button(action: {
+                            viewModel.updateVehicleStatus(vehicle: vehicle, status: .available)
+                        }) {
+                            Label("Available", systemImage: "checkmark.circle")
+                                .foregroundColor(.green)
+                        }
+                        
+                        Button(action: {
+                            viewModel.updateVehicleStatus(vehicle: vehicle, status: .underMaintenance)
+                        }) {
+                            Label("Under Maintenance", systemImage: "wrench")
+                                .foregroundColor(.orange)
+                        }
+                        
+                        Button(action: {
+                            viewModel.updateVehicleStatus(vehicle: vehicle, status: .onTrip)
+                        }) {
+                            Label("On Trip", systemImage: "car.side")
+                                .foregroundColor(.blue)
+                        }
+                    } label: {
+                        Label("Change Status", systemImage: "arrow.triangle.2.circlepath")
                     }
                     
                     Button(action: onToggleStatus) {
@@ -770,18 +749,24 @@ struct VehicleRow: View {
     }
     
     private var statusText: String {
-        if !vehicle.isActive {
-            return "Inactive"
-        } else {
-            return "Active"
+        switch vehicle.vehicle_status {
+        case .available:
+            return "Available"
+        case .underMaintenance:
+            return "Maintenance"
+        case .onTrip:
+            return "On Trip"
         }
     }
     
     private var statusColor: Color {
-        if !vehicle.isActive {
-            return .red
-        } else {
+        switch vehicle.vehicle_status {
+        case .available:
             return .green
+        case .underMaintenance:
+            return .orange
+        case .onTrip:
+            return .blue
         }
     }
 }
@@ -841,6 +826,7 @@ struct AddVehicleView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var currentStep = 1
     @State private var showingHelp = false
+    @State private var selectedVehicleStatus: VehicleStatus = .available
     @FocusState private var focusField: FormField?
     
     enum FormField {
@@ -864,8 +850,8 @@ struct AddVehicleView: View {
                 
                 Text(value)
                     .foregroundColor(.primary)
-            }
-            .padding()
+                }
+                .padding()
             .background(
                 RoundedRectangle(cornerRadius: 10)
                     .fill(Color(.systemGray6))
@@ -914,7 +900,7 @@ struct AddVehicleView: View {
             
             if let error = errorMessage {
                 Text(error)
-                    .font(.caption)
+                            .font(.caption)
                     .foregroundColor(.red)
                     .padding(.leading, 4)
             }
@@ -973,7 +959,7 @@ struct AddVehicleView: View {
                             Circle()
                                 .fill(step <= currentStep ? Color.blue : Color.gray.opacity(0.3))
                                 .frame(width: 24, height: 24)
-                                .overlay(
+                            .overlay(
                                     Text("\(step)")
                                         .font(.caption)
                                         .fontWeight(.bold)
@@ -981,7 +967,7 @@ struct AddVehicleView: View {
                                 )
                             
                             Text(stepTitle(for: step))
-                                .font(.caption)
+                            .font(.caption)
                                 .foregroundStyle(step == currentStep ? Color.primary : Color.secondary)
                         }
                         
@@ -1064,7 +1050,7 @@ struct AddVehicleView: View {
                         .disabled((currentStep == 1 && !isStep1Valid) || (currentStep == 2 && !isStep2Valid))
                     } else {
                         Button(action: {
-                            viewModel.addVehicle()
+                            viewModel.addVehicle(status: selectedVehicleStatus)
                             dismiss()
                         }) {
                             Text("Add Vehicle")
@@ -1530,13 +1516,41 @@ struct AddVehicleView: View {
                 )
             }
             
-            Toggle("Active Vehicle", isOn: Binding<Bool>(
-                get: { viewModel.selectedVehicle?.isActive ?? true },
-                set: { newValue in
-                    // Will be handled in addVehicle()
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Vehicle Status")
+                    .font(.headline)
+                
+                HStack {
+                    Image(systemName: "circle.fill")
+                        .foregroundColor(statusColor(for: selectedVehicleStatus))
+                        .frame(width: 24)
+                    
+                    Picker("Status", selection: $selectedVehicleStatus) {
+                        Text("Available").tag(VehicleStatus.available)
+                        Text("Under Maintenance").tag(VehicleStatus.underMaintenance)
+                        Text("On Trip").tag(VehicleStatus.onTrip)
+                    }
+                    .pickerStyle(MenuPickerStyle())
                 }
-            ))
-                .padding(.vertical, 8)
+                .padding()
+                .background(
+                    RoundedRectangle(cornerRadius: 10)
+                        .fill(Color(.systemBackground))
+                )
+            }
+        }
+    }
+    
+    private func statusColor(for status: VehicleStatus) -> Color {
+        switch status {
+        case .available:
+            return .green
+        case .underMaintenance:
+            return .orange
+        case .onTrip:
+            return .blue
+        default:
+            return .gray
         }
     }
     
@@ -1717,6 +1731,7 @@ struct EditVehicleView: View {
     @EnvironmentObject private var viewModel: VehicleViewModel
     @Environment(\.dismiss) private var dismiss
     @State private var currentStep = 1
+    @State private var selectedVehicleStatus: VehicleStatus = .available
     @FocusState private var focusField: FormField?
     
     enum FormField {
@@ -1898,7 +1913,7 @@ struct EditVehicleView: View {
                         .disabled((currentStep == 1 && !isStep1Valid) || (currentStep == 2 && !isStep2Valid))
                     } else {
                         Button(action: {
-                            viewModel.updateVehicle()
+                            viewModel.updateVehicle(status: selectedVehicleStatus)
                             dismiss()
                         }) {
                             Text("Update Vehicle")
@@ -1933,6 +1948,9 @@ struct EditVehicleView: View {
             .onAppear {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                     focusField = .registration
+                    if let selectedVehicle = viewModel.selectedVehicle {
+                        selectedVehicleStatus = selectedVehicle.vehicle_status
+                    }
                 }
             }
         }
@@ -2190,7 +2208,7 @@ struct EditVehicleView: View {
                     .labelsHidden()
                 }
                 .padding()
-            .background(
+                .background(
                     RoundedRectangle(cornerRadius: 10)
                         .fill(Color(.systemBackground))
                 )
@@ -2253,7 +2271,7 @@ struct EditVehicleView: View {
                     )
                     .labelsHidden()
                 }
-                .padding()
+                    .padding()
                 .background(
                     RoundedRectangle(cornerRadius: 10)
                         .fill(Color(.systemBackground))
@@ -2272,29 +2290,48 @@ struct EditVehicleView: View {
                     TextField("Enter current kilometers", value: $viewModel.currentOdometer, formatter: NumberFormatter())
                         .keyboardType(.numberPad)
                 }
-                    .padding()
+                .padding()
                 .background(
                     RoundedRectangle(cornerRadius: 10)
                         .fill(Color(.systemBackground))
                 )
             }
             
-            Toggle("Active Vehicle", isOn: Binding<Bool>(
-                get: { viewModel.selectedVehicle?.isActive ?? true },
-                set: { newValue in
-                    // Will be handled in updateVehicle()
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Vehicle Status")
+                    .font(.headline)
+                
+                HStack {
+                    Image(systemName: "circle.fill")
+                        .foregroundColor(statusColor(for: selectedVehicleStatus))
+                        .frame(width: 24)
+                    
+                    Picker("Status", selection: $selectedVehicleStatus) {
+                        Text("Available").tag(VehicleStatus.available)
+                        Text("Under Maintenance").tag(VehicleStatus.underMaintenance)
+                        Text("On Trip").tag(VehicleStatus.onTrip)
+                    }
+                    .pickerStyle(MenuPickerStyle())
                 }
-            ))
-                .padding(.vertical, 8)
+                .padding()
+                .background(
+                    RoundedRectangle(cornerRadius: 10)
+                        .fill(Color(.systemBackground))
+                )
+            }
         }
     }
     
-    private func stepTitle(for step: Int) -> String {
-        switch step {
-        case 1: return "Basic"
-        case 2: return "Documents"
-        case 3: return "Service"
-        default: return ""
+    private func statusColor(for status: VehicleStatus) -> Color {
+        switch status {
+        case .available:
+            return .green
+        case .underMaintenance:
+            return .orange
+        case .onTrip:
+            return .blue
+        default:
+            return .gray
         }
     }
     
@@ -2311,6 +2348,15 @@ struct EditVehicleView: View {
         case .make, .model, .registration, .vin:
             // These are read-only fields
             break
+        }
+    }
+    
+    private func stepTitle(for step: Int) -> String {
+        switch step {
+        case 1: return "Basic"
+        case 2: return "Documents"
+        case 3: return "Service"
+        default: return ""
         }
     }
     

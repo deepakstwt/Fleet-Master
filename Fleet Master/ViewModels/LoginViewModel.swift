@@ -20,6 +20,8 @@ class LoginViewModel: ObservableObject {
     @Published var showTwoFactorAuth = false
     @Published var showPasswordChange = false
     @Published var navigateToMainView = false
+    @Published var showForgotPassword = false
+    @Published var isPasswordResetFlow = false
     
     // MARK: - Private Properties
     
@@ -62,6 +64,12 @@ class LoginViewModel: ObservableObject {
         !email.isEmpty && !password.isEmpty && email.contains("@") && email.contains(".")
     }
     
+    var isValidEmail: Bool {
+        let emailRegex = "[A-Z0-9a-z._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,6}"
+        let emailPredicate = NSPredicate(format: "SELF MATCHES %@", emailRegex)
+        return !email.isEmpty && emailPredicate.evaluate(with: email)
+    }
+    
     var isValidOTP: Bool {
         otpDigits.joined().count == otpLength
     }
@@ -92,6 +100,7 @@ class LoginViewModel: ObservableObject {
                     self.navigateToMainView = false
                     self.showPasswordChange = false
                     self.showTwoFactorAuth = false
+                    self.showForgotPassword = false
                     
                     // Clear form fields
                     self.email = ""
@@ -230,11 +239,15 @@ class LoginViewModel: ObservableObject {
                     print("========================")
                     print("OTP VERIFICATION SUCCESSFUL")
                     print("User ID: \(self.userId ?? "unknown")")
-                    print("Is First Login: \(self.isFirstLogin)")
+                    print("Is Password Reset Flow: \(self.isPasswordResetFlow)")
                     print("========================")
                     
-                    // OTP verification successful - update the authentication state
-                    if self.isFirstLogin {
+                    // OTP verification successful - handle flow based on context
+                    if self.isPasswordResetFlow {
+                        // Password reset flow - go to password change screen
+                        print("Password reset flow - directing to password change")
+                        self.showPasswordChange = true
+                    } else if self.isFirstLogin {
                         // If first login, go to password change screen
                         print("First login detected - directing to password change")
                         self.showPasswordChange = true
@@ -277,23 +290,39 @@ class LoginViewModel: ObservableObject {
                     print("User ID: \(self.userId ?? "unknown")")
                     print("========================")
                     
-                    // Mark that this is no longer the first login for this user
-                    if let currentUser = self.userId {
-                        let firstLoginKey = "\(self.firstLoginKeyPrefix)\(currentUser)"
-                        print("Marking first login as completed: \(firstLoginKey)")
-                        self.userDefaults.set(true, forKey: firstLoginKey)
-                        self.userDefaults.synchronize()
+                    if self.isPasswordResetFlow {
+                        // Clear the password reset flow state
+                        self.clearResetPasswordState()
+                        
+                        // Show success message
+                        self.showAlert(message: "Password reset successful! Please login with your new password.")
+                        
+                        // Reset the UI state
+                        self.showPasswordChange = false
+                        self.showTwoFactorAuth = false
+                        
+                        // Navigate back to login screen
+                        // This happens automatically when dismissing all modal screens
+                    } else {
+                        // Regular first login flow
+                        // Mark that this is no longer the first login for this user
+                        if let currentUser = self.userId {
+                            let firstLoginKey = "\(self.firstLoginKeyPrefix)\(currentUser)"
+                            print("Marking first login as completed: \(firstLoginKey)")
+                            self.userDefaults.set(true, forKey: firstLoginKey)
+                            self.userDefaults.synchronize()
+                        }
+                        self._isFirstLogin = false
+                        
+                        // Clear the OTP pending state
+                        self.clearAuthState()
+                        
+                        // Show success message
+                        self.showAlert(message: "Password changed successfully!")
+                        
+                        // Navigate to dashboard
+                        self.appStateManager?.isLoggedIn = true
                     }
-                    self._isFirstLogin = false
-                    
-                    // Clear the OTP pending state
-                    self.clearAuthState()
-                    
-                    // Show success message
-                    self.showAlert(message: "Password changed successfully!")
-                    
-                    // Navigate to dashboard
-                    self.appStateManager?.isLoggedIn = true
                 }
             } catch {
                 await MainActor.run {
@@ -302,6 +331,80 @@ class LoginViewModel: ObservableObject {
                 }
             }
         }
+    }
+    
+    // MARK: - Forgot Password Flow
+    
+    /// Initiates the forgot password flow by sending an OTP to the provided email
+    func forgotPassword() {
+        guard isValidEmail else {
+            showAlert(message: "Please enter a valid email address")
+            return
+        }
+        
+        isLoading = true
+        
+        Task {
+            do {
+                // First check if email exists in fleet_manager table
+                let cleanedEmail = email.trimmingCharacters(in: .whitespacesAndNewlines)
+                let isFleetManager = try await checkEmailInFleetManagerTable(email: cleanedEmail)
+                
+                if !isFleetManager {
+                    await MainActor.run {
+                        self.isLoading = false
+                        self.showAlert(message: "Email not found in our records.")
+                    }
+                    return
+                }
+                
+                // Send OTP for password reset
+                try await supabaseManager.sendOTP(email: email)
+                
+                await MainActor.run {
+                    self.isLoading = false
+                    
+                    // Save state to indicate this is a password reset flow
+                    self.isPasswordResetFlow = true
+                    self.saveResetPasswordState()
+                    
+                    // Navigate to OTP verification screen
+                    self.showTwoFactorAuth = true
+                }
+            } catch {
+                await MainActor.run {
+                    self.isLoading = false
+                    self.showAlert(message: "Failed to send verification code: \(error.localizedDescription)")
+                }
+            }
+        }
+    }
+    
+    /// Save the state of the password reset flow
+    private func saveResetPasswordState() {
+        let resetPasswordState: [String: Any] = [
+            "isPasswordResetFlow": isPasswordResetFlow,
+            "email": email
+        ]
+        userDefaults.set(resetPasswordState, forKey: "resetPasswordState")
+        userDefaults.synchronize()
+    }
+    
+    /// Load the state of the password reset flow
+    private func loadResetPasswordState() {
+        if let resetPasswordState = userDefaults.dictionary(forKey: "resetPasswordState") {
+            isPasswordResetFlow = resetPasswordState["isPasswordResetFlow"] as? Bool ?? false
+            if isPasswordResetFlow {
+                email = resetPasswordState["email"] as? String ?? ""
+            }
+        }
+    }
+    
+    /// Clear the state of the password reset flow
+    private func clearResetPasswordState() {
+        isPasswordResetFlow = false
+        userDefaults.removeObject(forKey: "resetPasswordState")
+        userDefaults.synchronize()
     }
     
     // MARK: - Private Methods
@@ -384,8 +487,13 @@ class LoginViewModel: ObservableObject {
     
     /// Clear the authentication state
     private func clearAuthState() {
+        // Clear all authentication state
         userDefaults.removeObject(forKey: pendingOTPKey)
         userDefaults.removeObject(forKey: otpEmailKey)
+        userDefaults.synchronize()
+        
+        // Also clear any password reset state
+        clearResetPasswordState()
     }
     
     /// Check if there's a pending OTP verification
@@ -400,9 +508,12 @@ class LoginViewModel: ObservableObject {
     
     /// Initialize and restore the authentication state
     func initializeAuthState() {
-        // Set local loading state
         isLoading = true
         
+        // Load the reset password state if it exists
+        loadResetPasswordState()
+        
+        // Check for existing session and pending OTP verification
         Task {
             do {
                 print("========================")

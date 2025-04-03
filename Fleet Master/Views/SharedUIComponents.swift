@@ -11,14 +11,14 @@ struct CommonStatusBadge: View {
     
     var body: some View {
         Text(text)
-            .font(.system(size: 12, weight: .medium))
+            .font(.system(size: 13, weight: .medium))
             .foregroundColor(color)
-            .padding(.horizontal, 10)
-            .padding(.vertical, 5)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
             .background(color.opacity(0.15))
-            .cornerRadius(6)
+            .cornerRadius(8)
             .overlay(
-                RoundedRectangle(cornerRadius: 6)
+                RoundedRectangle(cornerRadius: 8)
                     .stroke(color.opacity(0.3), lineWidth: 1)
             )
     }

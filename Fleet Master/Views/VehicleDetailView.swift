@@ -15,7 +15,7 @@ struct VehicleDetailView: View {
                     DetailRow(title: "VIN", value: vehicle.vin)
                     DetailRow(title: "Color", value: vehicle.color)
                     DetailRow(title: "Fuel Type", value: vehicle.fuelType.rawValue)
-                    DetailRow(title: "Status", value: vehicle.isActive ? "Active" : "Retired")
+                    DetailRow(title: "Status", value: formatStatus(vehicle.vehicle_status))
                 }
                 
                 Section("Document Information") {
@@ -60,8 +60,8 @@ struct VehicleDetailView: View {
             .navigationTitle("Vehicle Details")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .primaryAction) {
-                    Button("Close") {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") {
                         dismiss()
                     }
                 }
@@ -72,7 +72,34 @@ struct VehicleDetailView: View {
     private func formatDate(_ date: Date) -> String {
         let formatter = DateFormatter()
         formatter.dateStyle = .medium
+        formatter.timeStyle = .none
         return formatter.string(from: date)
     }
+    
+    private func formatStatus(_ status: VehicleStatus) -> String {
+        switch status {
+        case .available:
+            return "Available"
+        case .underMaintenance:
+            return "Under Maintenance"
+        case .onTrip:
+            return "On Trip"
+        }
+    }
 }
+
+//struct DetailRow: View {
+//    let title: String
+//    let value: String
+//    
+//    var body: some View {
+//        HStack {
+//            Text(title)
+//                .foregroundColor(.secondary)
+//            Spacer()
+//            Text(value)
+//                .fontWeight(.medium)
+//        }
+//    }
+//}
 
