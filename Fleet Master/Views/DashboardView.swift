@@ -305,7 +305,7 @@ struct DashboardView: View {
                         isRefreshing = true
                         Task {
                             // Use the public methods from view models
-                            await refreshAllData()
+                            refreshAllData()
                             isRefreshing = false
                         }
                     } label: {
@@ -336,7 +336,7 @@ struct DashboardView: View {
         .onAppear {
             // Initial data load
             Task {
-                await refreshAllData()
+                refreshAllData()
             }
             
             // Setup timer to refresh data every 30 seconds
@@ -909,156 +909,187 @@ struct MaintenanceRequestCard: View {
     let request: MaintenanceRequest
     let isOverdue: Bool
     let onMarkCompleted: () -> Void
+    @EnvironmentObject private var vehicleViewModel: VehicleViewModel
+    @State private var navigateToScheduleMaintenance = false
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            // Header with fixed height
-            HStack(spacing: 12) {
-                Image(systemName: isOverdue ? "exclamationmark.triangle.fill" : "wrench.fill")
-                    .font(.title2)
-                    .foregroundStyle(.white)
-                    .frame(width: 40, height: 40)
-                    .background(
-                        Circle()
-                            .fill(isOverdue ? Color.red : Color.orange)
-                    )
-                
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(isOverdue ? "Maintenance Due" : "Repair Request")
-                        .font(.headline)
+        // Wrap entire card in a Button for navigation
+        Button(action: {
+            // Open ScheduleMaintenanceView when card is tapped
+            navigateToScheduleMaintenance = true
+        }) {
+            VStack(alignment: .leading, spacing: 0) {
+                // Header with fixed height
+                HStack(spacing: 12) {
+                    Image(systemName: isOverdue ? "exclamationmark.triangle.fill" : "wrench.fill")
+                        .font(.title2)
+                        .foregroundStyle(.white)
+                        .frame(width: 40, height: 40)
+                        .background(
+                            Circle()
+                                .fill(isOverdue ? Color.red : Color.orange)
+                        )
                     
-                    Text(request.vehicle.registrationNumber)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(isOverdue ? "Maintenance Due" : "Repair Request")
+                            .font(.headline)
+                        
+                        Text(request.vehicle.registrationNumber)
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                    
+                    Spacer()
+                    
+                    Text(isOverdue ? "Overdue" : "Pending")
+                        .font(.caption)
+                        .fontWeight(.medium)
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(isOverdue ? Color.red : Color.orange)
+                        .clipShape(Capsule())
                 }
-                
-                Spacer()
-                
-                Text(isOverdue ? "Overdue" : "Pending")
-                    .font(.caption)
-                    .fontWeight(.medium)
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(isOverdue ? Color.red : Color.orange)
-                    .clipShape(Capsule())
-            }
-            .padding(.bottom, 16)
-            
-            Divider()
                 .padding(.bottom, 16)
-            
-            // Details section with fixed layout
-            VStack(alignment: .leading, spacing: 12) {
-                HStack(alignment: .top) {
-                    Text("Vehicle:")
-                        .foregroundStyle(.secondary)
-                        .frame(width: 100, alignment: .leading)
-                    
-                    Text(request.vehicle.make + " " + request.vehicle.model)
-                        .fontWeight(.medium)
-                }
                 
-                HStack(alignment: .top) {
-                    Text(isOverdue ? "Due Date:" : "Reported:")
-                        .foregroundStyle(.secondary)
-                        .frame(width: 100, alignment: .leading)
-                    
-                    Text(formattedDate(isOverdue ? request.dueDateTimestamp : request.createdTimestamp))
-                        .fontWeight(.medium)
-                }
+                Divider()
+                    .padding(.bottom, 16)
                 
-                if !isOverdue {
+                // Details section with fixed layout
+                VStack(alignment: .leading, spacing: 12) {
                     HStack(alignment: .top) {
-                        Text("Issue:")
+                        Text("Vehicle:")
                             .foregroundStyle(.secondary)
                             .frame(width: 100, alignment: .leading)
                         
-                        Text(request.problem)
+                        Text(request.vehicle.make + " " + request.vehicle.model)
                             .fontWeight(.medium)
-                            .lineLimit(2)
-                            .fixedSize(horizontal: false, vertical: true)
-                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    
+                    HStack(alignment: .top) {
+                        Text(isOverdue ? "Due Date:" : "Reported:")
+                            .foregroundStyle(.secondary)
+                            .frame(width: 100, alignment: .leading)
+                        
+                        Text(formattedDate(isOverdue ? request.dueDateTimestamp : request.createdTimestamp))
+                            .fontWeight(.medium)
+                    }
+                    
+                    if !isOverdue {
+                        HStack(alignment: .top) {
+                            Text("Issue:")
+                                .foregroundStyle(.secondary)
+                                .frame(width: 100, alignment: .leading)
+                            
+                            Text(request.problem)
+                                .fontWeight(.medium)
+                                .lineLimit(2)
+                                .fixedSize(horizontal: false, vertical: true)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                    }
+                }
+                
+                Spacer(minLength: 20)
+                
+                // Priority indicator with fixed position at bottom
+                if !isOverdue {
+                    Divider()
+                        .padding(.vertical, 12)
+                    
+                    HStack {
+                        Text("Priority:")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                        
+                        // Simulated priority based on the issue description length
+                        let priority = request.problem.count > 30 ? "High" : "Medium"
+                        Text(priority)
+                            .font(.subheadline)
+                            .fontWeight(.bold)
+                            .foregroundStyle(priority == "High" ? Color.red : Color.orange)
+                        
+                        Spacer()
+                        
+                        // Mark as completed button moved to bottom right
+                        Button(action: {
+                            onMarkCompleted()
+                        }) {
+                            HStack {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .font(.caption)
+                                Text("Mark as completed")
+                                    .font(.footnote)
+                            }
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 6)
+                            .background(Color.green.opacity(0.8))
+                            .foregroundStyle(.white)
+                            .cornerRadius(6)
+                        }
+                        .buttonStyle(.borderless)
+                        // Prevent propagation to parent button
+                        .simultaneousGesture(TapGesture().onEnded {
+                            // Stop event propagation
+                        })
+                    }
+                } else {
+                    Divider()
+                        .padding(.vertical, 12)
+                    
+                    HStack {
+                        Spacer()
+                        
+                        // Mark as completed button for overdue cases
+                        Button(action: {
+                            onMarkCompleted()
+                        }) {
+                            HStack {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .font(.caption)
+                                Text("Mark as completed")
+                                    .font(.footnote)
+                            }
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 6)
+                            .background(Color.green.opacity(0.8))
+                            .foregroundStyle(.white)
+                            .cornerRadius(6)
+                        }
+                        .buttonStyle(.borderless)
+                        // Prevent propagation to parent button
+                        .simultaneousGesture(TapGesture().onEnded {
+                            // Stop event propagation
+                        })
                     }
                 }
             }
-            
-            Spacer(minLength: 20)
-            
-            // Priority indicator with fixed position at bottom
-            if !isOverdue {
-                Divider()
-                    .padding(.vertical, 12)
-                
-                HStack {
-                    Text("Priority:")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                    
-                    // Simulated priority based on the issue description length
-                    let priority = request.problem.count > 30 ? "High" : "Medium"
-                    Text(priority)
-                        .font(.subheadline)
-                        .fontWeight(.bold)
-                        .foregroundStyle(priority == "High" ? Color.red : Color.orange)
-                    
-                    Spacer()
-                    
-                    // Mark as completed button moved to bottom right
-                    Button(action: onMarkCompleted) {
-                        HStack {
-                            Image(systemName: "checkmark.circle.fill")
-                                .font(.caption)
-                            Text("Mark as completed")
-                                .font(.footnote)
-                        }
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
-                        .background(Color.green.opacity(0.8))
-                        .foregroundStyle(.white)
-                        .cornerRadius(6)
-                    }
-                    .buttonStyle(.borderless)
-                }
-            } else {
-                Divider()
-                    .padding(.vertical, 12)
-                
-                HStack {
-                    Spacer()
-                    
-                    // Mark as completed button for overdue cases
-                    Button(action: onMarkCompleted) {
-                        HStack {
-                            Image(systemName: "checkmark.circle.fill")
-                                .font(.caption)
-                            Text("Mark as completed")
-                                .font(.footnote)
-                        }
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
-                        .background(Color.green.opacity(0.8))
-                        .foregroundStyle(.white)
-                        .cornerRadius(6)
-                    }
-                    .buttonStyle(.borderless)
-                }
-            }
+            .padding(20)
+            .frame(width: 450, height: 350)
+            .background(Color(.systemBackground))
+            .clipShape(RoundedRectangle(cornerRadius: 16))
+            .overlay(
+                RoundedRectangle(cornerRadius: 16)
+                    .stroke(Color(.systemGray4), lineWidth: 0.5)
+            )
+            .shadow(
+                color: Color(.systemGray3).opacity(0.3),
+                radius: 10,
+                x: 0,
+                y: 5
+            )
         }
-        .padding(20)
-        .frame(width: 450, height: 350)
-        .background(Color(.systemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 16))
-        .overlay(
-            RoundedRectangle(cornerRadius: 16)
-                .stroke(Color(.systemGray4), lineWidth: 0.5)
-        )
-        .shadow(
-            color: Color(.systemGray3).opacity(0.3),
-            radius: 10,
-            x: 0,
-            y: 5
-        )
+        .buttonStyle(PlainButtonStyle()) // Use plain style to prevent button styling
+        .navigationDestination(isPresented: $navigateToScheduleMaintenance) {
+            // Navigate to ScheduleMaintenanceView with the vehicle from the request
+            // Set maintenance type to repair, and include problem and driverId
+            ScheduleMaintenanceView(
+                vehicle: request.vehicle,
+                initialMaintenanceType: .repair,
+                driverId: request.driverAssigned,
+                initialProblem: request.problem
+            )
+        }
     }
     
     private func formattedDate(_ timestamp: Double) -> String {
@@ -1081,6 +1112,7 @@ struct MaintenanceRequest: Identifiable {
     let isDriverRequest: Bool
     var isScheduled: Bool = false
     let personnel: MaintenancePersonnel
+    let driverAssigned: String? // Driver who submitted the request
 }
 
 // Helper Components

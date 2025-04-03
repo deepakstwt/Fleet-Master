@@ -793,7 +793,8 @@ class MaintenanceViewModel: ObservableObject, @unchecked Sendable {
                 createdTimestamp: driverRequest.createdAt.timeIntervalSince1970,
                 isDriverRequest: true,
                 isScheduled: driverRequest.accepted,
-                personnel: defaultPersonnel
+                personnel: defaultPersonnel,
+                driverAssigned: driverRequest.driverAssigned
             )
         }
         
@@ -854,14 +855,14 @@ class MaintenanceViewModel: ObservableObject, @unchecked Sendable {
                         createdTimestamp: Date().timeIntervalSince1970,
                         isDriverRequest: false,
                         isScheduled: false,
-                        personnel: defaultPersonnel
+                        personnel: defaultPersonnel,
+                        driverAssigned: nil
                     )
                     
                     requests.append(request)
                 }
             }
         }
-        
         return requests
     }
     

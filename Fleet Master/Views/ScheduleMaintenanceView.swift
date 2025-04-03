@@ -5,6 +5,8 @@ struct ScheduleMaintenanceView: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var maintenanceViewModel: MaintenanceViewModel
     let vehicle: Vehicle
+    var initialMaintenanceType: MaintenanceType? = nil
+    var driverId: String? = nil
     
     @State private var selectedMaintenanceType: MaintenanceType = .routine
     @State private var selectedPersonnel: MaintenancePersonnel?
@@ -16,6 +18,15 @@ struct ScheduleMaintenanceView: View {
     @State private var showAlert = false
     @State private var alertMessage = ""
     @State private var showPersonnelSheet = false
+    
+    // Initializer with default parameters
+    init(vehicle: Vehicle, initialMaintenanceType: MaintenanceType? = nil, driverId: String? = nil, initialProblem: String = "") {
+        self.vehicle = vehicle
+        self.initialMaintenanceType = initialMaintenanceType
+        self.driverId = driverId
+        _problem = State(initialValue: initialProblem)
+        _selectedMaintenanceType = State(initialValue: initialMaintenanceType ?? .routine)
+    }
     
     enum MaintenanceType: String, CaseIterable {
         case routine = "Maintenance"
@@ -284,7 +295,8 @@ struct ScheduleMaintenanceView: View {
                     priority: MaintenanceVehicle.Priority(rawValue: priority.rawValue) ?? .medium,
                     maintenanceNote: note,
                     type: MaintenanceVehicle.MaintenanceType(rawValue: selectedMaintenanceType.rawValue) ?? .routine,
-                    assignedPersonnelId: personnel.id
+                    assignedPersonnelId: personnel.id,
+                    driverId: driverId // Pass the driver ID if available
                 )
                 
                 try await SupabaseManager.shared.scheduleMaintenance(&maintenanceVehicle)

@@ -13,6 +13,7 @@ struct MaintenanceVehicle: Codable, Identifiable {
     let cost: Float
     let status: MaintenanceStatus
     let accepted: Bool
+    let driverId: String?
     
     enum CodingKeys: String, CodingKey {
         case id
@@ -27,6 +28,7 @@ struct MaintenanceVehicle: Codable, Identifiable {
         case cost = "cost"
         case status = "status"
         case accepted = "accepted"
+        case driverId = "driverAssigned"
     }
     
     enum Priority: String, Codable {
@@ -46,7 +48,7 @@ struct MaintenanceVehicle: Codable, Identifiable {
         case schedule = "Schedule"
             }
     
-    init(id: UUID, ticketNo: String, registrationNumber: String, problem: String, priority: Priority, maintenanceNote: String, type: MaintenanceType, assignedPersonnelId: String) {
+    init(id: UUID, ticketNo: String, registrationNumber: String, problem: String, priority: Priority, maintenanceNote: String, type: MaintenanceType, assignedPersonnelId: String, driverId: String? = nil) {
         self.id = id
         self.ticketNo = ticketNo
         self.registrationNumber = registrationNumber
@@ -61,5 +63,6 @@ struct MaintenanceVehicle: Codable, Identifiable {
         // Set status to active when priority is critical
         self.status = priority == .critical ? .active : .schedule
         self.accepted = false
+        self.driverId = driverId
     }
 } 
