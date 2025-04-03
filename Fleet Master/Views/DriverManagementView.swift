@@ -269,12 +269,12 @@ struct DriverCard: View {
             // Avatar
             ZStack {
                 Circle()
-                    .fill(statusColor.opacity(0.15))
+                    .fill(.green.opacity(0.15))
                     .frame(width: 56, height: 56)
                 
                 Image(systemName: "person.fill")
                     .font(.system(size: 24))
-                    .foregroundColor(statusColor)
+                    .foregroundColor(.green)
             }
             
             // Driver Info
@@ -293,7 +293,7 @@ struct DriverCard: View {
                     .font(.caption)
                     .foregroundColor(.secondary)
                 
-                    DriverManagementView.StatusBadge(text: statusText, color: statusColor)
+//                    DriverManagementView.StatusBadge(text: statusText, color: statusColor)
                 }
                 .padding(.top, 2)
                 
@@ -317,25 +317,25 @@ struct DriverCard: View {
         .shadow(color: Color.black.opacity(0.05), radius: 2, x: 0, y: 1)
     }
     
-    private var statusText: String {
-        if !driver.isActive {
-            return "Inactive"
-        } else if driver.isAvailable {
-            return "Available"
-                    } else {
-            return "Unavailable"
-        }
-    }
+//    private var statusText: String {
+//        if !driver.isActive {
+//            return "Inactive"
+//        } else if driver.isAvailable {
+//            return "Available"
+//                    } else {
+//            return "Unavailable"
+//        }
+//    }
     
-    private var statusColor: Color {
-        if !driver.isActive {
-            return .red
-        } else if driver.isAvailable {
-            return .green
-        } else {
-            return .orange
-        }
-    }
+//    private var statusColor: Color {
+//        if !driver.isActive {
+//            return .red
+//        } else if driver.isAvailable {
+//            return .green
+//        } else {
+//            return .orange
+//        }
+//    }
 }
 
 struct VehicleCategoryBadge: View {
@@ -1290,12 +1290,12 @@ struct DriverDetailView: View {
                     VStack(spacing: 12) {
                         ZStack {
                             Circle()
-                                .fill(statusColor.opacity(0.2))
+                                .fill(.green.opacity(0.2))
                                 .frame(width: 100, height: 100)
                             
                             Image(systemName: "person.circle.fill")
                                 .font(.system(size: 60))
-                                .foregroundColor(statusColor)
+                                .foregroundColor(.green)
                         }
                         
                         Text(driver.name)

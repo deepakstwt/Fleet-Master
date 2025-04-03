@@ -673,12 +673,12 @@ struct VehicleRow: View {
             // Avatar/Icon
             ZStack {
                 Circle()
-                    .fill(statusColor.opacity(0.15))
+                    .fill(.blue.opacity(0.15))
                             .frame(width: 48, height: 48)
                 
                 Image(systemName: vehicle.vehicleType.icon)
                             .font(.system(size: 20))
-                    .foregroundColor(statusColor)
+                            .foregroundColor(.blue)
             }
             
             // Vehicle Info
