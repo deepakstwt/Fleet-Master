@@ -20,7 +20,7 @@ struct ActiveTripCard: View {
                 Spacer()
                 
                 // Status badge
-                Text("In Progress")
+                Text("Ongoing")
                     .font(.system(size: 12, weight: .bold))
                     .padding(.horizontal, 10)
                     .padding(.vertical, 5)
