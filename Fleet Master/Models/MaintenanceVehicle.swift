@@ -58,7 +58,8 @@ struct MaintenanceVehicle: Codable, Identifiable {
         // Default values for maintenance app managed fields
         self.completed = false
         self.cost = 0.0
-        self.status = .schedule
+        // Set status to active when priority is critical
+        self.status = priority == .critical ? .active : .schedule
         self.accepted = false
     }
 } 
