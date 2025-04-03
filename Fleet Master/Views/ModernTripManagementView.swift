@@ -157,11 +157,11 @@ struct StatusCardsSection: View {
                 
                 StatusCard(
                     title: "In Progress", 
-                    count: viewModel.trips.filter { $0.status == .inProgress }.count, 
+                    count: viewModel.trips.filter { $0.status == .ongoing }.count, 
                     icon: "airplane.departure", 
                     color: .yellow
                 ) {
-                    viewModel.filterStatus = .inProgress
+                    viewModel.filterStatus = .ongoing
                 }
                 
                 StatusCard(
@@ -499,10 +499,10 @@ struct TripRowView: View {
                 
                 if trip.status == .scheduled {
                     Button("Start") {
-                        viewModel.updateTripStatus(trip: trip, newStatus: .inProgress)
+                        viewModel.updateTripStatus(trip: trip, newStatus: .ongoing)
                     }
                     .buttonStyle(TripActionButtonStyle(color: .green))
-                } else if trip.status == .inProgress {
+                } else if trip.status == .ongoing {
                     Button("Complete") {
                         viewModel.updateTripStatus(trip: trip, newStatus: .completed)
                     }
@@ -594,7 +594,7 @@ struct TripRowView: View {
             switch status {
             case .scheduled:
                 return (.blue, "calendar.badge.clock")
-            case .inProgress:
+            case .ongoing:
                 return (.yellow, "arrow.triangle.swap")
             case .completed:
                 return (.green, "checkmark.circle")

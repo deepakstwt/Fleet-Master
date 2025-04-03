@@ -305,7 +305,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
                 endLocation: "Destination",
                 scheduledStartTime: now,
                 scheduledEndTime: later,
-                status: .inProgress,
+                status: .ongoing,
                 vehicleId: vehicleId,
                 description: "Simulated trip for tracking demo"
             )
@@ -446,7 +446,7 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     
     func checkForTripDelays(trip: Trip) {
         // Only proceed if trip is in progress
-        if trip.status != .inProgress {
+        if trip.status != .ongoing {
             return
         }
         

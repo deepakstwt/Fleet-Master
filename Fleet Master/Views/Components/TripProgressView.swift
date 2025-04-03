@@ -19,7 +19,7 @@ struct TripProgressView: View {
         switch trip.status {
         case .scheduled:
             return .blue
-        case .inProgress:
+        case .ongoing:
             return .green
         case .completed:
             return .gray

@@ -115,7 +115,7 @@ class TripViewModel: ObservableObject {
     }
     
     var inProgressTrips: [Trip] {
-        return trips.filter { $0.status == TripStatus.inProgress }
+        return trips.filter { $0.status == TripStatus.ongoing }
             .sorted { $0.scheduledStartTime < $1.scheduledStartTime }
     }
     
@@ -334,7 +334,7 @@ class TripViewModel: ObservableObject {
         
         // Set actual start/end times based on status
         switch newStatus {
-        case .inProgress:
+        case .ongoing:
             actualStart = now
         case .completed:
             actualEnd = now
@@ -389,7 +389,7 @@ class TripViewModel: ObservableObject {
         
         // Set actual start/end times based on status
         switch newStatus {
-        case .inProgress:
+        case .ongoing:
             actualStart = now
         case .completed:
             actualEnd = now

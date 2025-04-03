@@ -43,122 +43,110 @@ struct EditTripView: View {
     
     var body: some View {
         NavigationStack {
-            ZStack {
-                Form {
-                    Section("Trip Information") {
-                        TextField("Trip Title", text: $title)
-                        
-                        TextField("Start Location", text: $startLocation)
-                        TextField("End Location", text: $endLocation)
-                        
-                        DatePicker("Scheduled Start", selection: $scheduledStartTime)
-                        DatePicker("Scheduled End", selection: $scheduledEndTime)
-                        
-                        Picker("Status", selection: $tripStatus) {
-                            ForEach(TripStatus.allCases, id: \.self) { status in
-                                Text(status.rawValue).tag(status)
-                            }
-                        }
-                        .pickerStyle(.menu)
-                        
-                        HStack {
-                            Text("Expected Distance (km)")
-                            Spacer()
-                            TextField("Distance", value: $distance, format: .number)
-                                .keyboardType(.decimalPad)
-                                .multilineTextAlignment(.trailing)
-                                .frame(width: 100)
+            Form {
+                // Trip Information
+                Section("TRIP INFORMATION") {
+                    TextField("Trip Title", text: $title)
+                    
+                    TextField("Start Location", text: $startLocation)
+                    
+                    TextField("End Location", text: $endLocation)
+                    
+                    DatePicker("Scheduled Start", selection: $scheduledStartTime)
+                    
+                    DatePicker("Scheduled End", selection: $scheduledEndTime)
+                    
+                    Picker("Trip Status", selection: $tripStatus) {
+                        ForEach(TripStatus.allCases, id: \.self) { status in
+                            Text(status.rawValue).tag(status)
                         }
                     }
                     
-                    Section("Description") {
-                        TextEditor(text: $tripDescription)
-                            .frame(minHeight: 100)
-                    }
-                    
-                    Section("Notes (Optional)") {
-                        TextEditor(text: $notes)
-                            .frame(minHeight: 100)
-                    }
-                    
-                    Section("Assignment") {
-                        Picker("Driver", selection: $driverId) {
-                            Text("Unassigned").tag(nil as String?)
-                            
-                            ForEach(driverViewModel.availableDrivers) { driver in
-                                Text(driver.name).tag(driver.id as String?)
-                            }
-                        }
-                        .pickerStyle(.menu)
-                        
-                        Picker("Vehicle", selection: $vehicleId) {
-                            Text("Unassigned").tag(nil as String?)
-                            
-                            ForEach(vehicleViewModel.activeVehicles) { vehicle in
-                                Text("\(vehicle.make) \(vehicle.model) (\(vehicle.registrationNumber))").tag(vehicle.id as String?)
-                            }
-                        }
-                        .pickerStyle(.menu)
-                    }
-                    
-                    Section {
-                        Button(action: {
-                            Task {
-                                await updateTrip()
-                            }
-                        }) {
-                            HStack {
-                                Spacer()
-                                Text("Update Trip")
-                                    .fontWeight(.semibold)
-                                Spacer()
-                            }
-                        }
-                        .disabled(title.isEmpty || 
-                                  startLocation.isEmpty || 
-                                  endLocation.isEmpty ||
-                                  tripDescription.isEmpty ||
-                                  isUpdating)
+                    HStack {
+                        Text("Expected Distance (km)")
+                        Spacer()
+                        TextField("Distance", value: $distance, format: .number)
+                            .keyboardType(.decimalPad)
+                            .multilineTextAlignment(.trailing)
                     }
                 }
-                .navigationTitle("Edit Trip")
-                .navigationBarTitleDisplayMode(.inline)
-                .toolbar {
-                    ToolbarItem(placement: .cancellationAction) {
-                        Button("Cancel") {
-                            dismiss()
-                        }
-                    }
-                }
-                .onAppear {
-                    // Set the selected trip for editing in the view model
-                    tripViewModel.selectedTrip = selectedTrip
-                }
-                .alert("Error Updating Trip", isPresented: $showError) {
-                    Button("OK", role: .cancel) {}
-                } message: {
-                    Text(errorMessage)
-                }
-                .disabled(isUpdating)
                 
-                // Overlay the loading indicator
+                // Description
+                Section("DESCRIPTION") {
+                    TextEditor(text: $tripDescription)
+                        .frame(minHeight: 100)
+                }
+                
+                // Notes
+                Section("NOTES (OPTIONAL)") {
+                    TextEditor(text: $notes)
+                        .frame(minHeight: 100)
+                }
+                
+                // Assignment
+                Section("ASSIGNMENT") {
+                    Picker("Assigned Driver", selection: $driverId) {
+                        Text("Unassigned").tag(nil as String?)
+                        
+                        ForEach(driverViewModel.availableDrivers) { driver in
+                            Text(driver.name).tag(driver.id as String?)
+                        }
+                    }
+                    
+                    Picker("Assigned Vehicle", selection: $vehicleId) {
+                        Text("Unassigned").tag(nil as String?)
+                        
+                        ForEach(vehicleViewModel.activeVehicles) { vehicle in
+                            Text("\(vehicle.make) \(vehicle.model) (\(vehicle.registrationNumber))").tag(vehicle.id as String?)
+                        }
+                    }
+                }
+                
+                // Update Button
+                Section {
+                    Button("Update Trip") {
+                        Task {
+                            await updateTrip()
+                        }
+                    }
+                    .disabled(title.isEmpty || 
+                              startLocation.isEmpty || 
+                              endLocation.isEmpty ||
+                              tripDescription.isEmpty ||
+                              isUpdating)
+                }
+            }
+            .navigationTitle("Edit Trip")
+            .navigationBarTitleDisplayMode(.inline)
+            .onAppear {
+                tripViewModel.selectedTrip = selectedTrip
+            }
+            .alert("Error Updating Trip", isPresented: $showError) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(errorMessage)
+            }
+            .disabled(isUpdating)
+            .overlay {
                 if isUpdating {
                     Color.black.opacity(0.4)
-                        .edgesIgnoringSafeArea(.all)
+                        .ignoresSafeArea()
                     
                     VStack {
                         ProgressView()
-                            .tint(.white)
                         Text("Updating trip...")
                             .foregroundColor(.white)
-                            .padding(.top, 8)
+                            .padding(.top)
                     }
                     .padding()
-                    .background(RoundedRectangle(cornerRadius: 10).fill(Color(.systemGray4)))
+                    .background(Color(.systemGray4).opacity(0.9))
+                    .cornerRadius(10)
                 }
             }
         }
     }
+    
+    // MARK: - Data Handling
     
     private func updateTrip() async {
         isUpdating = true
@@ -201,8 +189,14 @@ struct EditTripView: View {
             
             // Update the viewModel's local data
             await MainActor.run {
+                // Find and update the trip in the trips array
                 if let index = tripViewModel.trips.firstIndex(where: { $0.id == updated.id }) {
                     tripViewModel.trips[index] = updated
+                }
+                
+                // Refresh the trip list to ensure UI updates properly
+                Task {
+                    await tripViewModel.loadTrips()
                 }
                 
                 tripViewModel.resetForm()

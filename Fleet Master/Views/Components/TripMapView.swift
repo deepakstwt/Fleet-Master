@@ -64,7 +64,7 @@ struct TripMapView: View {
         
         // Check if any of the trips is assigned to a driver and vehicle and is in progress
         if let firstTrip = trips.first, 
-           firstTrip.status == .inProgress && 
+           firstTrip.status == .ongoing && 
            firstTrip.driverId != nil && 
            firstTrip.vehicleId != nil {
             self.isAssignedTrip = true
@@ -108,12 +108,10 @@ struct TripMapView: View {
         let mapViewContent = ZStack(alignment: .topTrailing) {
             // Helper function to prepare ProMapViewRepresentable with clear type annotations
             makeMapView()
-                .edgesIgnoringSafeArea(.all)
             
             // Look Around view if available and active
             if showLookAround {
                 makeLookAroundView()
-                    .edgesIgnoringSafeArea(.all)
             }
             
             // Map Controls - Top Right (Apple Maps style)
@@ -352,7 +350,7 @@ struct TripMapView: View {
             Spacer()
             
             if isAssignedTrip {
-                HStack {
+                    HStack {
                     Spacer()
                     
                     // Apple Maps Style Bottom Control Bar
@@ -433,7 +431,7 @@ struct TripMapView: View {
         VStack {
             Spacer()
             
-            TripAnalyticsView(trips: trips.filter { $0.status == .inProgress })
+            TripAnalyticsView(trips: trips.filter { $0.status == .ongoing })
                 .frame(height: 200)
                         .padding(.horizontal)
                 .padding(.bottom, isAssignedTrip ? 200 : 16)
@@ -697,7 +695,7 @@ struct ProMapViewRepresentable: UIViewRepresentable {
         // Inside makeUIView function, add this after configuration setup
         if isAssignedTrip || showAllRoutes {
             // Start tracking all active vehicles
-            let activeVehicleIds = trips.filter { $0.status == .inProgress }
+            let activeVehicleIds = trips.filter { $0.status == .ongoing }
                 .compactMap { $0.vehicleId }
             
             if !activeVehicleIds.isEmpty {
@@ -966,7 +964,7 @@ struct ProMapViewRepresentable: UIViewRepresentable {
             mapView.removeAnnotations(existingVehicleAnnotations)
             
             // Add vehicle annotations for each active trip
-            for trip in parent.trips.filter({ $0.status == .inProgress && $0.vehicleId != nil }) {
+            for trip in parent.trips.filter({ $0.status == .ongoing && $0.vehicleId != nil }) {
                 if let vehicleId = trip.vehicleId,
                    let vehicleLocationInfo = parent.locationManager.vehicleLocations[vehicleId] {
                     let annotation = VehicleAnnotation(
@@ -1253,7 +1251,7 @@ struct ProMapViewRepresentable: UIViewRepresentable {
                                 UIColor(red: 0.1, green: 0.3, blue: 0.9, alpha: 0.9)   // Deep blue
                             ], locations: [0.0, 0.5, 1.0])
                             
-                        case .inProgress:
+                        case .ongoing:
                             // Orange to yellow gradient for in-progress trips - vibrant
                             gradientRenderer.setColors([
                                 UIColor(red: 1.0, green: 0.6, blue: 0.0, alpha: 0.9),  // Deep orange
@@ -1332,7 +1330,7 @@ struct ProMapViewRepresentable: UIViewRepresentable {
                         case .scheduled:
                             baseColor = UIColor(red: 0.2, green: 0.4, blue: 0.8, alpha: 0.7)
                             pulseColor = UIColor(red: 0.3, green: 0.5, blue: 0.9, alpha: 0.7)
-                        case .inProgress:
+                        case .ongoing:
                             baseColor = UIColor(red: 0.9, green: 0.5, blue: 0.0, alpha: 0.7)
                             pulseColor = UIColor(red: 1.0, green: 0.6, blue: 0.0, alpha: 0.7)
                         case .completed:
@@ -1548,7 +1546,7 @@ func statusColor(for status: TripStatus) -> Color {
     switch status {
     case .scheduled:
         return .blue
-    case .inProgress:
+    case .ongoing:
         return .orange
     case .completed:
         return .green
@@ -1562,7 +1560,7 @@ func statusInHindi(for status: TripStatus) -> String {
     switch status {
     case .scheduled:
         return "अनुसूचित"
-    case .inProgress:
+    case .ongoing:
         return "प्रगति में"
     case .completed:
         return "पूर्ण"

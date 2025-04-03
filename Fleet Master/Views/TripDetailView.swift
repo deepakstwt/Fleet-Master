@@ -19,6 +19,11 @@ struct TripDetailView: View {
     @State private var userHasEditedEndTime: Bool = false
     @State private var isMapFullScreen: Bool = false
     @State private var isHindiMode: Bool = false
+    @State private var isProcessingAction = false
+    @State private var showError = false
+    @State private var errorMessage = ""
+    @State private var showCancelConfirmation = false
+    @EnvironmentObject private var tripViewModel: TripViewModel
     
     init(trip: Trip) {
         _tripData = State(initialValue: trip)
@@ -79,7 +84,7 @@ struct TripDetailView: View {
                     }
                     
                     Button(role: .destructive, action: {
-                        // Handle cancel trip action
+                        showCancelConfirmation = true
                     }) {
                         Label("Cancel Trip", systemImage: "xmark.circle")
                     }
@@ -282,6 +287,39 @@ struct TripDetailView: View {
                     animateContent = true
                 }
             }
+        }
+        .overlay(
+            ZStack {
+                if isProcessingAction {
+                    Color.black.opacity(0.4)
+                        .edgesIgnoringSafeArea(.all)
+                    
+                    VStack {
+                        ProgressView()
+                            .tint(.white)
+                        Text("Cancelling trip...")
+                            .foregroundColor(.white)
+                            .padding(.top, 8)
+                    }
+                    .padding()
+                    .background(RoundedRectangle(cornerRadius: 10).fill(Color(.systemGray4)))
+                }
+            }
+        )
+        .alert("Error", isPresented: $showError) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(errorMessage)
+        }
+        .alert("Cancel Trip", isPresented: $showCancelConfirmation) {
+            Button("No", role: .cancel) {}
+            Button("Yes, Cancel Trip", role: .destructive) {
+                Task {
+                    await cancelTrip()
+                }
+            }
+        } message: {
+            Text("Are you sure you want to cancel this trip?")
         }
     }
     
@@ -1151,6 +1189,27 @@ struct TripDetailView: View {
         let formatter = DateFormatter()
         formatter.dateFormat = "a"
         return formatter.string(from: date)
+    }
+    
+    private func cancelTrip() async {
+        isProcessingAction = true
+        
+        do {
+            // Use the environment injected tripViewModel
+            try await tripViewModel.cancelTripAsync(tripData)
+            
+            // Update UI on the main thread
+            await MainActor.run {
+                isProcessingAction = false
+                dismiss()
+            }
+        } catch {
+            await MainActor.run {
+                isProcessingAction = false
+                errorMessage = "Failed to cancel trip: \(error.localizedDescription)"
+                showError = true
+            }
+        }
     }
 }
 
