@@ -17,7 +17,7 @@ struct TripManagementView: View {
     @StateObject private var locationManager = LocationManager()
     
     @State private var searchText = ""
-    @State private var statusFilter: TripStatus?
+    @State private var statusFilter: TripStatus? = nil
     @State private var selectedTrip: Trip?
     @State private var showDetailView = false
     @State private var showAddSheet = false
@@ -41,13 +41,6 @@ struct TripManagementView: View {
         case list
         case calendar
         case map
-    }
-    
-    let initialFilter: TripStatus?
-    
-    init(initialFilter: TripStatus? = nil) {
-        self.initialFilter = initialFilter
-        _statusFilter = State(initialValue: initialFilter)
     }
     
     var body: some View {
@@ -457,7 +450,7 @@ struct TripManagementView: View {
                                 Label("Start", systemImage: "play.circle")
                             }
                             .tint(.green)
-                        } else if trip.status == .ongoing{
+                        } else if trip.status == .ongoing {
                             Button(action: {
                                 Task {
                                     await updateTripStatus(trip: trip, newStatus: .completed)
@@ -572,7 +565,7 @@ struct TripManagementView: View {
                                 HStack(spacing: 10) {
                     Button(action: {
                                         // Filter for vehicles that need attention
-                        statusFilter = .ongoing
+                                        statusFilter = .ongoing
                                     }) {
                                         HStack {
                                             Image(systemName: "exclamationmark.triangle")
@@ -664,7 +657,7 @@ struct TripManagementView: View {
                             Button(action: {
                                 // Show optimal routes for all active trips
                                 // This would show traffic-optimized routes for all vehicles
-                                for trip in filteredTrips.filter({ $0.status == .ongoing}) {
+                                for trip in filteredTrips.filter({ $0.status == .ongoing }) {
                                     locationManager.calculateRoute(from: trip.startLocation, to: trip.endLocation) { result in
                                         // Route is recalculated with live traffic data
                                     }
@@ -826,7 +819,7 @@ struct TripManagementView: View {
     }
     
     private func calculateProgress(for trip: Trip) -> Double {
-        guard trip.status == .ongoing,
+        guard trip.status == .ongoing, 
               let actualStartTime = trip.actualStartTime else { return 0.0 }
         
         let now = Date()
@@ -940,9 +933,9 @@ struct TripManagementView: View {
                             .stroke(statusColor(for: trip.status).opacity(0.7), lineWidth: 3)
                             .frame(width: 50, height: 50)
                             .rotationEffect(.degrees(trip.status == .ongoing ? 360 : 0))
-                            .animation(trip.status == .ongoing ?
-                                      Animation.linear(duration: 1.5).repeatForever(autoreverses: false) :
-                                    .default, value: trip.status == .ongoing)
+                            .animation(trip.status == .ongoing ? 
+                                      Animation.linear(duration: 1.5).repeatForever(autoreverses: false) : 
+                                      .default, value: trip.status == .ongoing)
                     )
                     
                     VStack(alignment: .leading, spacing: 6) {
@@ -1064,7 +1057,8 @@ struct TripManagementView: View {
                                                 Animation.easeInOut(duration: 3.0)
                                                     .repeatForever(autoreverses: false)
                                                     .delay(1),
-                                                value: trip.status == .ongoing                                            )
+                                                value: trip.status == .ongoing
+                                            )
                                     }
                                 }
                             )
