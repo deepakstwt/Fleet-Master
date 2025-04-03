@@ -225,11 +225,11 @@ struct TripManagementView: View {
                 )
                 
                 clickableStatCard(
-                    count: tripViewModel.trips.filter { $0.status == .inProgress }.count,
+                    count: tripViewModel.trips.filter { $0.status == .ongoing }.count,
                         title: "In Progress",
                         icon: "arrow.triangle.swap",
                     color: .orange,
-                    status: .inProgress
+                    status: .ongoing
                 )
                 
                 clickableStatCard(
@@ -344,7 +344,7 @@ struct TripManagementView: View {
                         HStack(spacing: 10) {
                             filterButton(title: "All Trips", status: nil)
                             filterButton(title: "Scheduled", status: .scheduled)
-                            filterButton(title: "In Progress", status: .inProgress)
+                            filterButton(title: "In Progress", status: .ongoing)
                             filterButton(title: "Completed", status: .completed)
                             filterButton(title: "Cancelled", status: .cancelled)
                         }
@@ -421,7 +421,7 @@ struct TripManagementView: View {
                         selectedTrip = trip
                     }
                     .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                        if trip.status == .scheduled || trip.status == .inProgress {
+                        if trip.status == .scheduled || trip.status == .ongoing {
                             Button(role: .destructive, action: {
                                 Task {
                                     await cancelTrip(trip)
@@ -444,13 +444,13 @@ struct TripManagementView: View {
                         if trip.status == .scheduled {
                             Button(action: {
                                 Task {
-                                    await updateTripStatus(trip: trip, newStatus: .inProgress)
+                                    await updateTripStatus(trip: trip, newStatus: .ongoing)
                                 }
                             }) {
                                 Label("Start", systemImage: "play.circle")
                             }
                             .tint(.green)
-                        } else if trip.status == .inProgress {
+                        } else if trip.status == .ongoing {
                             Button(action: {
                                 Task {
                                     await updateTripStatus(trip: trip, newStatus: .completed)
@@ -522,7 +522,7 @@ struct TripManagementView: View {
                         // Trip Statistics
                         HStack(spacing: 20) {
                             VStack {
-                                Text("\(filteredTrips.filter { $0.status == .inProgress }.count)")
+                                Text("\(filteredTrips.filter { $0.status == .ongoing }.count)")
                                     .font(.title2.bold())
                                     .foregroundColor(.blue)
                                 Text("Active")
@@ -565,7 +565,7 @@ struct TripManagementView: View {
                                 HStack(spacing: 10) {
                     Button(action: {
                                         // Filter for vehicles that need attention
-                                        statusFilter = .inProgress
+                                        statusFilter = .ongoing
                                     }) {
                                         HStack {
                                             Image(systemName: "exclamationmark.triangle")
@@ -575,18 +575,18 @@ struct TripManagementView: View {
                                         }
                                         .padding(.vertical, 8)
                                         .padding(.horizontal, 12)
-                                        .background(statusFilter == .inProgress ? Color.orange.opacity(0.2) : Color(.systemBackground))
+                                        .background(statusFilter == .ongoing ? Color.orange.opacity(0.2) : Color(.systemBackground))
                                         .cornerRadius(20)
                                         .overlay(
                                             RoundedRectangle(cornerRadius: 20)
-                                                .stroke(Color.orange.opacity(0.5), lineWidth: statusFilter == .inProgress ? 1.5 : 0)
+                                                .stroke(Color.orange.opacity(0.5), lineWidth: statusFilter == .ongoing ? 1.5 : 0)
                                         )
                                     }
                                     .buttonStyle(ScaleButtonStyle())
                                     
                                     Button(action: {
                                         // Show all in-progress trips
-                                        statusFilter = .inProgress
+                                        statusFilter = .ongoing
                                     }) {
                                         HStack {
                                             Image(systemName: "arrow.triangle.swap")
@@ -596,11 +596,11 @@ struct TripManagementView: View {
                                         }
                                         .padding(.vertical, 8)
                                         .padding(.horizontal, 12)
-                                        .background(statusFilter == .inProgress ? Color.blue.opacity(0.2) : Color(.systemBackground))
+                                        .background(statusFilter == .ongoing ? Color.blue.opacity(0.2) : Color(.systemBackground))
                                         .cornerRadius(20)
                                         .overlay(
                                             RoundedRectangle(cornerRadius: 20)
-                                                .stroke(Color.blue.opacity(0.5), lineWidth: statusFilter == .inProgress ? 1.5 : 0)
+                                                .stroke(Color.blue.opacity(0.5), lineWidth: statusFilter == .ongoing ? 1.5 : 0)
                                         )
                                     }
                                     .buttonStyle(ScaleButtonStyle())
@@ -657,7 +657,7 @@ struct TripManagementView: View {
                             Button(action: {
                                 // Show optimal routes for all active trips
                                 // This would show traffic-optimized routes for all vehicles
-                                for trip in filteredTrips.filter({ $0.status == .inProgress }) {
+                                for trip in filteredTrips.filter({ $0.status == .ongoing }) {
                                     locationManager.calculateRoute(from: trip.startLocation, to: trip.endLocation) { result in
                                         // Route is recalculated with live traffic data
                                     }
@@ -793,7 +793,7 @@ struct TripManagementView: View {
         case .scheduled:
             return Image(systemName: "calendar")
                 .foregroundColor(.blue)
-        case .inProgress:
+        case .ongoing:
             return Image(systemName: "arrow.triangle.swap")
                 .foregroundColor(.orange)
         case .completed:
@@ -809,7 +809,7 @@ struct TripManagementView: View {
         switch status {
         case .scheduled:
             return .blue
-        case .inProgress:
+        case .ongoing:
             return .orange
         case .completed:
             return .green
@@ -819,7 +819,7 @@ struct TripManagementView: View {
     }
     
     private func calculateProgress(for trip: Trip) -> Double {
-        guard trip.status == .inProgress, 
+        guard trip.status == .ongoing, 
               let actualStartTime = trip.actualStartTime else { return 0.0 }
         
         let now = Date()
@@ -929,13 +929,13 @@ struct TripManagementView: View {
                     }
                     .overlay(
                         Circle()
-                            .trim(from: 0, to: trip.status == .inProgress ? 0.75 : 1)
+                            .trim(from: 0, to: trip.status == .ongoing ? 0.75 : 1)
                             .stroke(statusColor(for: trip.status).opacity(0.7), lineWidth: 3)
                             .frame(width: 50, height: 50)
-                            .rotationEffect(.degrees(trip.status == .inProgress ? 360 : 0))
-                            .animation(trip.status == .inProgress ? 
+                            .rotationEffect(.degrees(trip.status == .ongoing ? 360 : 0))
+                            .animation(trip.status == .ongoing ? 
                                       Animation.linear(duration: 1.5).repeatForever(autoreverses: false) : 
-                                      .default, value: trip.status == .inProgress)
+                                      .default, value: trip.status == .ongoing)
                     )
                     
                     VStack(alignment: .leading, spacing: 6) {
@@ -1047,7 +1047,7 @@ struct TripManagementView: View {
                             .frame(width: 3, height: 65)
                             .overlay(
                                 Group {
-                                    if trip.status == .inProgress {
+                                    if trip.status == .ongoing {
                                         Circle()
                                             .fill(Color.white)
                                             .frame(width: 7, height: 7)
@@ -1057,7 +1057,7 @@ struct TripManagementView: View {
                                                 Animation.easeInOut(duration: 3.0)
                                                     .repeatForever(autoreverses: false)
                                                     .delay(1),
-                                                value: trip.status == .inProgress
+                                                value: trip.status == .ongoing
                                             )
                                     }
                                 }
@@ -1299,7 +1299,7 @@ struct TripManagementView: View {
                 
                 let statusMessage: String
                 switch newStatus {
-                case .inProgress: statusMessage = "Trip has been started."
+                case .ongoing: statusMessage = "Trip has been started."
                 case .completed: statusMessage = "Trip has been completed."
                 case .cancelled: statusMessage = "Trip has been cancelled."
                 default: statusMessage = "Trip status has been updated."

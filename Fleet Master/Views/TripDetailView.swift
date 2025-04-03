@@ -117,7 +117,7 @@ struct TripDetailView: View {
                         TripMapView(
                             trips: [tripData], 
                             locationManager: locationManager,
-                            isAssignedTrip: tripData.status == .inProgress && tripData.driverId != nil && tripData.vehicleId != nil
+                            isAssignedTrip: tripData.status == .ongoing && tripData.driverId != nil && tripData.vehicleId != nil
                         )
                             .edgesIgnoringSafeArea(.all)
                             .overlay(alignment: .topLeading) {
@@ -584,7 +584,7 @@ struct TripDetailView: View {
                                     .frame(width: 10, height: 10)
                                 
                                 // Animated pulse for current point
-                                if i == 1 && tripData.status == .inProgress {
+                                if i == 1 && tripData.status == .ongoing {
                                     Circle()
                                         .stroke(Color.blue, lineWidth: 2)
                                         .frame(width: 18, height: 18)
@@ -593,7 +593,7 @@ struct TripDetailView: View {
                                         .animation(
                                             Animation.easeInOut(duration: 1.0)
                                                 .repeatForever(autoreverses: true),
-                                            value: tripData.status == .inProgress
+                                            value: tripData.status == .ongoing
                                         )
                                 }
                             }
@@ -1007,7 +1007,7 @@ struct TripDetailView: View {
         switch tripData.status {
         case .scheduled:
             return .blue
-        case .inProgress:
+        case .ongoing:
             return .green
         case .completed:
             return .gray
@@ -1020,7 +1020,7 @@ struct TripDetailView: View {
         switch tripData.status {
         case .scheduled:
             return stage == 0 ? .blue : Color.gray.opacity(0.3)
-        case .inProgress:
+        case .ongoing:
             return stage <= 1 ? .green : Color.gray.opacity(0.3)
         case .completed:
             return .green
