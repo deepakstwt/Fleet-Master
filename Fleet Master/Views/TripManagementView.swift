@@ -37,6 +37,13 @@ struct TripManagementView: View {
     @State private var currentMonth: Date = Date()
     @State private var showingExpandedTrip: Trip? = nil
     
+    let initialFilter: TripStatus?
+    
+    init(initialFilter: TripStatus? = nil) {
+        self.initialFilter = initialFilter
+        _statusFilter = State(initialValue: initialFilter)
+    }
+    
     enum ViewMode {
         case list
         case calendar
