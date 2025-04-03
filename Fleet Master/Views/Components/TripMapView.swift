@@ -463,8 +463,8 @@ struct TripMapView: View {
                         centerMapOnTrip(trip)
                     }
                 }
-            case .failure(let error):
-                print("Failed to calculate route for trip \(trip.id): \(error.localizedDescription)")
+                case .failure(_): break
+                // Failed to calculate route for trip
             }
         }
     }
@@ -539,12 +539,12 @@ struct TripMapView: View {
                                 self.lookAroundScene = scene
                             }
                         } catch {
-                            print("Look Around scene error: \(error.localizedDescription)")
+                            // Look Around scene error occurred
                         }
                     }
                 }
-            case .failure(let error):
-                print("Geocoding error: \(error.localizedDescription)")
+                case .failure(_): break
+                // Geocoding error occurred
             }
         }
     }
@@ -1435,7 +1435,7 @@ struct ProMapViewRepresentable: UIViewRepresentable {
         }
         
         func completer(_ completer: MKLocalSearchCompleter, didFailWithError error: Error) {
-            print("Search completer error: \(error.localizedDescription)")
+            // Search completer error occurred
         }
         
         // Function to pulse polyline for selected route

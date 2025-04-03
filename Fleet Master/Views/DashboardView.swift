@@ -18,29 +18,17 @@ struct DashboardView: View {
     // Computed properties for maintenance requests
     private var allMaintenanceRequests: [MaintenanceRequest] {
         let requests = maintenanceViewModel.getPendingMaintenanceRequests(vehicles: vehicleViewModel.vehicles)
-        print("📊 Dashboard - All maintenance requests: \(requests.count)")
         return requests
     }
     
     private var overdueMaintenanceRequests: [MaintenanceRequest] {
         let currentDate = Date().timeIntervalSince1970
         let requests = allMaintenanceRequests.filter { !$0.isScheduled && !$0.isDriverRequest && $0.dueDateTimestamp < currentDate }
-        print("📊 Dashboard - Overdue maintenance requests: \(requests.count)")
         return requests
     }
     
     private var driverRepairRequests: [MaintenanceRequest] {
         let requests = allMaintenanceRequests.filter { !$0.isScheduled && $0.isDriverRequest }
-        print("📊 Dashboard - Driver repair requests: \(requests.count)")
-        
-        // Print detailed debug info for driver repair requests
-        if !requests.isEmpty {
-            print("  Driver repair requests details:")
-            for (index, request) in requests.prefix(3).enumerated() {
-                print("  \(index+1). ID: \(request.id), Vehicle: \(request.vehicle.registrationNumber), Issue: \(request.description)")
-            }
-        }
-        
         return requests
     }
     
@@ -298,8 +286,6 @@ struct DashboardView: View {
             }
         }
         .onAppear {
-            print("Dashboard appeared - refreshing data")
-            
             // Initial data load
             Task {
                 await refreshAllData()
@@ -307,7 +293,6 @@ struct DashboardView: View {
             
             // Setup timer to refresh data every 30 seconds
             refreshTimer = Timer.scheduledTimer(withTimeInterval: 30, repeats: true) { _ in
-                print("Auto-refresh timer triggered")
                 Task {
                     await refreshAllData()
                 }
@@ -322,42 +307,9 @@ struct DashboardView: View {
     
     private func refreshAllData() async {
         // Use public methods to refresh data
-        print("⏳ Starting data refresh...")
-        
-        print("⏳ Loading trips...")
         await tripViewModel.loadTrips()
-        
-        print("⏳ Fetching vehicles...")
         await vehicleViewModel.fetchVehicles()
-        
-        print("⏳ Fetching maintenance requests...")
         await maintenanceViewModel.fetchMaintenanceRequests()
-        
-        // Print detailed diagnostic information
-        print("✅ Refresh complete")
-        print("📊 Data summary:")
-        print("   - Vehicles: \(vehicleViewModel.vehicles.count)")
-        if let firstVehicle = vehicleViewModel.vehicles.first {
-            print("     First vehicle: \(firstVehicle.id) - \(firstVehicle.make) \(firstVehicle.model) (\(firstVehicle.registrationNumber))")
-        }
-        
-        print("   - Active Trips: \(tripViewModel.inProgressTrips.count)")
-        print("   - Driver Maintenance Requests: \(maintenanceViewModel.driverMaintenanceRequests.count)")
-        
-        // Print first few maintenance requests for debugging
-        for (index, request) in maintenanceViewModel.driverMaintenanceRequests.prefix(3).enumerated() {
-            print("     Request \(index+1): ID \(request.id), Vehicle \(request.vehicleId), Problem: \(request.problem)")
-        }
-        
-        print("   - Overdue Maintenance: \(overdueMaintenanceRequests.count)")
-        print("   - Driver Repair Requests: \(driverRepairRequests.count)")
-        
-        // Check if the maintenance cards will be visible
-        if overdueMaintenanceRequests.isEmpty && driverRepairRequests.isEmpty {
-            print("⚠️ No maintenance cards will be displayed - check data loading")
-        } else {
-            print("✅ Maintenance cards should be visible")
-        }
     }
 }
 

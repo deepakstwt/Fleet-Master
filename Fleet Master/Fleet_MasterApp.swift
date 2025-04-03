@@ -35,7 +35,7 @@ struct Fleet_MasterApp: App {
         let isFirstInstall = defaults.object(forKey: "appPreviouslyLaunched") == nil
         
         if isFirstInstall {
-            print("First time app installation detected")
+            // First time app installation detected
             // Clear any potentially leftover keychain data from previous installations
             supabaseManager.clearKeychainDataSync()
             
@@ -47,7 +47,7 @@ struct Fleet_MasterApp: App {
                 do {
                     try await supabaseManager.signOut()
                 } catch {
-                    print("Error signing out on first install: \(error)")
+                    // Error signing out on first install
                 }
             }
         }
@@ -80,7 +80,7 @@ struct Fleet_MasterApp: App {
         }
         
         defaults.synchronize()
-        print("All auth state removed from UserDefaults")
+        // All auth state removed from UserDefaults
     }
     
     var body: some Scene {

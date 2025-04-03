@@ -48,12 +48,6 @@ final class SupabaseManager {
     
     // MARK: - Authentication Methods
     
-    /// Sign in with email and password
-    /// - Parameters:
-    ///   - email: User's email address
-    ///   - password: User's password
-    /// - Returns: Session object if signin is successful
-    /// - Throws: Authentication errors
     func signIn(email: String, password: String) async throws -> Session {
         do {
             return try await supabase.auth.signIn(email: email, password: password)
@@ -61,23 +55,8 @@ final class SupabaseManager {
             throw mapAuthError(error)
         }
     }
-    
-    /// Sign up with email and password
-    /// - Parameters:
-    ///   - email: User's email address
-    ///   - password: User's password
-    /// - Returns: Session object if signup is successful
-    /// - Throws: Authentication errors
-//    func signUp(email: String, password: String) async throws -> Session {
-//        do {
-//            return try await supabase.auth.signUp(email: email, password: password)
-//        } catch {
-//            throw mapAuthError(error)
-//        }
-//    }
-    
+        
     /// Sign out the current user
-    /// - Throws: Authentication errors
     func signOut() async throws {
         do {
             try await supabase.auth.signOut()
@@ -87,22 +66,16 @@ final class SupabaseManager {
     }
     
     /// Sign out the current user and clear keychain data (for complete reset)
-    /// - Throws: Authentication errors
     func signOutAndClearKeychain() async throws {
         do {
-            // Regular sign out
             try await supabase.auth.signOut()
             
-            // Clear any keychain items used by the app
             clearKeychainData()
         } catch {
             throw mapAuthError(error)
         }
     }
     
-    /// Send One-Time Password (OTP) for email authentication
-    /// - Parameter email: User's email address
-    /// - Throws: Authentication errors
     func sendOTP(email: String) async throws {
         do {
             try await supabase.auth.signInWithOTP(
@@ -114,12 +87,6 @@ final class SupabaseManager {
         }
     }
     
-    /// Verify One-Time Password (OTP) for email authentication
-    /// - Parameters:
-    ///   - email: User's email address
-    ///   - token: OTP token received via email
-    /// - Returns: AuthResponse object if verification is successful
-    /// - Throws: Authentication errors
     func verifyOTP(email: String, token: String) async throws -> AuthResponse {
         do {
             return try await supabase.auth.verifyOTP(
@@ -132,9 +99,6 @@ final class SupabaseManager {
         }
     }
     
-    /// Get the current session
-    /// - Returns: Session object if available, nil otherwise
-    /// - Throws: Authentication errors
     func getSession() async throws -> Session? {
         do {
             return try await supabase.auth.session
@@ -143,9 +107,6 @@ final class SupabaseManager {
         }
     }
     
-    /// Get the current user
-    /// - Returns: User object if available, nil otherwise
-    /// - Throws: Authentication errors
     func getCurrentUser() async throws -> User? {
         do {
             let session = try await supabase.auth.session
@@ -155,9 +116,6 @@ final class SupabaseManager {
         }
     }
     
-    /// Reset password for the provided email
-    /// - Parameter email: User's email address
-    /// - Throws: Authentication errors
     func resetPassword(email: String) async throws {
         do {
             try await supabase.auth.resetPasswordForEmail(email)
@@ -166,11 +124,6 @@ final class SupabaseManager {
         }
     }
     
-    /// Update password for the current user
-    /// - Parameters:
-    ///   - password: New password
-    ///   - completion: Optional completion handler called after successful password update
-    /// - Throws: Authentication errors
     func updatePassword(password: String, completion: (() -> Void)? = nil) async throws {
         do {
             let attributes = UserAttributes(password: password)
@@ -181,11 +134,6 @@ final class SupabaseManager {
         }
     }
     
-    /// Update password and navigate to dashboard
-    /// - Parameters:
-    ///   - password: New password
-    ///   - navigateToDashboard: Closure that handles navigation to dashboard
-    /// - Throws: Authentication errors
     func updatePasswordAndNavigate(password: String, navigateToDashboard: @escaping () -> Void) async throws {
         do {
             let attributes = UserAttributes(password: password)
@@ -197,14 +145,12 @@ final class SupabaseManager {
         }
     }
     
-    /// Clear all keychain data associated with this app
     private func clearKeychainData() {
         clearKeychainDataSync()
     }
     
     /// Clear all keychain data associated with this app synchronously
     func clearKeychainDataSync() {
-        // Remove all keychain items with the app's bundle identifier
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: Bundle.main.bundleIdentifier ?? "com.fleetmaster.app"
@@ -236,65 +182,10 @@ final class SupabaseManager {
         
         SecItemDelete(accessTokenQuery as CFDictionary)
         
-        print("Keychain data cleared synchronously")
+        // Keychain data cleared synchronously
     }
-    
-    // MARK: - Custom Database Queries
-    
-    /// Check if an email exists in the fleet_manager table
-    /// - Parameter email: Email to check
-    /// - Returns: Boolean indicating if the email exists
-    /*
-    func checkFleetManagerEmailExists(email: String) async throws -> Bool {
-        do {
-            // Use a direct SQL query with parameters for safety
-            let query = """
-            SELECT EXISTS (
-                SELECT 1 FROM public.fleet_manager 
-                WHERE email = '\(email)'
-            )
-            """
-            
-            print("Running SQL query: \(query)")
-            
-            let response = try await supabase.database.rpc(fn: "executeQuery", params: ["query": query])
-            
-            print("SQL query response: \(response)")
-            
-            // Extract the boolean result
-            if let jsonData = response.data,
-               let jsonString = String(data: jsonData, encoding: .utf8) {
-                print("SQL query result: \(jsonString)")
-                return jsonString.contains("true")
-            }
-            
-            return false
-        } catch {
-            print("Error checking fleet manager email via SQL: \(error)")
-            
-            // Fallback to direct table query
-            do {
-                let response = try await supabase
-                    .from("fleet_manager")
-                    .select("id")
-                    .eq("email", value: email)
-                    .execute()
-                
-                if let jsonData = response.data,
-                   let jsonString = String(data: jsonData, encoding: .utf8) {
-                    print("Fallback query result: \(jsonString)")
-                    return jsonString != "[]"
-                }
-                
-                return false
-            } catch {
-                print("Fallback query failed: \(error)")
-                return false
-            }
-        }
-    }
-    */
-    
+        
+        
     // MARK: - Maintenance Vehicle Operations
     
     /// Get the last ticket number from the database
@@ -348,10 +239,6 @@ final class SupabaseManager {
     }
     
     // MARK: - Helper Methods
-    
-    /// Map Supabase SDK errors to custom SupabaseError type
-    /// - Parameter error: Original error from Supabase SDK
-    /// - Returns: Mapped SupabaseError
     private func mapAuthError(_ error: Error) -> Error {
         // Check if error is an AuthError
             // Use string-based error handling as a fallback
@@ -366,8 +253,5 @@ final class SupabaseManager {
             }
             
             return error
-        }
-        
-        // Return the original error if not an AuthError
-        //return SupabaseError.networkError(error)
     }
+}

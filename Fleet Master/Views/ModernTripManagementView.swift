@@ -102,7 +102,7 @@ struct ModernTripManagementContentView: View {
                 // Refresh data - No explicit loadTrips method exists
                 // This is just for pull-to-refresh functionality
             }
-            .onChange(of: viewModel.searchText) { _ in
+            .onChange(of: viewModel.searchText) { 
                 // Filtering happens automatically via filteredTrips computed property
             }
         }
