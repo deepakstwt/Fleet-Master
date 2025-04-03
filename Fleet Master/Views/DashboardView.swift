@@ -19,29 +19,17 @@ struct DashboardView: View {
     // Computed properties for maintenance requests
     private var allMaintenanceRequests: [MaintenanceRequest] {
         let requests = maintenanceViewModel.getPendingMaintenanceRequests(vehicles: vehicleViewModel.vehicles)
-        print("📊 Dashboard - All maintenance requests: \(requests.count)")
         return requests
     }
     
     private var overdueMaintenanceRequests: [MaintenanceRequest] {
         let currentDate = Date().timeIntervalSince1970
         let requests = allMaintenanceRequests.filter { !$0.isScheduled && !$0.isDriverRequest && $0.dueDateTimestamp < currentDate }
-        print("📊 Dashboard - Overdue maintenance requests: \(requests.count)")
         return requests
     }
     
     private var driverRepairRequests: [MaintenanceRequest] {
         let requests = allMaintenanceRequests.filter { !$0.isScheduled && $0.isDriverRequest }
-        print("📊 Dashboard - Driver repair requests: \(requests.count)")
-        
-        // Print detailed debug info for driver repair requests
-        if !requests.isEmpty {
-            print("  Driver repair requests details:")
-            for (index, request) in requests.prefix(3).enumerated() {
-                print("  \(index+1). ID: \(request.id), Vehicle: \(request.vehicle.registrationNumber), Issue: \(request.description)")
-            }
-        }
-        
         return requests
     }
     
@@ -82,7 +70,7 @@ struct DashboardView: View {
                                         color: Color(hex: "1E3A8A")  // Using primary gradient color
                                     ),
                                     KPIDetail(
-                                        label: "Idle",
+                                        label: "On Trip",
                                         value: "0",
                                         color: Color(hex: "1E3A8A")  // Using primary gradient color
                                     )
@@ -220,17 +208,31 @@ struct DashboardView: View {
                             HStack(spacing: 20) {
                                 // Overdue Maintenance Cards
                                 ForEach(overdueMaintenanceRequests) { request in
-                                    MaintenanceRequestCard(request: request, isOverdue: true)
+                                    MaintenanceRequestCard(request: request, isOverdue: true) {
+                                        // Call appropriate view model method to mark as completed
+                                        Task {
+                                            await maintenanceViewModel.markRequestCompleted(requestId: request.id)
+                                            // Refresh data after marking as completed
+                                            refreshAllData()
+                                        }
+                                    }
                                 }
                                 
                                 // Driver-generated Repair Request Cards
                                 ForEach(driverRepairRequests) { request in
-                                    MaintenanceRequestCard(request: request, isOverdue: false)
+                                    MaintenanceRequestCard(request: request, isOverdue: false) {
+                                        // Call appropriate view model method to mark as completed
+                                        Task {
+                                            await maintenanceViewModel.markRequestCompleted(requestId: request.id)
+                                            // Refresh data after marking as completed
+                                            refreshAllData()
+                                        }
+                                    }
                                 }
                                 
                                 // Empty state
                                 if overdueMaintenanceRequests.isEmpty && 
-                                   driverRepairRequests.isEmpty {
+                                    driverRepairRequests.isEmpty {
                                     VStack(spacing: 12) {
                                         Image(systemName: "checkmark.circle.fill")
                                             .font(.system(size: 40))
@@ -252,6 +254,40 @@ struct DashboardView: View {
                         }
                         .frame(height: 350) // Ensure container is tall enough for cards
                         .padding(.bottom, 16)
+                    }
+                    
+                    // Fleet Expenses Section - NEW SECTION
+                    VStack(alignment: .leading, spacing: 20) {
+                        Text("Fleet Expenses (Last 30 Days)")
+                            .font(.title2)
+                            .fontWeight(.bold)
+                            .padding(.horizontal)
+                        
+                        HStack(spacing: 20) {
+                            // Maintenance Cost Card
+                            ExpenseCard(
+                                title: "Maintenance Cost",
+                                amount: "12,450",
+                                icon: "wrench.and.screwdriver.fill",
+                                color: .purple,
+                                percentage: 70,
+                                trend: .up,
+                                trendValue: "8%"
+                            )
+                            
+                            // Fuel Cost Card
+                            ExpenseCard(
+                                title: "Fuel Cost",
+                                amount: "8,320",
+                                icon: "fuelpump.fill",
+                                color: .green,
+                                percentage: 55,
+                                trend: .down,
+                                trendValue: "3%"
+                            )
+                        }
+                        .padding(.horizontal)
+                        .padding(.bottom, 30)
                     }
                 }
             }
@@ -312,8 +348,6 @@ struct DashboardView: View {
             }
         }
         .onAppear {
-            print("Dashboard appeared - refreshing data")
-            
             // Initial data load
             Task {
                 await refreshAllData()
@@ -321,7 +355,6 @@ struct DashboardView: View {
             
             // Setup timer to refresh data every 30 seconds
             refreshTimer = Timer.scheduledTimer(withTimeInterval: 30, repeats: true) { _ in
-                print("Auto-refresh timer triggered")
                 Task {
                     await refreshAllData()
                 }
@@ -359,43 +392,69 @@ struct DashboardView: View {
         }
     }
     
-    private func refreshAllData() async {
+    private func refreshAllData() {
         // Use public methods to refresh data
-        print("⏳ Starting data refresh...")
-        
-        print("⏳ Loading trips...")
-        await tripViewModel.loadTrips()
-        
-        print("⏳ Fetching vehicles...")
-        await vehicleViewModel.fetchVehicles()
-        
-        print("⏳ Fetching maintenance requests...")
-        await maintenanceViewModel.fetchMaintenanceRequests()
-        
-        // Print detailed diagnostic information
-        print("✅ Refresh complete")
-        print("📊 Data summary:")
-        print("   - Vehicles: \(vehicleViewModel.vehicles.count)")
-        if let firstVehicle = vehicleViewModel.vehicles.first {
-            print("     First vehicle: \(firstVehicle.id) - \(firstVehicle.make) \(firstVehicle.model) (\(firstVehicle.registrationNumber))")
+        Task {
+            await tripViewModel.loadTrips()
+            await vehicleViewModel.fetchVehicles()
+            await maintenanceViewModel.fetchMaintenanceRequests()
         }
-        
-        print("   - Active Trips: \(tripViewModel.inProgressTrips.count)")
-        print("   - Driver Maintenance Requests: \(maintenanceViewModel.driverMaintenanceRequests.count)")
-        
-        // Print first few maintenance requests for debugging
-        for (index, request) in maintenanceViewModel.driverMaintenanceRequests.prefix(3).enumerated() {
-            print("     Request \(index+1): ID \(request.id), Vehicle \(request.vehicleId), Problem: \(request.problem)")
-        }
-        
-        print("   - Overdue Maintenance: \(overdueMaintenanceRequests.count)")
-        print("   - Driver Repair Requests: \(driverRepairRequests.count)")
-        
-        // Check if the maintenance cards will be visible
-        if overdueMaintenanceRequests.isEmpty && driverRepairRequests.isEmpty {
-            print("⚠️ No maintenance cards will be displayed - check data loading")
-        } else {
-            print("✅ Maintenance cards should be visible")
+    }
+    
+    var maintenanceRequestsSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            SectionHeader(title: "Maintenance Requests", count: allMaintenanceRequests.count)
+            
+            if maintenanceViewModel.isLoading {
+                ProgressView()
+                    .frame(maxWidth: .infinity, alignment: .center)
+            } else if allMaintenanceRequests.isEmpty {
+                Text("No maintenance requests")
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .foregroundColor(.secondary)
+                    .padding()
+            } else {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    LazyHStack(spacing: 16) {
+                        // Using a more explicit approach for ForEach
+                        ForEach(0..<allMaintenanceRequests.count, id: \.self) { index in
+                            let request = allMaintenanceRequests[index]
+                            VStack(alignment: .leading, spacing: 12) {
+                                Text("\(request.vehicle.make) \(request.vehicle.model)")
+                                    .font(.headline)
+                                
+                                Text(request.vehicle.registrationNumber)
+                                    .font(.subheadline)
+                                    .foregroundColor(.secondary)
+                                
+                                Divider()
+                                
+                                Text("Issue: \(request.problem)")
+                                    .fontWeight(.medium)
+                                
+                                Text(request.description)
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                
+                                Spacer()
+                                
+                                Button("Mark as Completed") {
+                                    Task {
+                                        await maintenanceViewModel.markRequestCompleted(requestId: request.id)
+                                    }
+                                }
+                                .buttonStyle(.borderedProminent)
+                                .controlSize(.small)
+                            }
+                            .padding()
+                            .frame(width: 300, height: 200)
+                            .background(Color(.secondarySystemBackground))
+                            .cornerRadius(10)
+                        }
+                    }
+                    .padding(.horizontal)
+                }
+            }
         }
     }
 }
@@ -682,6 +741,178 @@ struct StatRow: View {
     }
 }
 
+struct NotificationCenterView: View {
+    @Environment(\.dismiss) private var dismiss
+    
+    // Empty notifications array that would be populated from a real data source
+    @State private var notifications: [NotificationItem] = []
+    
+    enum NotificationType {
+        case driver
+        case maintenance
+    }
+    
+    struct NotificationItem: Identifiable {
+        let id: Int
+        let title: String
+        let message: String
+        let time: String
+        let type: NotificationType
+    }
+    
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: 0) {
+                // Notification List
+                ScrollView {
+                    LazyVStack(spacing: 0) {
+                        // If no notifications
+                        if notifications.isEmpty {
+                            VStack(spacing: 16) {
+                                Image(systemName: "bell.slash")
+                                    .font(.system(size: 60))
+                                    .foregroundStyle(Color.gray.opacity(0.5))
+                                    .padding(.top, 60)
+                                
+                                Text("No Notifications")
+                                    .font(.title3)
+                                    .fontWeight(.medium)
+                                
+                                Text("You're all caught up!")
+                                    .font(.subheadline)
+                                    .foregroundStyle(.secondary)
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(.horizontal)
+                            .padding(.vertical, 40)
+                        } else {
+                            // Today's notifications
+                            if let todayNotifications = groupedNotifications["Today"], !todayNotifications.isEmpty {
+                                NotificationDateHeader(title: "Today")
+                                
+                                ForEach(todayNotifications) { notification in
+                                    NotificationRow(
+                                        title: notification.title,
+                                        message: notification.message,
+                                        time: notification.time,
+                                        type: notification.type
+                                    )
+                                    .padding(.horizontal)
+                                    .padding(.vertical, 8)
+                                    
+                                    Divider()
+                                        .padding(.horizontal)
+                                }
+                            }
+                            
+                            // Earlier notifications
+                            if let earlierNotifications = groupedNotifications["Earlier"], !earlierNotifications.isEmpty {
+                                NotificationDateHeader(title: "Earlier")
+                                
+                                ForEach(earlierNotifications) { notification in
+                                    NotificationRow(
+                                        title: notification.title,
+                                        message: notification.message,
+                                        time: notification.time,
+                                        type: notification.type
+                                    )
+                                    .padding(.horizontal)
+                                    .padding(.vertical, 8)
+                                    
+                                    Divider()
+                                        .padding(.horizontal)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            .navigationTitle("Notifications")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Done") {
+                        dismiss()
+                    }
+                }
+            }
+        }
+    }
+    
+    // Group notifications by date category
+    private var groupedNotifications: [String: [NotificationItem]] {
+        var groups: [String: [NotificationItem]] = [
+            "Today": [],
+            "Earlier": []
+        ]
+        
+        for notification in notifications {
+            if notification.time.contains("minutes ago") || 
+               notification.time.contains("hour ago") || 
+               notification.time.contains("hours ago") {
+                groups["Today", default: []].append(notification)
+            } else {
+                groups["Earlier", default: []].append(notification)
+            }
+        }
+        
+        return groups
+    }
+}
+
+struct NotificationDateHeader: View {
+    let title: String
+    
+    var body: some View {
+        HStack {
+            Text(title)
+                .font(.subheadline)
+                .fontWeight(.semibold)
+                .foregroundStyle(.secondary)
+                .padding(.leading)
+            
+            Spacer()
+        }
+        .padding(.vertical, 10)
+        .background(Color(.systemGroupedBackground).opacity(0.5))
+    }
+}
+
+struct NotificationRow: View {
+    let title: String
+    let message: String
+    let time: String
+    let type: NotificationCenterView.NotificationType
+    
+    var body: some View {
+        HStack(spacing: 16) {
+            Circle()
+                .fill(type == .driver ? .blue : .orange)
+                .frame(width: 40, height: 40)
+                .overlay {
+                    Image(systemName: type == .driver ? "person.fill" : "wrench.fill")
+                        .foregroundStyle(.white)
+                }
+            
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title)
+                    .font(.headline)
+                
+                Text(message)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+                
+                Text(time)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            
+            Spacer(minLength: 0)
+        }
+    }
+}
+
 struct FrequentRepairRow: View {
     let icon: String
     let iconColor: Color
@@ -715,6 +946,7 @@ struct FrequentRepairRow: View {
 struct MaintenanceRequestCard: View {
     let request: MaintenanceRequest
     let isOverdue: Bool
+    let onMarkCompleted: () -> Void
     
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -755,7 +987,7 @@ struct MaintenanceRequestCard: View {
                 .padding(.bottom, 16)
             
             // Details section with fixed layout
-            VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: 12) {
                 HStack(alignment: .top) {
                     Text("Vehicle:")
                         .foregroundStyle(.secondary)
@@ -766,11 +998,11 @@ struct MaintenanceRequestCard: View {
                 }
                 
                 HStack(alignment: .top) {
-                    Text(isOverdue ? "Due Date:" : "Reported At:")
+                    Text(isOverdue ? "Due Date:" : "Reported:")
                         .foregroundStyle(.secondary)
                         .frame(width: 100, alignment: .leading)
                     
-                    Text(isOverdue ? formattedDate(request.dueDateTimestamp) : formattedDate(request.createdTimestamp))
+                    Text(formattedDate(isOverdue ? request.dueDateTimestamp : request.createdTimestamp))
                         .fontWeight(.medium)
                 }
                 
@@ -780,7 +1012,7 @@ struct MaintenanceRequestCard: View {
                             .foregroundStyle(.secondary)
                             .frame(width: 100, alignment: .leading)
                         
-                        Text(request.description)
+                        Text(request.problem)
                             .fontWeight(.medium)
                             .lineLimit(2)
                             .fixedSize(horizontal: false, vertical: true)
@@ -802,18 +1034,57 @@ struct MaintenanceRequestCard: View {
                         .foregroundStyle(.secondary)
                     
                     // Simulated priority based on the issue description length
-                    let priority = request.description.count > 30 ? "High" : "Medium"
+                    let priority = request.problem.count > 30 ? "High" : "Medium"
                     Text(priority)
                         .font(.subheadline)
                         .fontWeight(.bold)
                         .foregroundStyle(priority == "High" ? Color.red : Color.orange)
                     
                     Spacer()
+                    
+                    // Mark as completed button moved to bottom right
+                    Button(action: onMarkCompleted) {
+                        HStack {
+                            Image(systemName: "checkmark.circle.fill")
+                                .font(.caption)
+                            Text("Mark as completed")
+                                .font(.footnote)
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(Color.green.opacity(0.8))
+                        .foregroundStyle(.white)
+                        .cornerRadius(6)
+                    }
+                    .buttonStyle(.borderless)
+                }
+            } else {
+                Divider()
+                    .padding(.vertical, 12)
+                
+                HStack {
+                    Spacer()
+                    
+                    // Mark as completed button for overdue cases
+                    Button(action: onMarkCompleted) {
+                        HStack {
+                            Image(systemName: "checkmark.circle.fill")
+                                .font(.caption)
+                            Text("Mark as completed")
+                                .font(.footnote)
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(Color.green.opacity(0.8))
+                        .foregroundStyle(.white)
+                        .cornerRadius(6)
+                    }
+                    .buttonStyle(.borderless)
                 }
             }
         }
         .padding(20)
-        .frame(width: 450, height: 300)
+        .frame(width: 450, height: 350)
         .background(Color(.systemBackground))
         .clipShape(RoundedRectangle(cornerRadius: 16))
         .overlay(
@@ -841,6 +1112,7 @@ struct MaintenanceRequestCard: View {
 struct MaintenanceRequest: Identifiable {
     let id: String
     let vehicle: Vehicle
+    let problem: String
     let description: String
     let dueDateTimestamp: Double
     let createdTimestamp: Double
@@ -849,9 +1121,139 @@ struct MaintenanceRequest: Identifiable {
     let personnel: MaintenancePersonnel
 }
 
+// Helper Components
+struct SectionHeader: View {
+    var title: String
+    var count: Int
+    
+    var body: some View {
+        HStack {
+            Text(title)
+                .font(.headline)
+            
+            Spacer()
+            
+            Text("\(count) total")
+                .font(.caption)
+                .foregroundColor(.secondary)
+        }
+        .padding(.horizontal)
+    }
+}
+
 #Preview {
     DashboardView()
         .environmentObject(TripViewModel())
         .environmentObject(DriverViewModel())
         .environmentObject(VehicleViewModel())
+} 
+
+// Expense Card Component
+struct ExpenseCard: View {
+    enum TrendDirection {
+        case up, down, neutral
+    }
+    
+    let title: String
+    let amount: String
+    let icon: String
+    let color: Color
+    let percentage: CGFloat // 0-100
+    let trend: TrendDirection
+    let trendValue: String
+    @State private var isHovered = false
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            // Header with icon
+            HStack(alignment: .center, spacing: 12) {
+                Image(systemName: icon)
+                    .font(.title3)
+                    .foregroundStyle(.yellow)
+                    .frame(width: 36, height: 36)
+                
+                Text(title)
+                    .font(.headline)
+                    .foregroundStyle(.primary)
+                
+                Spacer()
+                
+                // Trend indicator
+                HStack(spacing: 4) {
+                    Image(systemName: trendIcon)
+                        .font(.caption)
+                        .foregroundStyle(trendColor)
+                    
+                    Text(trendValue)
+                        .font(.caption)
+                        .fontWeight(.medium)
+                        .foregroundStyle(trendColor)
+                }
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(trendColor.opacity(0.1))
+                .clipShape(Capsule())
+            }
+            
+            // Amount display with rupee symbol and black text
+            Text("₹\(amount)")
+                .font(.system(size: 36, weight: .bold, design: .rounded))
+                .foregroundStyle(.black)
+                .padding(.vertical, 8)
+        }
+        .padding(20)
+        .frame(maxWidth: .infinity)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(Color(.systemBackground))
+                .shadow(
+                    color: color.opacity(0.1),
+                    radius: isHovered ? 15 : 10,
+                    x: 0,
+                    y: isHovered ? 10 : 5
+                )
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(
+                    LinearGradient(
+                        colors: [
+                            color.opacity(isHovered ? 0.3 : 0.1),
+                            color.opacity(isHovered ? 0.1 : 0.05),
+                            .clear
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    lineWidth: 1.5
+                )
+        )
+        .onHover { hovering in
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                isHovered = hovering
+            }
+        }
+    }
+    
+    private var trendIcon: String {
+        switch trend {
+        case .up:
+            return "arrow.up.right"
+        case .down:
+            return "arrow.down.right"
+        case .neutral:
+            return "arrow.right"
+        }
+    }
+    
+    private var trendColor: Color {
+        switch trend {
+        case .up:
+            return .red
+        case .down:
+            return .green
+        case .neutral:
+            return .gray
+        }
+    }
 } 

@@ -120,4 +120,26 @@ final class DriverMaintenanceSupabaseManager {
             throw error
         }
     }
+    
+    /// Mark a driver maintenance request as completed
+    /// - Parameter requestId: ID of the request to mark as completed
+    /// - Throws: Database errors
+    func markRequestCompleted(requestId: String) async throws {
+        do {
+            try await supabase
+                .from("Driver_Maintenance_Requests")
+                .update(["completed": true])
+                .eq("id", value: requestId)
+                .execute()
+            
+            try await supabase
+                .from("Driver_Maintenance_Requests")
+                .update(["status": "Completed"])
+                .eq("id", value: requestId)
+                .execute()
+        } catch {
+            print("Error marking driver maintenance request as completed: \(error)")
+            throw error
+        }
+    }
 } 

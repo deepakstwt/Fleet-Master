@@ -731,96 +731,73 @@ class MaintenanceViewModel: ObservableObject, @unchecked Sendable {
         }
     }
     
-    /// Get all driver maintenance requests converted to MaintenanceRequest format for the dashboard
+    /// Mark a maintenance request as completed
+    func markRequestCompleted(requestId: String) async {
+        print("Marking request \(requestId) as completed")
+        isLoading = true
+        
+        do {
+            // Update the request in the database
+            try await DriverMaintenanceSupabaseManager.shared.markRequestCompleted(requestId: requestId)
+            
+            print("Successfully marked request \(requestId) as completed in database")
+            
+            // Update local state by removing the completed request
+            DispatchQueue.main.async {
+                self.driverMaintenanceRequests.removeAll { $0.id == requestId }
+                print("Removed completed request from local state")
+                self.isLoading = false
+            }
+        } catch {
+            print("Failed to mark request as completed: \(error)")
+            DispatchQueue.main.async {
+                self.errorMessage = "Failed to mark request as completed: \(error.localizedDescription)"
+                self.isLoading = false
+            }
+        }
+    }
+    
+    /// Get all active (non-completed) driver maintenance requests
     func getAllDriverMaintenanceRequests(vehicles: [Vehicle]) -> [MaintenanceRequest] {
         print("Converting \(driverMaintenanceRequests.count) driver requests to maintenance requests")
-        print("Available vehicles: \(vehicles.count)")
         
-        // Log vehicle IDs for debugging
-        for vehicle in vehicles.prefix(5) {
-            print("Vehicle available for matching: \(vehicle.id) - \(vehicle.make) \(vehicle.model) (\(vehicle.registrationNumber))")
-        }
+        // Filter out completed requests
+        let activeRequests = driverMaintenanceRequests.filter { !$0.completed }
         
-        if driverMaintenanceRequests.isEmpty {
-            print("⚠️ No driver maintenance requests found to convert")
-        } else {
-            // Log the first few driver requests
-            for request in driverMaintenanceRequests.prefix(3) {
-                print("Driver request to convert: ID: \(request.id), Vehicle ID: \(request.vehicleId), Problem: \(request.problem)")
+        // Convert the requests to MaintenanceRequest objects
+        let requests = activeRequests.compactMap { driverRequest -> MaintenanceRequest? in
+            guard let vehicle = vehicles.first(where: { $0.id == driverRequest.vehicleId }) else {
+                print("Could not find vehicle with ID: \(driverRequest.vehicleId)")
+                return nil
             }
-        }
-        
-        let requests = driverMaintenanceRequests.compactMap { driverRequest -> MaintenanceRequest? in
-            let request = convertToMaintenanceRequest(driverRequest: driverRequest, vehicles: vehicles)
-            if request == nil {
-                print("❌ Failed to convert driver request: \(driverRequest.id) for vehicle \(driverRequest.vehicleId)")
-                
-                // Try to understand why conversion failed
-                if !vehicles.contains(where: { $0.id == driverRequest.vehicleId }) {
-                    print("  - Vehicle ID \(driverRequest.vehicleId) not found in available vehicles")
-                }
-            }
-            return request
-        }
-        
-        print("✅ Converted \(requests.count)/\(driverMaintenanceRequests.count) driver maintenance requests")
-        
-        // Log successful conversions
-        for request in requests.prefix(3) {
-            print("  ✓ Converted request: \(request.id) for vehicle \(request.vehicle.registrationNumber)")
+            
+            // Create a maintenance request with default personnel
+            let defaultPersonnel = personnel.first ?? MaintenancePersonnel(
+                id: "unassigned",
+                name: "Not Assigned",
+                email: "",
+                phone: "",
+                hireDate: Date(),
+                isActive: true,
+                password: "",
+                certifications: [],
+                skills: []
+            )
+            
+            return MaintenanceRequest(
+                id: driverRequest.id,
+                vehicle: vehicle,
+                problem: driverRequest.problem,
+                description: driverRequest.problem,
+                dueDateTimestamp: driverRequest.scheduleDate?.timeIntervalSince1970 ?? driverRequest.createdAt.timeIntervalSince1970,
+                createdTimestamp: driverRequest.createdAt.timeIntervalSince1970,
+                isDriverRequest: true,
+                isScheduled: driverRequest.accepted,
+                personnel: defaultPersonnel
+            )
         }
         
         return requests
-    }
-    
-    /// Convert DriverMaintenanceRequest to MaintenanceRequest for the dashboard cards
-    /// - Parameter request: The driver maintenance request to convert
-    /// - Returns: A MaintenanceRequest object
-    func convertToMaintenanceRequest(driverRequest: DriverMaintenanceRequest, vehicles: [Vehicle]) -> MaintenanceRequest? {
-        // Find the associated vehicle
-        guard let vehicle = vehicles.first(where: { $0.id == driverRequest.vehicleId }) else {
-            print("  - Could not find vehicle with ID: \(driverRequest.vehicleId) for request \(driverRequest.id)")
-            return nil
-        }
-        
-        // Default personnel if not assigned
-        let defaultPersonnel = MaintenancePersonnel(
-            id: "unassigned",
-            name: "Not Assigned",
-            email: "",
-            phone: "",
-            hireDate: Date(),
-            isActive: true,
-            password: "",
-            certifications: [],
-            skills: []
-        )
-        
-        // Try to find assigned personnel
-        let assignedPersonnel: MaintenancePersonnel
-        if let personnelId = driverRequest.assignedPersonnelId,
-           let foundPersonnel = personnel.first(where: { $0.id == personnelId }) {
-            print("  - Using assigned personnel: \(foundPersonnel.name) for request \(driverRequest.id)")
-            assignedPersonnel = foundPersonnel
-        } else {
-            print("  - Using default personnel for request \(driverRequest.id)")
-            assignedPersonnel = defaultPersonnel
-        }
-        
-        // Create the maintenance request
-        let maintenanceRequest = MaintenanceRequest(
-            id: driverRequest.id,
-            vehicle: vehicle,
-            description: driverRequest.problem,
-            dueDateTimestamp: driverRequest.scheduleDate?.timeIntervalSince1970 ?? driverRequest.createdAt.timeIntervalSince1970,
-            createdTimestamp: driverRequest.createdAt.timeIntervalSince1970,
-            isDriverRequest: true,
-            isScheduled: driverRequest.accepted,
-            personnel: assignedPersonnel
-        )
-        
-        print("  + Successfully created maintenance request from driver request \(driverRequest.id)")
-        return maintenanceRequest
     }
     
     // MARK: - Dashboard Integration
@@ -866,10 +843,13 @@ class MaintenanceViewModel: ObservableObject, @unchecked Sendable {
                 let daysUntilService = Calendar.current.dateComponents([.day], from: Date(), to: nextServiceDue).day ?? 0
                 
                 if daysUntilService <= 7 {
+                    let description = "Scheduled maintenance for \(vehicle.make) \(vehicle.model)"
+                    
                     let request = MaintenanceRequest(
                         id: "scheduled-\(vehicle.id)",
                         vehicle: vehicle,
-                        description: "Scheduled maintenance for \(vehicle.make) \(vehicle.model)",
+                        problem: "Scheduled Maintenance",
+                        description: description,
                         dueDateTimestamp: nextServiceDue.timeIntervalSince1970,
                         createdTimestamp: Date().timeIntervalSince1970,
                         isDriverRequest: false,

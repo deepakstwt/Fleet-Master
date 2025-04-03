@@ -231,7 +231,6 @@ struct TripDetailView: View {
                         locationManager.calculateRoute(from: tripData.startLocation, to: tripData.endLocation) { result in
                             if case .success = result {
                                 // Route calculation successful, map will center on the route
-                                print("Indian route calculated and displayed with proper zoom")
                             }
                         }
                     }
@@ -402,7 +401,7 @@ struct TripDetailView: View {
                             .padding(.trailing, 60),
                         alignment: .trailing
                     )
-                .onChange(of: isCustomSchedule) { newValue in
+                .onChange(of: isCustomSchedule) { oldValue, newValue in
                     if !newValue {
                             withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
                         updateScheduledTimes()
@@ -453,7 +452,7 @@ struct TripDetailView: View {
                         DatePicker("", selection: $customStartTime, displayedComponents: [.date, .hourAndMinute])
                             .labelsHidden()
                                 .accentColor(.blue)
-                            .onChange(of: customStartTime) { _ in
+                            .onChange(of: customStartTime) {
                                     withAnimation {
                                 tripData.scheduledStartTime = customStartTime
                                 if !userHasEditedEndTime {
@@ -496,8 +495,7 @@ struct TripDetailView: View {
                         DatePicker("", selection: $customEndTime, displayedComponents: [.date, .hourAndMinute])
                             .labelsHidden()
                                 .accentColor(.purple)
-                            .onChange(of: customEndTime) { _ in
-                                    withAnimation {
+                            .onChange(of: customEndTime) {                                     withAnimation {
                                 userHasEditedEndTime = true
                                 tripData.scheduledEndTime = customEndTime
                             }
@@ -776,8 +774,7 @@ struct TripDetailView: View {
                         .font(.subheadline)
                         .foregroundColor(.primary)
                         .multilineTextAlignment(.leading)
-                        .onChange(of: tripData.startLocation) { _ in
-                            calculateRouteInfo() // Recalculate when location changes
+                        .onChange(of: tripData.startLocation) {                             calculateRouteInfo() // Recalculate when location changes
                         }
                 }
                 
@@ -816,8 +813,7 @@ struct TripDetailView: View {
                         .font(.subheadline)
                         .foregroundColor(.primary)
                         .multilineTextAlignment(.leading)
-                        .onChange(of: tripData.endLocation) { _ in
-                            calculateRouteInfo() // Recalculate when location changes
+                        .onChange(of: tripData.endLocation) {                            calculateRouteInfo() // Recalculate when location changes
                         }
                 }
                 

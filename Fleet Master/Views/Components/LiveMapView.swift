@@ -341,8 +341,8 @@ class LiveMapViewModel: ObservableObject {
                         self.region = self.calculateRegion(for: route)
                     }
                     
-                case .failure(let error):
-                    print("Failed to load route: \(error.localizedDescription)")
+                    case .failure(_): break
+                    // Failed to load route
                 }
             }
         }

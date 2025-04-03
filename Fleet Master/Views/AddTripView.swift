@@ -2734,7 +2734,7 @@ struct MapLocationPicker: View {
             // Search bar
             SearchBar(text: $searchText)
                 .padding()
-                .onChange(of: searchText) { newValue in
+                .onChange(of: searchText) { oldValue, newValue in
                     searchCompleter.searchTerm = newValue
                 }
             
@@ -3532,7 +3532,7 @@ struct LocationSelectionView: View {
                         
                         TextField("Search location", text: $searchText)
                             .textFieldStyle(PlainTextFieldStyle())
-                            .onChange(of: searchText) { newValue in
+                            .onChange(of: searchText) { oldValue, newValue in
                                 withAnimation {
                                     showSearchResults = !newValue.isEmpty && newValue.count > 2
                                     searchCompleter.update(queryFragment: newValue)
