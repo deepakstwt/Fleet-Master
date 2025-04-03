@@ -777,6 +777,9 @@ struct AddTripView: View {
                 
                 // Continue button
                 nextSectionButton
+                
+                // Field validation message
+                fieldValidationMessage
             }
             .padding(.horizontal, 16)
             .padding(.bottom, 24)
@@ -1153,34 +1156,35 @@ struct AddTripView: View {
     }
     
     private var nextSectionButton: some View {
-                        Button(action: {
-            withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
-                selectedSection = 1
-                updateProgress()
-            }
-                        }) {
-                            HStack {
-                Text("Continue to Assignment")
-                    .fontWeight(.semibold)
-                
-                Image(systemName: "arrow.right")
-                    .font(.system(size: 14, weight: .semibold))
-            }
-            .foregroundColor(.white)
-            .frame(height: 50)
-            .frame(maxWidth: .infinity)
-                .background(
-                LinearGradient(
-                    gradient: Gradient(colors: [Color.blue, Color.blue.opacity(0.8)]),
-                    startPoint: animateGradient ? .leading : .trailing,
-                    endPoint: animateGradient ? .trailing : .leading
-                )
-            )
-            .cornerRadius(12)
-            .shadow(color: Color.blue.opacity(0.3), radius: 10, x: 0, y: 5)
+    Button(action: {
+        withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+            selectedSection = 1
+            updateProgress()
         }
-        .padding(.vertical, 16)
+    }) {
+        HStack {
+            Text("Continue to Assignment")
+                .fontWeight(.semibold)
+            
+            Image(systemName: "arrow.right")
+                .font(.system(size: 14, weight: .semibold))
+        }
+        .foregroundColor(.white)
+        .frame(height: 50)
+        .frame(maxWidth: .infinity)
+        .background(
+            LinearGradient(
+                gradient: Gradient(colors: areAllFieldsFilled ? [Color.blue, Color.blue.opacity(0.8)] : [Color.gray, Color.gray.opacity(0.8)]),
+                startPoint: animateGradient ? .leading : .trailing,
+                endPoint: animateGradient ? .trailing : .leading
+            )
+        )
+        .cornerRadius(12)
+        .shadow(color: areAllFieldsFilled ? Color.blue.opacity(0.3) : Color.gray.opacity(0.3), radius: 10, x: 0, y: 5)
     }
+    .disabled(!areAllFieldsFilled)
+    .padding(.vertical, 16)
+}
     
     private var floatingBackButton: some View {
         Button(action: {
@@ -1221,6 +1225,14 @@ struct AddTripView: View {
     
     private func updateProgress() {
         formProgress = CGFloat(selectedSection + 1) / CGFloat(sections.count)
+    }
+    
+    // Computed property to check if all required Trip Details fields are filled
+    private var areAllFieldsFilled: Bool {
+        !tripViewModel.title.isEmpty &&
+        !tripViewModel.startLocation.isEmpty &&
+        !tripViewModel.endLocation.isEmpty &&
+        (tripViewModel.distance != nil || tripViewModel.routeInformation != nil)
     }
     
     private var toolbarContent: some ToolbarContent {
@@ -3929,4 +3941,43 @@ extension AddTripView {
             UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
         }
     }
-} 
+    
+    // Add a guidance message when fields are not filled
+    private var fieldValidationMessage: some View {
+        Group {
+            if !areAllFieldsFilled {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Please complete all required fields:")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    
+                    if tripViewModel.title.isEmpty {
+                        Text("• Trip Title")
+                            .font(.caption)
+                            .foregroundColor(.red)
+                    }
+                    
+                    if tripViewModel.startLocation.isEmpty {
+                        Text("• Start Location")
+                            .font(.caption)
+                            .foregroundColor(.red)
+                    }
+                    
+                    if tripViewModel.endLocation.isEmpty {
+                        Text("• End Location")
+                            .font(.caption)
+                            .foregroundColor(.red)
+                    }
+                    
+                    if tripViewModel.distance == nil && tripViewModel.routeInformation == nil {
+                        Text("• Expected Distance (or calculate route)")
+                            .font(.caption)
+                            .foregroundColor(.red)
+                    }
+                }
+                .padding(.horizontal, 16)
+                .padding(.bottom, 8)
+            }
+        }
+    }
+}

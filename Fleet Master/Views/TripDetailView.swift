@@ -13,7 +13,7 @@ struct TripDetailView: View {
     @State private var estimatedTime: String = "Calculating..."
     @State private var estimatedDistance: Double = 0.0
     @State private var estimatedDuration: TimeInterval = 0
-    @State private var isCustomSchedule: Bool = false
+    @State private var isCustomSchedule: Bool = true
     @State private var customStartTime: Date = Date()
     @State private var customEndTime: Date = Date().addingTimeInterval(3600) // Default 1 hour later
     @State private var userHasEditedEndTime: Bool = false
@@ -246,6 +246,10 @@ struct TripDetailView: View {
             ActivityViewController(activityItems: [tripDetails])
         }
         .onAppear {
+            // Initialize custom time controls with the trip's scheduled times
+            customStartTime = tripData.scheduledStartTime
+            customEndTime = tripData.scheduledEndTime
+            
             // First load any existing data if available
             if let routeInfo = tripData.routeInfo {
                 // Initialize from existing trip data immediately
@@ -261,25 +265,10 @@ struct TripDetailView: View {
                     let mins = Int(timeInMinutes.truncatingRemainder(dividingBy: 60))
                     estimatedTime = "\(hrs)h \(mins)m"
                 }
-                
-                // Update time schedule immediately
-                if !isCustomSchedule {
-                    updateScheduledTimes()
-                }
             }
             
-            // Then calculate fresh route info regardless
+            // Calculate fresh route info but don't update times
             calculateRouteInfo()
-            
-            // Schedule a timer to update the times according to current time
-            if !isCustomSchedule {
-                let timer = Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { _ in
-                    if !isCustomSchedule {
-                        updateScheduledTimes()
-                    }
-                }
-                timer.tolerance = 10
-            }
             
             // Animate content with a slight delay to ensure data is loaded
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
@@ -1081,20 +1070,9 @@ struct TripDetailView: View {
                 let mins = Int(timeInMinutes.truncatingRemainder(dividingBy: 60))
                 self.estimatedTime = "\(hrs)h \(mins)m"
             }
-            
-            // Update schedules based on existing info
-            if !isCustomSchedule {
-                updateScheduledTimes()
-            }
         } else {
             // Set loading state if no pre-existing data
             self.estimatedTime = "Calculating..."
-            
-            // Also update the schedule display to indicate loading
-            if !isCustomSchedule {
-                tripData.scheduledStartTime = Date()
-                tripData.scheduledEndTime = Date()
-            }
         }
         
         // Calculate fresh route info using the LocationManager
@@ -1123,20 +1101,6 @@ struct TripDetailView: View {
                             distance: route.distance,
                             time: route.expectedTravelTime
                         )
-                        
-                        // Always update the custom end time based on the calculated duration
-                        // if user hasn't manually edited it
-                        if !self.userHasEditedEndTime {
-                            self.customEndTime = self.customStartTime.addingTimeInterval(route.expectedTravelTime)
-                        }
-                        
-                        // Auto update schedule immediately if not in custom mode
-                        if !self.isCustomSchedule {
-                            // Immediate update with visual feedback
-                            withAnimation(.easeInOut(duration: 0.3)) {
-                                self.updateScheduledTimes()
-                            }
-                        }
                     }
             case .failure(let error):
                 DispatchQueue.main.async {
@@ -1147,33 +1111,29 @@ struct TripDetailView: View {
     }
     
     private func updateScheduledTimes() {
-        // Get the exact current time
-        let startTime = Date()
-        
         // Format the current time for debugging
         let currentTimeFormatter = DateFormatter()
         currentTimeFormatter.dateFormat = "h:mm:ss a"
-        let currentTimeString = currentTimeFormatter.string(from: startTime)
         
-        // Calculate end time by precisely adding the estimated duration to current time
-        let endTime = startTime.addingTimeInterval(estimatedDuration)
+        // Calculate end time by adding the estimated duration to the original scheduled start time
+        let endTime = tripData.scheduledStartTime.addingTimeInterval(estimatedDuration)
         
-        // Format the end time for debugging
+        // Format the time strings for debugging
+        let startTimeString = currentTimeFormatter.string(from: tripData.scheduledStartTime)
         let endTimeString = currentTimeFormatter.string(from: endTime)
         
-        // Update both the trip data and the custom time controls
-        tripData.scheduledStartTime = startTime
+        // Update only the end time based on the duration
         tripData.scheduledEndTime = endTime
         
-        // Also update the custom time values for when custom mode is toggled on
-        customStartTime = startTime
+        // Update custom time values for when custom mode is toggled on
+        customStartTime = tripData.scheduledStartTime
         customEndTime = endTime
         userHasEditedEndTime = false
         
-        // Log the update with precise time details
-        print("Schedule updated at real time: \(currentTimeString)")
-        print("Start: \(formatDate(startTime))")
-        print("End: \(formatDate(endTime)) (current time + \(Int(estimatedDuration/60)) minutes)")
+        // Log the update with time details
+        print("Schedule updated based on original times")
+        print("Start: \(formatDate(tripData.scheduledStartTime)) (preserved original time)")
+        print("End: \(formatDate(endTime)) (start time + \(Int(estimatedDuration/60)) minutes)")
         print("Duration: \(estimatedTime)")
     }
     
