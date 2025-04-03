@@ -17,7 +17,7 @@ struct TripManagementView: View {
     @StateObject private var locationManager = LocationManager()
     
     @State private var searchText = ""
-    @State private var statusFilter: TripStatus? = nil
+    @State private var statusFilter: TripStatus?
     @State private var selectedTrip: Trip?
     @State private var showDetailView = false
     @State private var showAddSheet = false
@@ -1986,7 +1986,7 @@ struct TripManagementView: View {
 }
 
 #Preview {
-    TripManagementView()
+    TripManagementView(initialFilter: .ongoing)
         .environmentObject(TripViewModel())
         .environmentObject(DriverViewModel())
         .environmentObject(VehicleViewModel())
