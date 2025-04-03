@@ -382,6 +382,7 @@ struct AddMaintenanceView: View {
     @State private var isFormValid = false
     @State private var currentStep = 1
     @State private var showingHelp = false
+    @State private var showPhoneHelp = false
     @FocusState private var focusField: FormField?
     @State private var selectedCategory: Certification.CertificationCategory = .technician
     @State private var selectedCertificationsToAdd: Set<String> = [] // Track selected certifications by ID
@@ -771,15 +772,71 @@ struct AddMaintenanceView: View {
                 errorMessage: !isEmailValid ? "Enter a valid email address" : nil
             )
             
-            inputField(
-                title: "Phone Number",
-                placeholder: "Enter 10-digit phone number",
-                text: $viewModel.phone,
-                icon: "phone.fill",
-                keyboardType: .phonePad,
-                field: .phone,
-                errorMessage: !isPhoneValid ? "Enter a valid 10-digit phone number" : nil
-            )
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Text("Phone Number")
+                        .font(.headline)
+                    
+                    Button(action: {
+                        showPhoneHelp = true
+                    }) {
+                        Image(systemName: "info.circle")
+                            .foregroundColor(.blue)
+                    }
+                    .sheet(isPresented: $showPhoneHelp) {
+                        NavigationView {
+                            ScrollView {
+                                VStack(alignment: .leading, spacing: 16) {
+                                    Text(MaintenanceViewModel.phoneNumberHelpText)
+                                        .padding()
+                                }
+                            }
+                            .navigationTitle("Phone Number Format")
+                            .navigationBarTitleDisplayMode(.inline)
+                            .toolbar {
+                                ToolbarItem(placement: .confirmationAction) {
+                                    Button("Done") {
+                                        showPhoneHelp = false
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                HStack(spacing: 12) {
+                    Image(systemName: "phone.fill")
+                        .font(.system(size: 18))
+                        .foregroundColor(.secondary)
+                        .frame(width: 24)
+                    
+                    VStack(alignment: .leading, spacing: 0) {
+                        TextField("Enter 10-digit phone number", text: $viewModel.phone)
+                            .keyboardType(.phonePad)
+                            .autocapitalization(.none)
+                            .autocorrectionDisabled()
+                            .focused($focusField, equals: .phone)
+                            .submitLabel(getSubmitLabel(for: .phone))
+                            .onSubmit {
+                                advanceToNextField(from: .phone)
+                            }
+                        
+                        if !isPhoneValid && !viewModel.phone.isEmpty {
+                            Text("Enter a valid 10-digit Indian phone number")
+                                .font(.caption)
+                                .foregroundColor(.red)
+                                .padding(.top, 4)
+                        }
+                    }
+                }
+                .padding()
+                .background(Color(.systemBackground))
+                .cornerRadius(12)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(Color.secondary.opacity(0.2), lineWidth: 1)
+                )
+            }
         }
     }
     
@@ -1091,13 +1148,6 @@ struct AddMaintenanceView: View {
         isFormValid = isStep1Valid
     }
     
-    private func getSubmitLabel(for field: FormField) -> SubmitLabel {
-        switch field {
-        case .name, .email, .phone:
-            return .next
-        }
-    }
-    
     private func advanceToNextField(from currentField: FormField) {
         switch currentField {
         case .name:
@@ -1114,6 +1164,33 @@ struct AddMaintenanceView: View {
         }
     }
     
+    private func getSubmitLabel(for field: FormField) -> SubmitLabel {
+        switch field {
+        case .name, .email:
+            return .next
+        case .phone:
+            return .done
+        }
+    }
+    
+    private var isEmailValid: Bool {
+        if viewModel.email.isEmpty { return true }
+        return viewModel.isValidEmail(viewModel.email)
+    }
+    
+    private var isPhoneValid: Bool {
+        if viewModel.phone.isEmpty { return true }
+        return viewModel.isValidPhoneNumber(viewModel.phone)
+    }
+    
+    private var isStep1Valid: Bool {
+        return !viewModel.name.isEmpty && 
+               !viewModel.email.isEmpty && isEmailValid &&
+               !viewModel.phone.isEmpty && isPhoneValid &&
+               !viewModel.selectedCertifications.isEmpty &&
+               !viewModel.selectedSkills.isEmpty
+    }
+    
     private func stepTitle(for step: Int) -> String {
         switch step {
         case 1: return "Personal"
@@ -1121,22 +1198,6 @@ struct AddMaintenanceView: View {
         case 3: return "Skills"
         default: return ""
         }
-    }
-    
-    private var isEmailValid: Bool {
-        if viewModel.email.isEmpty { return true }
-        let emailRegex = #"^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$"#
-        return viewModel.email.range(of: emailRegex, options: .regularExpression) != nil
-    }
-    
-    private var isPhoneValid: Bool {
-        if viewModel.phone.isEmpty { return true }
-        let phoneRegex = #"^\d{10}$"#
-        return viewModel.phone.range(of: phoneRegex, options: .regularExpression) != nil
-    }
-    
-    private var isStep1Valid: Bool {
-        return !viewModel.name.isEmpty && isEmailValid && isPhoneValid && !viewModel.email.isEmpty && !viewModel.phone.isEmpty
     }
     
     private func categoryColor(for category: Certification.CertificationCategory) -> Color {
@@ -1263,6 +1324,8 @@ struct EditMaintenanceView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var isFormValid = false
     @State private var currentStep = 1
+    @State private var showingHelp = false
+    @State private var showPhoneHelp = false
     @FocusState private var focusField: FormField?
     @State private var selectedCategory: Certification.CertificationCategory = .technician
     @State private var selectedCertificationsToAdd: Set<String> = [] // Track selected certifications by ID
@@ -1645,7 +1708,7 @@ struct EditMaintenanceView: View {
             
             Text("Identification number and system credentials cannot be modified. You can update contact information.")
                 .font(.subheadline)
-                .foregroundColor(.secondary)
+                    .foregroundColor(.secondary)
             
             // Personnel ID - Read Only
             readOnlyField(
@@ -1681,15 +1744,71 @@ struct EditMaintenanceView: View {
                 errorMessage: !isEmailValid ? "Enter a valid email address" : nil
             )
             
-            inputField(
-                title: "Phone Number",
-                placeholder: "Enter 10-digit phone number",
-                text: $viewModel.phone,
-                icon: "phone.fill",
-                keyboardType: .phonePad,
-                field: .phone,
-                errorMessage: !isPhoneValid ? "Enter a valid 10-digit phone number" : nil
-            )
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Text("Phone Number")
+                        .font(.headline)
+                    
+                    Button(action: {
+                        showPhoneHelp = true
+                    }) {
+                        Image(systemName: "info.circle")
+                            .foregroundColor(.blue)
+                    }
+                    .sheet(isPresented: $showPhoneHelp) {
+                        NavigationView {
+                            ScrollView {
+                                VStack(alignment: .leading, spacing: 16) {
+                                    Text(MaintenanceViewModel.phoneNumberHelpText)
+                                        .padding()
+                                }
+                            }
+                            .navigationTitle("Phone Number Format")
+                            .navigationBarTitleDisplayMode(.inline)
+                            .toolbar {
+                                ToolbarItem(placement: .confirmationAction) {
+                                    Button("Done") {
+                                        showPhoneHelp = false
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                HStack(spacing: 12) {
+                    Image(systemName: "phone.fill")
+                        .font(.system(size: 18))
+                        .foregroundColor(.secondary)
+                        .frame(width: 24)
+                    
+                    VStack(alignment: .leading, spacing: 0) {
+                        TextField("Enter 10-digit phone number", text: $viewModel.phone)
+                            .keyboardType(.phonePad)
+                            .autocapitalization(.none)
+                            .autocorrectionDisabled()
+                            .focused($focusField, equals: .phone)
+                            .submitLabel(getSubmitLabel(for: .phone))
+                            .onSubmit {
+                                advanceToNextField(from: .phone)
+                            }
+                        
+                        if !isPhoneValid && !viewModel.phone.isEmpty {
+                            Text("Enter a valid 10-digit Indian phone number")
+                                .font(.caption)
+                                .foregroundColor(.red)
+                                .padding(.top, 4)
+                        }
+                    }
+                }
+                .padding()
+                .background(Color(.systemBackground))
+                .cornerRadius(12)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(Color.secondary.opacity(0.2), lineWidth: 1)
+                )
+            }
         }
     }
     
@@ -1940,13 +2059,6 @@ struct EditMaintenanceView: View {
         isFormValid = isStep1Valid
     }
     
-    private func getSubmitLabel(for field: FormField) -> SubmitLabel {
-        switch field {
-        case .name, .email, .phone:
-            return .next
-        }
-    }
-    
     private func advanceToNextField(from currentField: FormField) {
         switch currentField {
         case .name:
@@ -1963,6 +2075,33 @@ struct EditMaintenanceView: View {
         }
     }
     
+    private func getSubmitLabel(for field: FormField) -> SubmitLabel {
+        switch field {
+        case .name, .email:
+            return .next
+        case .phone:
+            return .done
+        }
+    }
+    
+    private var isEmailValid: Bool {
+        if viewModel.email.isEmpty { return true }
+        return viewModel.isValidEmail(viewModel.email)
+    }
+    
+    private var isPhoneValid: Bool {
+        if viewModel.phone.isEmpty { return true }
+        return viewModel.isValidPhoneNumber(viewModel.phone)
+    }
+    
+    private var isStep1Valid: Bool {
+        return !viewModel.name.isEmpty && 
+               !viewModel.email.isEmpty && isEmailValid &&
+               !viewModel.phone.isEmpty && isPhoneValid &&
+               !viewModel.selectedCertifications.isEmpty &&
+               !viewModel.selectedSkills.isEmpty
+    }
+    
     private func stepTitle(for step: Int) -> String {
         switch step {
         case 1: return "Personal"
@@ -1970,22 +2109,6 @@ struct EditMaintenanceView: View {
         case 3: return "Skills"
         default: return ""
         }
-    }
-    
-    private var isEmailValid: Bool {
-        if viewModel.email.isEmpty { return true }
-        let emailRegex = #"^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$"#
-        return viewModel.email.range(of: emailRegex, options: .regularExpression) != nil
-    }
-    
-    private var isPhoneValid: Bool {
-        if viewModel.phone.isEmpty { return true }
-        let phoneRegex = #"^\d{10}$"#
-        return viewModel.phone.range(of: phoneRegex, options: .regularExpression) != nil
-    }
-    
-    private var isStep1Valid: Bool {
-        return !viewModel.name.isEmpty && isEmailValid && isPhoneValid && !viewModel.email.isEmpty && !viewModel.phone.isEmpty
     }
     
     private func categoryColor(for category: Certification.CertificationCategory) -> Color {

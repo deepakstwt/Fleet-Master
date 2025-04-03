@@ -183,20 +183,21 @@ struct LoginView: View {
                                                 RoundedRectangle(cornerRadius: 16)
                                                     .stroke(Color.secondary.opacity(0.2), lineWidth: 1)
                                             )
-                                        }
-                                        
-                                        // Forgot password link
-                                        HStack {
-                                            Spacer()
-                                            Button(action: {
-                                                // Handle forgot password
-                                            }) {
-                                                Text("Forgot Password?")
-                                                    .font(.system(size: 16, weight: .medium))
-                                                    .foregroundColor(Color(#colorLiteral(red: 0.36, green: 0.57, blue: 0.98, alpha: 1)))
+                                            
+                                            // Add forgot password link
+                                            HStack {
+                                                Spacer()
+                                                Button(action: {
+                                                    viewModel.email = "" // Optionally clear email 
+                                                    viewModel.showForgotPassword = true
+                                                }) {
+                                                    Text("Forgot Password?")
+                                                        .font(.system(size: 14))
+                                                        .foregroundColor(Color(#colorLiteral(red: 0.36, green: 0.57, blue: 0.98, alpha: 1)))
+                                                }
                                             }
+                                            .padding(.top, 8)
                                         }
-                                        .padding(.top, -5)
                                         
                                         // Login button
                                         Button(action: {
@@ -250,6 +251,9 @@ struct LoginView: View {
             }
             .navigationDestination(isPresented: $viewModel.navigateToMainView) {
                 MainView()
+            }
+            .navigationDestination(isPresented: $viewModel.showForgotPassword) {
+                ForgotPasswordView(viewModel: viewModel)
             }
             .alert(viewModel.alertMessage, isPresented: $viewModel.showAlert) {
                 Button("OK", role: .cancel) { }

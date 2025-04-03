@@ -75,12 +75,12 @@ struct MainView: View {
                     showSignOutAlert = true
                 }) {
                     Label("Sign Out", systemImage: "rectangle.portrait.and.arrow.right")
+                        .bold()
                         .foregroundColor(.red)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.vertical, 8)
-                        .padding(.horizontal, 16)
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        .padding(.top,16)
+                        .padding(.horizontal)
                 }
-                .padding(.bottom, 8)
                 .background(Color(.systemGray6))
             }
             .alert("Sign Out", isPresented: $showSignOutAlert) {

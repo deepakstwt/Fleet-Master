@@ -242,12 +242,24 @@ class MaintenanceViewModel: ObservableObject, @unchecked Sendable {
     
     /// Add a new maintenance personnel to Supabase
     func addPersonnel() {
+        // Validate form inputs first
+        if !isPersonnelFormValid() {
+            return
+        }
+        
         isLoading = true
         
+        // Clean up input values
+        let cleanName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let cleanEmail = email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let cleanPhone = phone.trimmingCharacters(in: .whitespacesAndNewlines)
+        
         let newPersonnel = MaintenancePersonnel(
-            name: name, 
-            email: email, 
-            phone: phone, 
+            name: cleanName, 
+            email: cleanEmail, 
+            phone: cleanPhone, 
+            hireDate: Date(),
+            isActive: true,
             certifications: selectedCertifications,
             skills: selectedSkills
         )
@@ -268,7 +280,7 @@ class MaintenanceViewModel: ObservableObject, @unchecked Sendable {
                     self.resetForm()
                     self.isLoading = false
                     
-                    // Updated success message without showing the password
+                    // Updated success message without showing the UUID
                     self.alertMessage = "Maintenance personnel added successfully! A welcome email with login details has been sent to \(createdPersonnel.email)."
                     self.showAlert = true
                 }
@@ -285,12 +297,23 @@ class MaintenanceViewModel: ObservableObject, @unchecked Sendable {
     /// Update an existing maintenance personnel in Supabase
     func updatePersonnel() {
         guard let selectedPersonnel = selectedPersonnel else { return }
+        
+        // Validate form inputs first
+        if !isPersonnelFormValid() {
+            return
+        }
+        
         isLoading = true
         
+        // Clean up input values
+        let cleanName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let cleanEmail = email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let cleanPhone = phone.trimmingCharacters(in: .whitespacesAndNewlines)
+        
         var updatedPersonnel = selectedPersonnel
-        updatedPersonnel.name = name
-        updatedPersonnel.email = email
-        updatedPersonnel.phone = phone
+        updatedPersonnel.name = cleanName
+        updatedPersonnel.email = cleanEmail
+        updatedPersonnel.phone = cleanPhone
         updatedPersonnel.certifications = selectedCertifications
         updatedPersonnel.skills = selectedSkills
         
@@ -605,6 +628,80 @@ class MaintenanceViewModel: ObservableObject, @unchecked Sendable {
         }
     }
     
+    func getCertificationNames() -> [String] {
+        return selectedCertifications.map { $0.name }
+    }
+    
+    func getSkillNames() -> [String] {
+        return selectedSkills.map { $0.name }
+    }
+    
+    // MARK: - Validation Methods
+    
+    // Validate if a phone number matches Indian format
+    func isValidPhoneNumber(_ phoneNumber: String) -> Bool {
+        // Indian phone numbers are typically 10 digits
+        let phoneRegex = #"^\d{10}$"#
+        return phoneNumber.range(of: phoneRegex, options: .regularExpression) != nil
+    }
+    
+    // Validate if an email is properly formatted
+    func isValidEmail(_ email: String) -> Bool {
+        let emailRegex = #"^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$"#
+        return email.range(of: emailRegex, options: .regularExpression) != nil
+    }
+    
+    // Check if entire maintenance personnel form is valid
+    func isPersonnelFormValid() -> Bool {
+        // Name validation
+        if name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            errorMessage = "Name is required"
+            return false
+        }
+        
+        // Email validation
+        if email.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            errorMessage = "Email address is required"
+            return false
+        }
+        
+        if !isValidEmail(email) {
+            errorMessage = "Please enter a valid email address"
+            return false
+        }
+        
+        // Phone validation
+        if phone.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            errorMessage = "Phone number is required"
+            return false
+        }
+        
+        if !isValidPhoneNumber(phone) {
+            errorMessage = "Please enter a valid 10-digit Indian phone number"
+            return false
+        }
+        
+        // At least one certification and skill is required
+        if selectedCertifications.isEmpty {
+            errorMessage = "At least one certification must be selected"
+            return false
+        }
+        
+        if selectedSkills.isEmpty {
+            errorMessage = "At least one skill must be selected"
+            return false
+        }
+        
+        return true
+    }
+    
+    // Static help text for maintenance personnel fields
+    static let phoneNumberHelpText = """
+    Indian phone number format:
+    • Must be exactly 10 digits
+    • Should not include the country code (+91)
+    • Example: 9876543210
+    """
     // MARK: - Driver Maintenance Requests
     
     @Published var driverMaintenanceRequests: [DriverMaintenanceRequest] = []
