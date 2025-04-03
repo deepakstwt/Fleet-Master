@@ -254,6 +254,40 @@ struct DashboardView: View {
                         .frame(height: 350) // Ensure container is tall enough for cards
                         .padding(.bottom, 16)
                     }
+                    
+                    // Fleet Expenses Section - NEW SECTION
+                    VStack(alignment: .leading, spacing: 20) {
+                        Text("Fleet Expenses (Last 30 Days)")
+                            .font(.title2)
+                            .fontWeight(.bold)
+                            .padding(.horizontal)
+                        
+                        HStack(spacing: 20) {
+                            // Maintenance Cost Card
+                            ExpenseCard(
+                                title: "Maintenance Cost",
+                                amount: "12,450",
+                                icon: "wrench.and.screwdriver.fill",
+                                color: .purple,
+                                percentage: 70,
+                                trend: .up,
+                                trendValue: "8%"
+                            )
+                            
+                            // Fuel Cost Card
+                            ExpenseCard(
+                                title: "Fuel Cost",
+                                amount: "8,320",
+                                icon: "fuelpump.fill",
+                                color: .green,
+                                percentage: 55,
+                                trend: .down,
+                                trendValue: "3%"
+                            )
+                        }
+                        .padding(.horizontal)
+                        .padding(.bottom, 30)
+                    }
                 }
             }
             .navigationTitle("Dashboard")
@@ -1074,4 +1108,114 @@ struct SectionHeader: View {
         .environmentObject(TripViewModel())
         .environmentObject(DriverViewModel())
         .environmentObject(VehicleViewModel())
+} 
+
+// Expense Card Component
+struct ExpenseCard: View {
+    enum TrendDirection {
+        case up, down, neutral
+    }
+    
+    let title: String
+    let amount: String
+    let icon: String
+    let color: Color
+    let percentage: CGFloat // 0-100
+    let trend: TrendDirection
+    let trendValue: String
+    @State private var isHovered = false
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            // Header with icon
+            HStack(alignment: .center, spacing: 12) {
+                Image(systemName: icon)
+                    .font(.title3)
+                    .foregroundStyle(.yellow)
+                    .frame(width: 36, height: 36)
+                
+                Text(title)
+                    .font(.headline)
+                    .foregroundStyle(.primary)
+                
+                Spacer()
+                
+                // Trend indicator
+                HStack(spacing: 4) {
+                    Image(systemName: trendIcon)
+                        .font(.caption)
+                        .foregroundStyle(trendColor)
+                    
+                    Text(trendValue)
+                        .font(.caption)
+                        .fontWeight(.medium)
+                        .foregroundStyle(trendColor)
+                }
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(trendColor.opacity(0.1))
+                .clipShape(Capsule())
+            }
+            
+            // Amount display with rupee symbol and black text
+            Text("₹\(amount)")
+                .font(.system(size: 36, weight: .bold, design: .rounded))
+                .foregroundStyle(.black)
+                .padding(.vertical, 8)
+        }
+        .padding(20)
+        .frame(maxWidth: .infinity)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(Color(.systemBackground))
+                .shadow(
+                    color: color.opacity(0.1),
+                    radius: isHovered ? 15 : 10,
+                    x: 0,
+                    y: isHovered ? 10 : 5
+                )
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(
+                    LinearGradient(
+                        colors: [
+                            color.opacity(isHovered ? 0.3 : 0.1),
+                            color.opacity(isHovered ? 0.1 : 0.05),
+                            .clear
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    lineWidth: 1.5
+                )
+        )
+        .onHover { hovering in
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                isHovered = hovering
+            }
+        }
+    }
+    
+    private var trendIcon: String {
+        switch trend {
+        case .up:
+            return "arrow.up.right"
+        case .down:
+            return "arrow.down.right"
+        case .neutral:
+            return "arrow.right"
+        }
+    }
+    
+    private var trendColor: Color {
+        switch trend {
+        case .up:
+            return .red
+        case .down:
+            return .green
+        case .neutral:
+            return .gray
+        }
+    }
 } 
