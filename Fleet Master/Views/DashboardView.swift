@@ -645,42 +645,86 @@ struct StatRow: View {
 
 struct NotificationCenterView: View {
     @Environment(\.dismiss) private var dismiss
-    @State private var selectedTab: NotificationType = .driver
     
-    enum NotificationType: String, CaseIterable {
-        case driver = "Drivers"
-        case maintenance = "Maintenance"
+    // Empty notifications array that would be populated from a real data source
+    @State private var notifications: [NotificationItem] = []
+    
+    enum NotificationType {
+        case driver
+        case maintenance
+    }
+    
+    struct NotificationItem: Identifiable {
+        let id: Int
+        let title: String
+        let message: String
+        let time: String
+        let type: NotificationType
     }
     
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
-                // Segmented Control
-                Picker("Notification Type", selection: $selectedTab) {
-                    ForEach(NotificationType.allCases, id: \.self) { type in
-                        Text(type.rawValue).tag(type)
-                    }
-                }
-                .pickerStyle(.segmented)
-                .padding()
-                
                 // Notification List
                 ScrollView {
                     LazyVStack(spacing: 0) {
-                        ForEach(0..<(selectedTab == .driver ? 5 : 3), id: \.self) { _ in
-                            NotificationRow(
-                                title: selectedTab == .driver ? "Trip Completed" : "Vehicle Service Required",
-                                message: selectedTab == .driver ? 
-                                    "Driver John Doe completed trip #1234" : 
-                                    "Vehicle ABC-123 requires maintenance",
-                                time: selectedTab == .driver ? "2 minutes ago" : "1 hour ago",
-                                type: selectedTab
-                            )
+                        // If no notifications
+                        if notifications.isEmpty {
+                            VStack(spacing: 16) {
+                                Image(systemName: "bell.slash")
+                                    .font(.system(size: 60))
+                                    .foregroundStyle(Color.gray.opacity(0.5))
+                                    .padding(.top, 60)
+                                
+                                Text("No Notifications")
+                                    .font(.title3)
+                                    .fontWeight(.medium)
+                                
+                                Text("You're all caught up!")
+                                    .font(.subheadline)
+                                    .foregroundStyle(.secondary)
+                            }
+                            .frame(maxWidth: .infinity)
                             .padding(.horizontal)
-                            .padding(.vertical, 8)
+                            .padding(.vertical, 40)
+                        } else {
+                            // Today's notifications
+                            if let todayNotifications = groupedNotifications["Today"], !todayNotifications.isEmpty {
+                                NotificationDateHeader(title: "Today")
+                                
+                                ForEach(todayNotifications) { notification in
+                                    NotificationRow(
+                                        title: notification.title,
+                                        message: notification.message,
+                                        time: notification.time,
+                                        type: notification.type
+                                    )
+                                    .padding(.horizontal)
+                                    .padding(.vertical, 8)
+                                    
+                                    Divider()
+                                        .padding(.horizontal)
+                                }
+                            }
                             
-                            Divider()
-                                .padding(.horizontal)
+                            // Earlier notifications
+                            if let earlierNotifications = groupedNotifications["Earlier"], !earlierNotifications.isEmpty {
+                                NotificationDateHeader(title: "Earlier")
+                                
+                                ForEach(earlierNotifications) { notification in
+                                    NotificationRow(
+                                        title: notification.title,
+                                        message: notification.message,
+                                        time: notification.time,
+                                        type: notification.type
+                                    )
+                                    .padding(.horizontal)
+                                    .padding(.vertical, 8)
+                                    
+                                    Divider()
+                                        .padding(.horizontal)
+                                }
+                            }
                         }
                     }
                 }
@@ -695,6 +739,44 @@ struct NotificationCenterView: View {
                 }
             }
         }
+    }
+    
+    // Group notifications by date category
+    private var groupedNotifications: [String: [NotificationItem]] {
+        var groups: [String: [NotificationItem]] = [
+            "Today": [],
+            "Earlier": []
+        ]
+        
+        for notification in notifications {
+            if notification.time.contains("minutes ago") || 
+               notification.time.contains("hour ago") || 
+               notification.time.contains("hours ago") {
+                groups["Today", default: []].append(notification)
+            } else {
+                groups["Earlier", default: []].append(notification)
+            }
+        }
+        
+        return groups
+    }
+}
+
+struct NotificationDateHeader: View {
+    let title: String
+    
+    var body: some View {
+        HStack {
+            Text(title)
+                .font(.subheadline)
+                .fontWeight(.semibold)
+                .foregroundStyle(.secondary)
+                .padding(.leading)
+            
+            Spacer()
+        }
+        .padding(.vertical, 10)
+        .background(Color(.systemGroupedBackground).opacity(0.5))
     }
 }
 
