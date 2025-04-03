@@ -307,4 +307,8 @@ class VehicleViewModel: ObservableObject {
         let now = Date()
         return nextDue < now
     }
+    
+    func markRequestCompleted(requestId: String) async {
+        // Function implementation...
+    }
 } 

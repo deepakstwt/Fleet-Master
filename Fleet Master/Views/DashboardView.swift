@@ -69,7 +69,7 @@ struct DashboardView: View {
                                         color: Color(hex: "1E3A8A")  // Using primary gradient color
                                     ),
                                     KPIDetail(
-                                        label: "Idle",
+                                        label: "On Trip",
                                         value: "0",
                                         color: Color(hex: "1E3A8A")  // Using primary gradient color
                                     )
@@ -207,17 +207,31 @@ struct DashboardView: View {
                             HStack(spacing: 20) {
                                 // Overdue Maintenance Cards
                                 ForEach(overdueMaintenanceRequests) { request in
-                                    MaintenanceRequestCard(request: request, isOverdue: true)
+                                    MaintenanceRequestCard(request: request, isOverdue: true) {
+                                        // Call appropriate view model method to mark as completed
+                                        Task {
+                                            await maintenanceViewModel.markRequestCompleted(requestId: request.id)
+                                            // Refresh data after marking as completed
+                                            refreshAllData()
+                                        }
+                                    }
                                 }
                                 
                                 // Driver-generated Repair Request Cards
                                 ForEach(driverRepairRequests) { request in
-                                    MaintenanceRequestCard(request: request, isOverdue: false)
+                                    MaintenanceRequestCard(request: request, isOverdue: false) {
+                                        // Call appropriate view model method to mark as completed
+                                        Task {
+                                            await maintenanceViewModel.markRequestCompleted(requestId: request.id)
+                                            // Refresh data after marking as completed
+                                            refreshAllData()
+                                        }
+                                    }
                                 }
                                 
                                 // Empty state
                                 if overdueMaintenanceRequests.isEmpty && 
-                                   driverRepairRequests.isEmpty {
+                                    driverRepairRequests.isEmpty {
                                     VStack(spacing: 12) {
                                         Image(systemName: "checkmark.circle.fill")
                                             .font(.system(size: 40))
@@ -305,11 +319,70 @@ struct DashboardView: View {
         }
     }
     
-    private func refreshAllData() async {
+    private func refreshAllData() {
         // Use public methods to refresh data
-        await tripViewModel.loadTrips()
-        await vehicleViewModel.fetchVehicles()
-        await maintenanceViewModel.fetchMaintenanceRequests()
+        Task {
+            await tripViewModel.loadTrips()
+            await vehicleViewModel.fetchVehicles()
+            await maintenanceViewModel.fetchMaintenanceRequests()
+        }
+    }
+    
+    var maintenanceRequestsSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            SectionHeader(title: "Maintenance Requests", count: allMaintenanceRequests.count)
+            
+            if maintenanceViewModel.isLoading {
+                ProgressView()
+                    .frame(maxWidth: .infinity, alignment: .center)
+            } else if allMaintenanceRequests.isEmpty {
+                Text("No maintenance requests")
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .foregroundColor(.secondary)
+                    .padding()
+            } else {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    LazyHStack(spacing: 16) {
+                        // Using a more explicit approach for ForEach
+                        ForEach(0..<allMaintenanceRequests.count, id: \.self) { index in
+                            let request = allMaintenanceRequests[index]
+                            VStack(alignment: .leading, spacing: 12) {
+                                Text("\(request.vehicle.make) \(request.vehicle.model)")
+                                    .font(.headline)
+                                
+                                Text(request.vehicle.registrationNumber)
+                                    .font(.subheadline)
+                                    .foregroundColor(.secondary)
+                                
+                                Divider()
+                                
+                                Text("Issue: \(request.problem)")
+                                    .fontWeight(.medium)
+                                
+                                Text(request.description)
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                
+                                Spacer()
+                                
+                                Button("Mark as Completed") {
+                                    Task {
+                                        await maintenanceViewModel.markRequestCompleted(requestId: request.id)
+                                    }
+                                }
+                                .buttonStyle(.borderedProminent)
+                                .controlSize(.small)
+                            }
+                            .padding()
+                            .frame(width: 300, height: 200)
+                            .background(Color(.secondarySystemBackground))
+                            .cornerRadius(10)
+                        }
+                    }
+                    .padding(.horizontal)
+                }
+            }
+        }
     }
 }
 
@@ -801,6 +874,7 @@ struct FrequentRepairRow: View {
 struct MaintenanceRequestCard: View {
     let request: MaintenanceRequest
     let isOverdue: Bool
+    let onMarkCompleted: () -> Void
     
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -841,7 +915,7 @@ struct MaintenanceRequestCard: View {
                 .padding(.bottom, 16)
             
             // Details section with fixed layout
-            VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: 12) {
                 HStack(alignment: .top) {
                     Text("Vehicle:")
                         .foregroundStyle(.secondary)
@@ -852,11 +926,11 @@ struct MaintenanceRequestCard: View {
                 }
                 
                 HStack(alignment: .top) {
-                    Text(isOverdue ? "Due Date:" : "Reported At:")
+                    Text(isOverdue ? "Due Date:" : "Reported:")
                         .foregroundStyle(.secondary)
                         .frame(width: 100, alignment: .leading)
                     
-                    Text(isOverdue ? formattedDate(request.dueDateTimestamp) : formattedDate(request.createdTimestamp))
+                    Text(formattedDate(isOverdue ? request.dueDateTimestamp : request.createdTimestamp))
                         .fontWeight(.medium)
                 }
                 
@@ -866,7 +940,7 @@ struct MaintenanceRequestCard: View {
                             .foregroundStyle(.secondary)
                             .frame(width: 100, alignment: .leading)
                         
-                        Text(request.description)
+                        Text(request.problem)
                             .fontWeight(.medium)
                             .lineLimit(2)
                             .fixedSize(horizontal: false, vertical: true)
@@ -888,18 +962,57 @@ struct MaintenanceRequestCard: View {
                         .foregroundStyle(.secondary)
                     
                     // Simulated priority based on the issue description length
-                    let priority = request.description.count > 30 ? "High" : "Medium"
+                    let priority = request.problem.count > 30 ? "High" : "Medium"
                     Text(priority)
                         .font(.subheadline)
                         .fontWeight(.bold)
                         .foregroundStyle(priority == "High" ? Color.red : Color.orange)
                     
                     Spacer()
+                    
+                    // Mark as completed button moved to bottom right
+                    Button(action: onMarkCompleted) {
+                        HStack {
+                            Image(systemName: "checkmark.circle.fill")
+                                .font(.caption)
+                            Text("Mark as completed")
+                                .font(.footnote)
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(Color.green.opacity(0.8))
+                        .foregroundStyle(.white)
+                        .cornerRadius(6)
+                    }
+                    .buttonStyle(.borderless)
+                }
+            } else {
+                Divider()
+                    .padding(.vertical, 12)
+                
+                HStack {
+                    Spacer()
+                    
+                    // Mark as completed button for overdue cases
+                    Button(action: onMarkCompleted) {
+                        HStack {
+                            Image(systemName: "checkmark.circle.fill")
+                                .font(.caption)
+                            Text("Mark as completed")
+                                .font(.footnote)
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(Color.green.opacity(0.8))
+                        .foregroundStyle(.white)
+                        .cornerRadius(6)
+                    }
+                    .buttonStyle(.borderless)
                 }
             }
         }
         .padding(20)
-        .frame(width: 450, height: 300)
+        .frame(width: 450, height: 350)
         .background(Color(.systemBackground))
         .clipShape(RoundedRectangle(cornerRadius: 16))
         .overlay(
@@ -927,12 +1040,33 @@ struct MaintenanceRequestCard: View {
 struct MaintenanceRequest: Identifiable {
     let id: String
     let vehicle: Vehicle
+    let problem: String
     let description: String
     let dueDateTimestamp: Double
     let createdTimestamp: Double
     let isDriverRequest: Bool
     var isScheduled: Bool = false
     let personnel: MaintenancePersonnel
+}
+
+// Helper Components
+struct SectionHeader: View {
+    var title: String
+    var count: Int
+    
+    var body: some View {
+        HStack {
+            Text(title)
+                .font(.headline)
+            
+            Spacer()
+            
+            Text("\(count) total")
+                .font(.caption)
+                .foregroundColor(.secondary)
+        }
+        .padding(.horizontal)
+    }
 }
 
 #Preview {
