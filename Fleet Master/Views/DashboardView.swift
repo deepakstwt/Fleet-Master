@@ -13,11 +13,41 @@ struct DashboardView: View {
     @State private var isRefreshing = false
     @State private var selectedMaintenanceRequest: MaintenanceRequest?
     @State private var showMaintenanceDetail = false
+    @State private var refreshTimer: Timer?
+    
+    // Computed properties for maintenance requests
+    private var allMaintenanceRequests: [MaintenanceRequest] {
+        let requests = maintenanceViewModel.getPendingMaintenanceRequests(vehicles: vehicleViewModel.vehicles)
+        print("📊 Dashboard - All maintenance requests: \(requests.count)")
+        return requests
+    }
+    
+    private var overdueMaintenanceRequests: [MaintenanceRequest] {
+        let currentDate = Date().timeIntervalSince1970
+        let requests = allMaintenanceRequests.filter { !$0.isScheduled && !$0.isDriverRequest && $0.dueDateTimestamp < currentDate }
+        print("📊 Dashboard - Overdue maintenance requests: \(requests.count)")
+        return requests
+    }
+    
+    private var driverRepairRequests: [MaintenanceRequest] {
+        let requests = allMaintenanceRequests.filter { !$0.isScheduled && $0.isDriverRequest }
+        print("📊 Dashboard - Driver repair requests: \(requests.count)")
+        
+        // Print detailed debug info for driver repair requests
+        if !requests.isEmpty {
+            print("  Driver repair requests details:")
+            for (index, request) in requests.prefix(3).enumerated() {
+                print("  \(index+1). ID: \(request.id), Vehicle: \(request.vehicle.registrationNumber), Issue: \(request.description)")
+            }
+        }
+        
+        return requests
+    }
     
     var body: some View {
         NavigationStack {
         ScrollView {
-                VStack(spacing: 24) {
+                VStack(spacing: 36) {  // Increased from 24 to 36
                     // KPI Metrics (Fleet Summary)
                     VStack(spacing: 24) {  // Increased spacing
                         Text("Fleet Summary")
@@ -84,7 +114,7 @@ struct DashboardView: View {
                                 icon: "wrench.fill",
                                 details: [
                                     KPIDetail(
-                                        label: "In Progress",
+                                        label: "Ongoing",
                                         value: "\(vehicleViewModel.vehicles.filter { !$0.isActive }.count)",
                                         color: Color(hex: "C2410C")  // Using primary gradient color
                                     ),
@@ -108,7 +138,7 @@ struct DashboardView: View {
                                 icon: "arrow.triangle.swap",
                                 details: [
                                     KPIDetail(
-                                        label: "In Progress",
+                                        label: "Ongoing",
                                         value: "\(tripViewModel.inProgressTrips.count)",
                                         color: Color(hex: "4F46E5")  // Using primary gradient color
                                     ),
@@ -127,6 +157,7 @@ struct DashboardView: View {
                         }
                         .padding(.horizontal)
                     }
+                    .padding(.bottom, 20)  // Added padding at the bottom of this section
                     
                     // Active Trips Section
                     VStack(alignment: .leading, spacing: 16) {
@@ -170,9 +201,10 @@ struct DashboardView: View {
                             .padding(.horizontal)
                         }
                     }
+                    .padding(.bottom, 20)  // Added padding at the bottom of this section
                     
                     // Maintenance and Repair Requests Section
-                    VStack(alignment: .leading, spacing: 16) {
+                    VStack(alignment: .leading, spacing: 8) {
                         HStack {
                             Text("Maintenance & Repair Requests")
                                 .font(.title2)
@@ -184,28 +216,20 @@ struct DashboardView: View {
                         
                         // Horizontal scrollable cards
                         ScrollView(.horizontal, showsIndicators: false) {
-                            HStack(spacing: 16) {
+                            HStack(spacing: 20) {
                                 // Overdue Maintenance Cards
-                                ForEach(maintenanceViewModel.overdueMaintenanceRequests) { request in
+                                ForEach(overdueMaintenanceRequests) { request in
                                     MaintenanceRequestCard(request: request, isOverdue: true)
-                                        .onTapGesture {
-                                            selectedMaintenanceRequest = request
-                                            showMaintenanceDetail = true
-                                        }
                                 }
                                 
                                 // Driver-generated Repair Request Cards
-                                ForEach(maintenanceViewModel.driverRepairRequests) { request in
+                                ForEach(driverRepairRequests) { request in
                                     MaintenanceRequestCard(request: request, isOverdue: false)
-                                        .onTapGesture {
-                                            selectedMaintenanceRequest = request
-                                            showMaintenanceDetail = true
-                                        }
                                 }
                                 
                                 // Empty state
-                                if maintenanceViewModel.overdueMaintenanceRequests.isEmpty && 
-                                   maintenanceViewModel.driverRepairRequests.isEmpty {
+                                if overdueMaintenanceRequests.isEmpty && 
+                                   driverRepairRequests.isEmpty {
                                     VStack(spacing: 12) {
                                         Image(systemName: "checkmark.circle.fill")
                                             .font(.system(size: 40))
@@ -216,14 +240,17 @@ struct DashboardView: View {
                                             .font(.subheadline)
                                             .foregroundStyle(.secondary)
                                     }
-                                    .frame(width: 280, height: 180)
+                                    .frame(width: 450, height: 300)
                                     .background(Color(.systemBackground))
-                                    .clipShape(RoundedRectangle(cornerRadius: 12))
-                                    .shadow(color: Color(.systemGray4).opacity(0.5), radius: 5)
+                                    .clipShape(RoundedRectangle(cornerRadius: 16))
+                                    .shadow(color: Color(.systemGray3).opacity(0.3), radius: 5, x: 0, y: 3)
                                 }
                             }
                             .padding(.horizontal)
+                            .padding(.vertical, 16)
                         }
+                        .frame(height: 350) // Ensure container is tall enough for cards
+                        .padding(.bottom, 16)
                     }
                 }
             }
@@ -270,13 +297,67 @@ struct DashboardView: View {
                 }
             }
         }
+        .onAppear {
+            print("Dashboard appeared - refreshing data")
+            
+            // Initial data load
+            Task {
+                await refreshAllData()
+            }
+            
+            // Setup timer to refresh data every 30 seconds
+            refreshTimer = Timer.scheduledTimer(withTimeInterval: 30, repeats: true) { _ in
+                print("Auto-refresh timer triggered")
+                Task {
+                    await refreshAllData()
+                }
+            }
+        }
+        .onDisappear {
+            // Clean up resources when the view disappears
+            refreshTimer?.invalidate()
+            refreshTimer = nil
+        }
     }
     
     private func refreshAllData() async {
         // Use public methods to refresh data
+        print("⏳ Starting data refresh...")
+        
+        print("⏳ Loading trips...")
         await tripViewModel.loadTrips()
+        
+        print("⏳ Fetching vehicles...")
         await vehicleViewModel.fetchVehicles()
+        
+        print("⏳ Fetching maintenance requests...")
         await maintenanceViewModel.fetchMaintenanceRequests()
+        
+        // Print detailed diagnostic information
+        print("✅ Refresh complete")
+        print("📊 Data summary:")
+        print("   - Vehicles: \(vehicleViewModel.vehicles.count)")
+        if let firstVehicle = vehicleViewModel.vehicles.first {
+            print("     First vehicle: \(firstVehicle.id) - \(firstVehicle.make) \(firstVehicle.model) (\(firstVehicle.registrationNumber))")
+        }
+        
+        print("   - Active Trips: \(tripViewModel.inProgressTrips.count)")
+        print("   - Driver Maintenance Requests: \(maintenanceViewModel.driverMaintenanceRequests.count)")
+        
+        // Print first few maintenance requests for debugging
+        for (index, request) in maintenanceViewModel.driverMaintenanceRequests.prefix(3).enumerated() {
+            print("     Request \(index+1): ID \(request.id), Vehicle \(request.vehicleId), Problem: \(request.problem)")
+        }
+        
+        print("   - Overdue Maintenance: \(overdueMaintenanceRequests.count)")
+        print("   - Driver Repair Requests: \(driverRepairRequests.count)")
+        
+        // Check if the maintenance cards will be visible
+        if overdueMaintenanceRequests.isEmpty && driverRepairRequests.isEmpty {
+            print("⚠️ No maintenance cards will be displayed - check data loading")
+        } else {
+            print("✅ Maintenance cards should be visible")
+        }
     }
 }
 
@@ -688,9 +769,9 @@ struct MaintenanceRequestCard: View {
     let isOverdue: Bool
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            // Header
-            HStack {
+        VStack(alignment: .leading, spacing: 0) {
+            // Header with fixed height
+            HStack(spacing: 12) {
                 Image(systemName: isOverdue ? "exclamationmark.triangle.fill" : "wrench.fill")
                     .font(.title2)
                     .foregroundStyle(.white)
@@ -700,7 +781,7 @@ struct MaintenanceRequestCard: View {
                             .fill(isOverdue ? Color.red : Color.orange)
                     )
                 
-                VStack(alignment: .leading) {
+                VStack(alignment: .leading, spacing: 4) {
                     Text(isOverdue ? "Maintenance Due" : "Repair Request")
                         .font(.headline)
                     
@@ -713,80 +794,89 @@ struct MaintenanceRequestCard: View {
                 
                 Text(isOverdue ? "Overdue" : "Pending")
                     .font(.caption)
+                    .fontWeight(.medium)
                     .foregroundStyle(.white)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 4)
                     .background(isOverdue ? Color.red : Color.orange)
                     .clipShape(Capsule())
             }
+            .padding(.bottom, 16)
             
             Divider()
+                .padding(.bottom, 16)
             
-            // Details
-            VStack(alignment: .leading, spacing: 8) {
-                HStack {
+            // Details section with fixed layout
+            VStack(alignment: .leading, spacing: 16) {
+                HStack(alignment: .top) {
                     Text("Vehicle:")
                         .foregroundStyle(.secondary)
-                    Spacer()
+                        .frame(width: 100, alignment: .leading)
+                    
                     Text(request.vehicle.make + " " + request.vehicle.model)
                         .fontWeight(.medium)
                 }
                 
-                HStack {
-                    Text(isOverdue ? "Due Date:" : "Reported:")
+                HStack(alignment: .top) {
+                    Text(isOverdue ? "Due Date:" : "Reported At:")
                         .foregroundStyle(.secondary)
-                    Spacer()
+                        .frame(width: 100, alignment: .leading)
+                    
                     Text(isOverdue ? formattedDate(request.dueDateTimestamp) : formattedDate(request.createdTimestamp))
                         .fontWeight(.medium)
                 }
                 
                 if !isOverdue {
-                    HStack {
+                    HStack(alignment: .top) {
                         Text("Issue:")
                             .foregroundStyle(.secondary)
-                        Spacer()
+                            .frame(width: 100, alignment: .leading)
+                        
                         Text(request.description)
                             .fontWeight(.medium)
-                            .lineLimit(1)
+                            .lineLimit(2)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .frame(maxWidth: .infinity, alignment: .leading)
                     }
                 }
             }
             
-            Spacer()
+            Spacer(minLength: 20)
             
-            // Action Button
-            Button(action: {
-                // Action to schedule maintenance or view details
-            }) {
-                Text(isOverdue ? "Schedule Maintenance" : "View Details")
-                    .font(.subheadline)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 10)
-                    .background(isOverdue ? Color.red : Color.orange)
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
+            // Priority indicator with fixed position at bottom
+            if !isOverdue {
+                Divider()
+                    .padding(.vertical, 12)
+                
+                HStack {
+                    Text("Priority:")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                    
+                    // Simulated priority based on the issue description length
+                    let priority = request.description.count > 30 ? "High" : "Medium"
+                    Text(priority)
+                        .font(.subheadline)
+                        .fontWeight(.bold)
+                        .foregroundStyle(priority == "High" ? Color.red : Color.orange)
+                    
+                    Spacer()
+                }
             }
         }
-        .padding(16)
-        .frame(width: 280, height: 220)
+        .padding(20)
+        .frame(width: 450, height: 300)
         .background(Color(.systemBackground))
         .clipShape(RoundedRectangle(cornerRadius: 16))
-        .shadow(color: (isOverdue ? Color.red : Color.orange).opacity(0.2), radius: 10)
         .overlay(
             RoundedRectangle(cornerRadius: 16)
-                .stroke(
-                    LinearGradient(
-                        colors: [
-                            (isOverdue ? Color.red : Color.orange).opacity(0.3),
-                            (isOverdue ? Color.red : Color.orange).opacity(0.1),
-                            .clear
-                        ],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    ),
-                    lineWidth: 1
-                )
+                .stroke(Color(.systemGray4), lineWidth: 0.5)
+        )
+        .shadow(
+            color: Color(.systemGray3).opacity(0.3),
+            radius: 10,
+            x: 0,
+            y: 5
         )
     }
     
@@ -811,34 +901,9 @@ struct MaintenanceRequest: Identifiable {
     let personnel: MaintenancePersonnel
 }
 
-// Extension for MaintenanceViewModel to access requests
-extension MaintenanceViewModel {
-    var overdueMaintenanceRequests: [MaintenanceRequest] {
-        // Return vehicles with maintenance due dates that have passed but not scheduled
-        let currentDate = Date().timeIntervalSince1970
-        return pendingMaintenanceRequests.filter { !$0.isScheduled && !$0.isDriverRequest && $0.dueDateTimestamp < currentDate }
-    }
-    
-    var driverRepairRequests: [MaintenanceRequest] {
-        // Return repair requests generated by drivers
-        return pendingMaintenanceRequests.filter { !$0.isScheduled && $0.isDriverRequest }
-    }
-    
-    // Dummy data for preview
-    var pendingMaintenanceRequests: [MaintenanceRequest] {
-        // Return maintenance requests that need attention
-        // In a real app, this would be fetched from the database
-        return []
-    }
-    
-    func fetchMaintenanceRequests() async {
-        // Implementation for fetching maintenance requests
-    }
-}
-
 #Preview {
-        DashboardView()
-            .environmentObject(TripViewModel())
-            .environmentObject(DriverViewModel())
-            .environmentObject(VehicleViewModel())
+    DashboardView()
+        .environmentObject(TripViewModel())
+        .environmentObject(DriverViewModel())
+        .environmentObject(VehicleViewModel())
 } 

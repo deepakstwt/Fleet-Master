@@ -233,7 +233,7 @@ struct TripManagementView: View {
                 
                 clickableStatCard(
                     count: tripViewModel.trips.filter { $0.status == .ongoing }.count,
-                        title: "In Progress",
+                        title: "Ongoing",
                         icon: "arrow.triangle.swap",
                     color: .orange,
                     status: .ongoing
@@ -351,7 +351,7 @@ struct TripManagementView: View {
                         HStack(spacing: 10) {
                             filterButton(title: "All Trips", status: nil)
                             filterButton(title: "Scheduled", status: .scheduled)
-                            filterButton(title: "In Progress", status: .ongoing)
+                            filterButton(title: "Ongoing", status: .ongoing)
                             filterButton(title: "Completed", status: .completed)
                             filterButton(title: "Cancelled", status: .cancelled)
                         }
@@ -598,7 +598,7 @@ struct TripManagementView: View {
                                         HStack {
                                             Image(systemName: "arrow.triangle.swap")
                                                 .foregroundColor(.blue)
-                                            Text("In Progress")
+                                            Text("Ongoing")
                                                 .font(.caption)
                                         }
                                         .padding(.vertical, 8)
