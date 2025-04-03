@@ -21,7 +21,7 @@ struct Fleet_MasterApp: App {
     
     // Initialize Supabase when the app loads
     init() {
-        // Configure Supabase by accessing the shared instance
+        // Configure  by accessing the shared instance
         // This will ensure it's initialized before it's used
         let supabaseManager = SupabaseManager.shared
         

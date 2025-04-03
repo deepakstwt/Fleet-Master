@@ -51,6 +51,45 @@ struct TripMapView: View {
     @State private var showWeatherOverlay: Bool = false
     @State private var detourAlert: Bool = false
     
+    @State private var isDropdownExpanded = false
+    
+    @State private var activeVehicleCount: Int = 0
+    @State private var scheduledTripCount: Int = 0
+    @State private var driverCount: Int = 0
+    @State private var showAttentionNeeded: Bool = false
+    @State private var showInProgress: Bool = false
+    
+    @State private var vehicleLocations: [MapVehicleLocationInfo] = [
+        // Sample vehicle locations for demonstration
+        MapVehicleLocationInfo(
+            vehicleId: "V001",
+            latitude: 28.6139,  // Delhi
+            longitude: 77.2090,
+            type: .car,
+            heading: 45,
+            speed: 35,
+            status: .moving
+        ),
+        MapVehicleLocationInfo(
+            vehicleId: "V002",
+            latitude: 28.7041,  // Noida
+            longitude: 77.1025,
+            type: .truck,
+            heading: 90,
+            speed: 40,
+            status: .moving
+        ),
+        MapVehicleLocationInfo(
+            vehicleId: "V003",
+            latitude: 28.4595,  // Greater Noida
+            longitude: 77.5266,
+            type: .van,
+            heading: 180,
+            speed: 30,
+            status: .idle
+        )
+    ]
+    
     init(trips: [Trip], 
          locationManager: LocationManager, 
          isAssignedTrip: Bool = false,
@@ -104,33 +143,165 @@ struct TripMapView: View {
     }
     
     var body: some View {
-        // Break down complex expressions to help the compiler with type checking
-        let mapViewContent = ZStack(alignment: .topTrailing) {
-            // Helper function to prepare ProMapViewRepresentable with clear type annotations
-            makeMapView()
+        ZStack(alignment: .topLeading) {
+            // Map View
+            ProMapViewRepresentable(
+                mapType: mapType,
+                showTraffic: showTrafficInfo,
+                is3DMode: is3DMode,
+                trackUserLocation: trackUserLocation,
+                vehicles: vehicleLocations,
+                trips: trips,
+                selectedTrip: selectedTrip,
+                region: $region,
+                routeOverlays: $routeOverlays,
+                locationManager: locationManager,
+                refreshID: refreshID,
+                isHindiMode: isHindiMode,
+                isAssignedTrip: isAssignedTrip,
+                showAllRoutes: showAllRoutes,
+                highlightSelectedRoute: highlightSelectedRoute,
+                showLookAround: showLookAround,
+                onPlaceSelected: { place in
+                    selectedPlace = place
+                    showPlaceCard = true
+                },
+                onShowAnalytics: {
+                    showDetailedAnalytics = true
+                },
+                onUpdateVehiclePositions: { vehicleLocations in
+                    // Update vehicle counts
+                    self.activeVehicleCount = vehicleLocations.count
+                    
+                    // Update scheduled trip count
+                    self.scheduledTripCount = trips.filter { $0.status == .scheduled }.count
+                    
+                    // Update driver count (unique drivers)
+                    let uniqueDrivers = Set(trips.compactMap { $0.driverId })
+                    self.driverCount = uniqueDrivers.count
+                },
+                onTripSelected: { trip in
+                    self.selectedTrip = trip
+                    
+                    // If Look Around is active, update the scene
+                    if showLookAround, #available(iOS 16.0, *) {
+                        requestLookAroundScene(for: trip.endLocation)
+                    }
+                }
+            )
+            .edgesIgnoringSafeArea(.all)
             
-            // Look Around view if available and active
-            if showLookAround {
-                makeLookAroundView()
+            // Trip Dropdown Menu
+            TripDropdownMenu(
+                isExpanded: $isDropdownExpanded,
+                selectedTrip: $selectedTrip,
+                trips: trips,
+                onTripSelected: { trip in
+                    // Calculate region from trip's start and end locations
+                    locationManager.geocodeAddress(trip.startLocation) { startResult in
+                        if case .success(let startCoordinate) = startResult {
+                            locationManager.geocodeAddress(trip.endLocation) { endResult in
+                                if case .success(let endCoordinate) = endResult {
+                                    // Calculate the region that encompasses both points
+                                    let minLat = min(startCoordinate.latitude, endCoordinate.latitude)
+                                    let maxLat = max(startCoordinate.latitude, endCoordinate.latitude)
+                                    let minLon = min(startCoordinate.longitude, endCoordinate.longitude)
+                                    let maxLon = max(startCoordinate.longitude, endCoordinate.longitude)
+                                    
+                                    // Add some padding to the region
+                                    let latPadding = (maxLat - minLat) * 0.5
+                                    let lonPadding = (maxLon - minLon) * 0.5
+                                    
+                                    let center = CLLocationCoordinate2D(
+                                        latitude: (minLat + maxLat) / 2,
+                                        longitude: (minLon + maxLon) / 2
+                                    )
+                                    
+                                    let span = MKCoordinateSpan(
+                                        latitudeDelta: (maxLat - minLat) + latPadding,
+                                        longitudeDelta: (maxLon - minLon) + lonPadding
+                                    )
+                                    
+                                    withAnimation {
+                                        region = MKCoordinateRegion(center: center, span: span)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    // Highlight selected trip's route
+                    highlightSelectedRoute = true
+                }
+            )
+            .frame(width: 300)
+            .padding(.top, 60)
+            .padding(.trailing, 16)
+            .frame(maxWidth: .infinity, alignment: .trailing)
+            .zIndex(1)
+            
+            // Map Controls
+                VStack {
+                // Map Layers Menu - Apple Maps Style
+                Menu {
+                    Section("नक्शा प्रकार") {
+                        ForEach(MapType.allCases) { type in
+                        Button(action: {
+                                mapType = type
+                                // Enable 3D mode automatically for Flyover
+                                if type == .flyover {
+                                    is3DMode = true
+                                }
+                            }) {
+                                Label(
+                                    isHindiMode ? type.hindiName : type.rawValue,
+                                    systemImage: type == mapType ? "checkmark" : ""
+                                )
+                            }
+                        }
+                    }
+                    
+                    Divider()
+                    
+                    Section("दृश्य विकल्प") {
+                        Toggle(isOn: $is3DMode) {
+                            Label(isHindiMode ? "3D दृश्य" : "3D View", systemImage: "cube")
+                        }
+                        
+                        Toggle(isOn: $showTrafficInfo) {
+                            Label(isHindiMode ? "ट्रैफिक" : "Traffic", systemImage: "car")
+                        }
+                        
+                        Toggle(isOn: $showWeatherOverlay) {
+                            Label(isHindiMode ? "मौसम" : "Weather", systemImage: "cloud.sun")
+                        }
+                    }
+                } label: {
+                    AppleMapControl(
+                        symbol: "map",
+                        backgroundColor: .ultraThinMaterial,
+                        foregroundColor: .primary
+                    )
+                }
+                
+                // Look Around Button - Apple Maps Style
+                if #available(iOS 16.0, *) {
+                    makeLookAroundButton()
+                }
+                
+                // User Location Button - Apple Maps Style
+                makeLocationButton()
+                
+                // Analytics Button - Apple Maps Style
+                makeAnalyticsButton()
+                
+                // Compass - Apple Maps Style
+                if is3DMode {
+                    makeCompassButton()
+                }
             }
-            
-            // Map Controls - Top Right (Apple Maps style)
-            makeMapControls()
-            
-            // Apple Maps Style Bottom Controls
-            makeBottomControls()
-            
-            // Place Card View (like Apple Maps)
-            if showPlaceCard, let place = selectedPlace {
-                makePlaceCardView(place: place)
-            }
-            
-            // Detailed Analytics Panel
-            if showDetailedAnalytics {
-                makeAnalyticsView()
-            }
+            .padding(.top, 60)
+            .padding(.trailing, 16)
         }
-        .edgesIgnoringSafeArea(.all)
         .onAppear {
             loadRoutes()
             checkLocationAuthorization()
@@ -160,24 +331,24 @@ struct TripMapView: View {
                 secondaryButton: .cancel()
             )
         }
-        
-        return mapViewContent
     }
     
     // Helper functions to break down complex expressions
     
     private func makeMapView() -> some View {
         ProMapViewRepresentable(
+            mapType: mapType,
+            showTraffic: showTrafficInfo,
+            is3DMode: is3DMode,
+            trackUserLocation: trackUserLocation,
+            vehicles: vehicleLocations,
             trips: trips,
-            selectedTrip: $selectedTrip,
+            selectedTrip: selectedTrip,
             region: $region,
             routeOverlays: $routeOverlays,
             locationManager: locationManager,
             refreshID: refreshID,
             isHindiMode: isHindiMode,
-            mapType: mapType,
-            is3DMode: is3DMode,
-            trackUserLocation: trackUserLocation,
             isAssignedTrip: isAssignedTrip,
             showAllRoutes: showAllRoutes,
             highlightSelectedRoute: highlightSelectedRoute,
@@ -185,6 +356,28 @@ struct TripMapView: View {
             onPlaceSelected: { place in
                 selectedPlace = place
                 showPlaceCard = true
+            },
+            onShowAnalytics: {
+                showDetailedAnalytics = true
+            },
+            onUpdateVehiclePositions: { vehicleLocations in
+                // Update vehicle counts
+                self.activeVehicleCount = vehicleLocations.count
+                
+                // Update scheduled trip count
+                self.scheduledTripCount = trips.filter { $0.status == .scheduled }.count
+                
+                // Update driver count (unique drivers)
+                let uniqueDrivers = Set(trips.compactMap { $0.driverId })
+                self.driverCount = uniqueDrivers.count
+            },
+            onTripSelected: { trip in
+                self.selectedTrip = trip
+                
+                // If Look Around is active, update the scene
+                if showLookAround, #available(iOS 16.0, *) {
+                    requestLookAroundScene(for: trip.endLocation)
+                }
             }
         )
     }
@@ -615,22 +808,39 @@ struct TripMapView: View {
 
 // Professional Map View Representable
 struct ProMapViewRepresentable: UIViewRepresentable {
+    // Map Configuration
+    let mapType: TripMapView.MapType
+    let showTraffic: Bool
+    let is3DMode: Bool
+    let trackUserLocation: Bool
+    
+    // Data
+    let vehicles: [MapVehicleLocationInfo]
     let trips: [Trip]
-    @Binding var selectedTrip: Trip?
+    let selectedTrip: Trip?
+    
+    // State
     @Binding var region: MKCoordinateRegion
     @Binding var routeOverlays: [String: TripRouteOverlay]
+    
+    // Services
     let locationManager: LocationManager
     let refreshID: UUID
     let isHindiMode: Bool
-    let mapType: TripMapView.MapType
-    let is3DMode: Bool
-    let trackUserLocation: Bool
+    
+    // Display Options
     let isAssignedTrip: Bool
     let showAllRoutes: Bool
     let highlightSelectedRoute: Bool
     let showLookAround: Bool
-    let onPlaceSelected: (MKMapItem) -> Void
     
+    // Callbacks
+    let onPlaceSelected: (MKMapItem) -> Void
+    let onShowAnalytics: () -> Void
+    let onUpdateVehiclePositions: ([MapVehicleLocationInfo]) -> Void
+    let onTripSelected: ((Trip) -> Void)?
+    
+<<<<<<< Updated upstream
     func makeUIView(context: Context) -> MKMapView {
         let mapView = MKMapView()
         mapView.delegate = context.coordinator
@@ -923,6 +1133,9 @@ struct ProMapViewRepresentable: UIViewRepresentable {
         Coordinator(self)
     }
     
+=======
+    // Coordinator class implementation
+>>>>>>> Stashed changes
     class Coordinator: NSObject, MKMapViewDelegate, MKLocalSearchCompleterDelegate {
         var parent: ProMapViewRepresentable
         // Store animation timers
@@ -960,19 +1173,21 @@ struct ProMapViewRepresentable: UIViewRepresentable {
         // Helper function to add vehicle annotations
         func addVehicleAnnotations(to mapView: MKMapView) {
             // Clear existing vehicle annotations
-            let existingVehicleAnnotations = mapView.annotations.filter { $0 is VehicleAnnotation }
+            let existingVehicleAnnotations = mapView.annotations.filter { $0 is MapVehicleAnnotation }
             mapView.removeAnnotations(existingVehicleAnnotations)
             
             // Add vehicle annotations for each active trip
             for trip in parent.trips.filter({ $0.status == .ongoing && $0.vehicleId != nil }) {
                 if let vehicleId = trip.vehicleId,
                    let vehicleLocationInfo = parent.locationManager.vehicleLocations[vehicleId] {
-                    let annotation = VehicleAnnotation(
+                    let annotation = MapVehicleAnnotation(
                         coordinate: vehicleLocationInfo.coordinate,
                         title: "Vehicle \(vehicleId)",
+                        subtitle: "Trip: \(trip.startLocation) to \(trip.endLocation)",
+                        vehicleType: .car, // Using default car type
+                        heading: vehicleLocationInfo.heading,
                         vehicleId: vehicleId,
-                        tripId: trip.id,
-                        heading: vehicleLocationInfo.heading
+                        tripId: trip.id
                     )
                     mapView.addAnnotation(annotation)
                 }
@@ -1020,8 +1235,8 @@ struct ProMapViewRepresentable: UIViewRepresentable {
             }
             
             // Handle vehicle annotations
-            if let vehicleAnnotation = annotation as? VehicleAnnotation {
-                let identifier = "VehicleAnnotation"
+            if let vehicleAnnotation = annotation as? MapVehicleAnnotation {
+                let identifier = "MapVehicleAnnotation"
                 
                 var annotationView = mapView.dequeueReusableAnnotationView(withIdentifier: identifier) as? MKAnnotationView
                 
@@ -1146,11 +1361,15 @@ struct ProMapViewRepresentable: UIViewRepresentable {
         
         // Handle callout button taps
         func mapView(_ mapView: MKMapView, annotationView view: MKAnnotationView, calloutAccessoryControlTapped control: UIControl) {
-            if let vehicleAnnotation = view.annotation as? VehicleAnnotation {
+            if let vehicleAnnotation = view.annotation as? MapVehicleAnnotation {
                 if control == view.rightCalloutAccessoryView {
                     // Info button - show details
                     if let trip = parent.trips.first(where: { $0.id == vehicleAnnotation.tripId }) {
-                        parent.selectedTrip = trip
+                        // Instead of directly assigning to selectedTrip (which is a let constant),
+                        // notify the parent view to update it via callback
+                        DispatchQueue.main.async {
+                            self.parent.onTripSelected?(trip)
+                        }
                     }
                 } else if control == view.leftCalloutAccessoryView {
                     // Track button - center on vehicle
@@ -1162,7 +1381,7 @@ struct ProMapViewRepresentable: UIViewRepresentable {
                         mapView.setRegion(region, animated: true)
                         
                         // Enable tracking for this vehicle
-                        if let vehicleID = (view.annotation as? VehicleAnnotation)?.vehicleId {
+                        if let vehicleID = (view.annotation as? MapVehicleAnnotation)?.vehicleId {
                             parent.locationManager.startTrackingVehicles(vehicleIds: [vehicleID])
                         }
                     }
@@ -1170,6 +1389,7 @@ struct ProMapViewRepresentable: UIViewRepresentable {
             }
         }
         
+<<<<<<< Updated upstream
         // Overlay renderer
         func mapView(_ mapView: MKMapView, rendererFor overlay: MKOverlay) -> MKOverlayRenderer {
             if let polyline = overlay as? MKPolyline {
@@ -1375,37 +1595,288 @@ struct ProMapViewRepresentable: UIViewRepresentable {
                 }
                 
                 return renderer
+=======
+        // Function to pulse polyline for selected route
+        func pulsePolyline(polylineID: String, renderer: MKGradientPolylineRenderer, mapView: MKMapView) {
+            // Toggle between two styles for pulsing effect
+            if renderer.lineWidth == 8 {
+                renderer.lineWidth = 10
+                renderer.strokeColor = UIColor.white.withAlphaComponent(0.4)
+            } else {
+                renderer.lineWidth = 8
+                renderer.strokeColor = UIColor.white.withAlphaComponent(0.3)
             }
             
-            if let circle = overlay as? MKCircle {
-                let renderer = MKCircleRenderer(overlay: circle)
-                
-                if circle.title == "Start" {
-                    renderer.fillColor = UIColor(Color.green.opacity(0.7))
-                    renderer.strokeColor = UIColor(Color.green)
-                } else if circle.title == "End" {
-                    renderer.fillColor = UIColor(Color.red.opacity(0.7))
-                    renderer.strokeColor = UIColor(Color.red)
-                } else {
-                    renderer.fillColor = UIColor(Color.blue.opacity(0.3))
-                    renderer.strokeColor = UIColor(Color.blue)
-                }
-                
-                renderer.lineWidth = 2
-                return renderer
-            }
-            
-            return MKOverlayRenderer(overlay: overlay)
+            // Refresh the map view to show the change
+            mapView.setNeedsDisplay()
         }
         
-        // Find the trip associated with an overlay
-        private func findTripForOverlay(_ overlay: MKOverlay) -> Trip? {
-            for (tripId, routeOverlay) in parent.routeOverlays {
-                if overlay === routeOverlay.route.polyline {
-                    return parent.trips.first(where: { $0.id == tripId })
+        // Add vehicle annotations update method
+        func updateVehicleAnnotations(on mapView: MKMapView, with vehicles: [MapVehicleLocationInfo]) {
+            // Remove existing vehicle annotations
+            let existingVehicleAnnotations = mapView.annotations.filter { $0 is MapVehicleAnnotation }
+            mapView.removeAnnotations(existingVehicleAnnotations)
+            
+            // Add new vehicle annotations
+            let vehicleAnnotations = vehicles.map { vehicle -> MapVehicleAnnotation in
+                let annotation = MapVehicleAnnotation(
+                    coordinate: CLLocationCoordinate2D(latitude: vehicle.latitude, longitude: vehicle.longitude),
+                    title: vehicle.vehicleId,
+                    subtitle: vehicle.status.rawValue,
+                    vehicleType: vehicle.type,
+                    heading: vehicle.heading,
+                    vehicleId: vehicle.vehicleId
+                )
+                return annotation
+>>>>>>> Stashed changes
+            }
+            
+            mapView.addAnnotations(vehicleAnnotations)
+            
+            // Call the update callback
+            parent.onUpdateVehiclePositions(vehicles)
+        }
+    }
+    
+    func makeCoordinator() -> Coordinator {
+        Coordinator(self)
+    }
+    
+    func makeUIView(context: Context) -> MKMapView {
+        let mapView = MKMapView()
+        mapView.delegate = context.coordinator
+        
+        // Set initial region
+        mapView.region = region
+        
+        // Configure various map settings
+        mapView.showsCompass = true
+        mapView.showsScale = true
+        mapView.showsTraffic = showTraffic
+        mapView.showsBuildings = true
+        mapView.showsUserLocation = trackUserLocation
+        
+        // Enable point of interest
+        let config = mapView.preferredConfiguration
+        if let hybridConfig = config as? MKHybridMapConfiguration {
+            hybridConfig.pointOfInterestFilter = .includingAll
+            mapView.preferredConfiguration = hybridConfig
+        }
+        
+        // Configure map type
+        switch mapType {
+        case .standard:
+            mapView.preferredConfiguration = is3DMode ? 
+                MKStandardMapConfiguration(elevationStyle: .realistic) : 
+                MKStandardMapConfiguration()
+        case .hybrid:
+            let config = MKHybridMapConfiguration(elevationStyle: is3DMode ? .realistic : .flat)
+            config.pointOfInterestFilter = .includingAll
+            config.showsTraffic = showTraffic
+            mapView.preferredConfiguration = config
+        case .terrain:
+            let config = MKHybridMapConfiguration(elevationStyle: .realistic)
+            config.pointOfInterestFilter = .includingAll
+            mapView.preferredConfiguration = config
+        case .flyover:
+            let config = MKHybridMapConfiguration(elevationStyle: .realistic)
+            config.pointOfInterestFilter = .includingAll
+            config.showsTraffic = showTraffic
+            mapView.preferredConfiguration = config
+        }
+        
+        // Configure 3D mode
+        if is3DMode {
+            let camera = MKMapCamera(
+                lookingAtCenter: CLLocationCoordinate2D(latitude: 20.5937, longitude: 78.9629),
+                fromDistance: 1000000,
+                pitch: 65,
+                heading: 45
+            )
+            mapView.camera = camera
+        }
+        
+        // Configure tracking mode
+        mapView.userTrackingMode = trackUserLocation ? .follow : .none
+        
+        // Initialize search completer
+        context.coordinator.initializeSearchCompleter()
+        
+        // Inside makeUIView function, add this after configuration setup
+        if isAssignedTrip || showAllRoutes {
+            // Start tracking all active vehicles
+            let activeVehicleIds = trips.filter { $0.status == .inProgress }
+                .compactMap { $0.vehicleId }
+            
+            if !activeVehicleIds.isEmpty {
+                context.coordinator.addVehicleAnnotations(to: mapView)
+            }
+        }
+        
+        return mapView
+    }
+    
+    func updateUIView(_ mapView: MKMapView, context: Context) {
+        // Hide the Apple Maps logo and legal text
+        mapView.layoutMargins.bottom = 100
+        
+        // Update map configuration based on type change
+        switch mapType {
+        case .standard:
+            mapView.preferredConfiguration = is3DMode ? 
+                MKStandardMapConfiguration(elevationStyle: .realistic) : 
+                MKStandardMapConfiguration()
+        case .hybrid:
+            let config = MKHybridMapConfiguration(elevationStyle: is3DMode ? .realistic : .flat)
+            config.pointOfInterestFilter = .includingAll
+            config.showsTraffic = showTraffic
+            mapView.preferredConfiguration = config
+        case .terrain:
+            let config = MKHybridMapConfiguration(elevationStyle: .realistic)
+            config.pointOfInterestFilter = .includingAll
+            mapView.preferredConfiguration = config
+        case .flyover:
+            let config = MKHybridMapConfiguration(elevationStyle: .realistic)
+            config.pointOfInterestFilter = .includingAll
+            config.showsTraffic = showTraffic
+            mapView.preferredConfiguration = config
+        }
+        
+        // Update user tracking mode
+        mapView.userTrackingMode = trackUserLocation ? .follow : .none
+        
+        // Update camera if region changed and 3D mode is enabled
+        if is3DMode && (
+            mapView.region.center.latitude != region.center.latitude ||
+            mapView.region.center.longitude != region.center.longitude ||
+            mapView.region.span.latitudeDelta != region.span.latitudeDelta ||
+            mapView.region.span.longitudeDelta != region.span.longitudeDelta
+        ) {
+            let camera = MKMapCamera(
+                lookingAtCenter: region.center,
+                fromDistance: Double(region.span.latitudeDelta * 111000),
+                pitch: 65,
+                heading: 45
+            )
+            mapView.setCamera(camera, animated: true)
+        } else if !is3DMode && (
+            mapView.region.center.latitude != region.center.latitude ||
+            mapView.region.center.longitude != region.center.longitude ||
+            mapView.region.span.latitudeDelta != region.span.latitudeDelta ||
+            mapView.region.span.longitudeDelta != region.span.longitudeDelta
+        ) {
+            mapView.setRegion(region, animated: true)
+        }
+        
+        // Remove existing annotations and overlays
+        mapView.removeAnnotations(mapView.annotations)
+        mapView.removeOverlays(mapView.overlays)
+        
+        // Add annotations and route overlays for trips
+        for trip in trips {
+            addTripAnnotations(trip, to: mapView)
+            
+            if let routeOverlay = routeOverlays[trip.id] {
+                mapView.addOverlay(routeOverlay.route.polyline, level: .aboveRoads)
+            }
+        }
+        
+        // Update vehicle positions
+        if isAssignedTrip || showAllRoutes {
+            // Update vehicle annotations
+            for annotation in mapView.annotations {
+                if let vehicleAnnotation = annotation as? MapVehicleAnnotation,
+                   let vehicleLocationInfo = locationManager.vehicleLocations[vehicleAnnotation.vehicleId] {
+                    
+                    // Animate vehicle position update
+                    UIView.animate(withDuration: 1.0) {
+                        vehicleAnnotation.coordinate = vehicleLocationInfo.coordinate
+                        vehicleAnnotation.heading = vehicleLocationInfo.heading
+                        
+                        // If this is a selected vehicle, update its view
+                        if let annotationView = mapView.view(for: annotation) as? MKAnnotationView {
+                            annotationView.transform = CGAffineTransform(rotationAngle: CGFloat(vehicleLocationInfo.heading) * .pi / 180)
+                        }
+                    }
                 }
             }
-            return nil
+        }
+    }
+    
+    private func addTripAnnotations(_ trip: Trip, to mapView: MKMapView) {
+        // Geocode start location
+        locationManager.geocodeAddress(trip.startLocation) { result in
+            if case .success(let startCoordinate) = result {
+                let startAnnotation = ProTripPointAnnotation(
+                    coordinate: startCoordinate,
+                    title: isHindiMode ? "शुरुआत: \(trip.startLocation)" : "Start: \(trip.startLocation)",
+                    subtitle: formatDateTime(trip.scheduledStartTime),
+                    type: .start,
+                    tripId: trip.id
+                )
+                
+                DispatchQueue.main.async {
+                    mapView.addAnnotation(startAnnotation)
+                }
+                
+                // Geocode end location
+                locationManager.geocodeAddress(trip.endLocation) { result in
+                    if case .success(let endCoordinate) = result {
+                        let endAnnotation = ProTripPointAnnotation(
+                            coordinate: endCoordinate,
+                            title: isHindiMode ? "समाप्ति: \(trip.endLocation)" : "End: \(trip.endLocation)",
+                            subtitle: formatDateTime(trip.scheduledEndTime),
+                            type: .end,
+                            tripId: trip.id
+                        )
+                        
+                        DispatchQueue.main.async {
+                            mapView.addAnnotation(endAnnotation)
+                            
+                            // Add waypoints along the route if available
+                            if let routeOverlay = routeOverlays[trip.id] {
+                                addWaypointAnnotations(for: routeOverlay.route, trip: trip, to: mapView)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    private func addWaypointAnnotations(for route: MKRoute, trip: Trip, to mapView: MKMapView) {
+        // Add waypoint annotations at key points along the route
+        if route.steps.count > 2 {
+            // Skip first and last step (departure and arrival)
+            let keySteps = route.steps.dropFirst().dropLast()
+            
+            // Add annotations for major turns or maneuvers
+            for (index, step) in keySteps.enumerated() {
+                if step.distance > 1000 || isSignificantManeuver(step.instructions) {
+                    let annotation = ProWaypointAnnotation(
+                        coordinate: step.polyline.coordinate,
+                        title: step.instructions,
+                        subtitle: "\(formatDistance(step.distance))",
+                        index: index,
+                        tripId: trip.id
+                    )
+                    mapView.addAnnotation(annotation)
+                }
+            }
+        }
+    }
+    
+    private func isSignificantManeuver(_ instructions: String) -> Bool {
+        // Check if the instruction contains keywords indicating major maneuvers
+        let significantTerms = ["turn", "exit", "merge", "highway", "freeway", "roundabout", "u-turn"]
+        return significantTerms.contains { instructions.lowercased().contains($0) }
+    }
+    
+    private func formatDistance(_ meters: Double) -> String {
+        if meters >= 1000 {
+            return String(format: "%.1f km", meters / 1000)
+        } else {
+            return "\(Int(meters)) m"
         }
         
         // MARK: - MKLocalSearchCompleterDelegate
@@ -1566,24 +2037,6 @@ func statusInHindi(for status: TripStatus) -> String {
         return "पूर्ण"
     case .cancelled:
         return "रद्द"
-    }
-}
-
-// Add this class at the end of the file, outside of the TripMapView struct
-class VehicleAnnotation: NSObject, MKAnnotation {
-    @objc dynamic var coordinate: CLLocationCoordinate2D
-    var title: String?
-    let vehicleId: String
-    let tripId: String
-    var heading: Double
-    
-    init(coordinate: CLLocationCoordinate2D, title: String, vehicleId: String, tripId: String, heading: Double) {
-        self.coordinate = coordinate
-        self.title = title
-        self.vehicleId = vehicleId
-        self.tripId = tripId
-        self.heading = heading
-        super.init()
     }
 }
 
