@@ -334,7 +334,7 @@ class TripViewModel: ObservableObject {
         
         // Set actual start/end times based on status
         switch newStatus {
-        case .ongoing:
+        case .ongoing:  // Changed from .ongoing
             actualStart = now
         case .completed:
             actualEnd = now
@@ -532,4 +532,4 @@ class TripViewModel: ObservableObject {
             await loadTrips()
         }
     }
-} 
+}
