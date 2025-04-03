@@ -414,9 +414,6 @@ struct ScheduledTripsCalendarView: View {
         let vehicleName: String
         let onTap: () -> Void
         
-        @State private var isPressed = false
-        @State private var showDetails = false
-        
         private let timeFormatter: DateFormatter = {
             let formatter = DateFormatter()
             formatter.timeStyle = .short
@@ -424,214 +421,63 @@ struct ScheduledTripsCalendarView: View {
         }()
         
         var body: some View {
-            VStack(spacing: 0) {
-                // Main card content
-                VStack(spacing: 0) {
-                    // Header with time
-                    HStack(alignment: .center, spacing: 12) {
-                        // Time indicator
-                        VStack(spacing: 4) {
-                            Text(timeFormatter.string(from: trip.scheduledStartTime))
-                                .font(.system(size: 16, weight: .semibold))
-                                .foregroundColor(.primary)
+            HStack {
+                // Colored status indicator
+                Rectangle()
+                    .fill(statusColor(trip.status))
+                    .frame(width: 4)
+                    .cornerRadius(2)
+                
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(trip.title)
+                                .font(.headline)
+                                .lineLimit(1)
                             
-                            Text(timeFormatter.string(from: trip.scheduledEndTime))
-                                .font(.system(size: 14))
+                            Text("\(timeFormatter.string(from: trip.scheduledStartTime)) - \(timeFormatter.string(from: trip.scheduledEndTime))")
+                                .font(.subheadline)
                                 .foregroundColor(.secondary)
                         }
-                        .frame(width: 65, alignment: .center)
-                        
-                        // Vertical colored timeline
-                        ZStack {
-                            Rectangle()
-                                .fill(statusColor(trip.status))
-                                .frame(width: 4)
-                                .frame(height: 65)
-                                .cornerRadius(2)
-                            
-                            // Time dot indicators
-                            VStack {
-                                Circle()
-                                    .fill(.white)
-                                    .frame(width: 10, height: 10)
-                                    .background(
-                                        Circle()
-                                            .fill(statusColor(trip.status))
-                                            .frame(width: 16, height: 16)
-                                            .shadow(color: statusColor(trip.status).opacity(0.5), radius: 4, x: 0, y: 0)
-                                    )
-                                
-                                Spacer()
-                                
-                                Circle()
-                                    .fill(.white)
-                                    .frame(width: 10, height: 10)
-                                    .background(
-                                        Circle()
-                                            .fill(statusColor(trip.status))
-                                            .frame(width: 16, height: 16)
-                                            .shadow(color: statusColor(trip.status).opacity(0.5), radius: 4, x: 0, y: 0)
-                                    )
-                            }
-                            .frame(height: 65)
-                            .padding(.vertical, 2)
-                        }
-                        
-                        // Trip details
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text(trip.title)
-                                .font(.system(size: 17, weight: .semibold))
-                                .foregroundColor(.primary)
-                            
-                            HStack(spacing: 8) {
-                                // From location
-                                Label {
-                                    Text(trip.startLocation)
-                                        .font(.system(size: 14))
-                                        .foregroundColor(.secondary)
-                                        .lineLimit(1)
-                                } icon: {
-                                    Image(systemName: "circle.fill")
-                                        .foregroundColor(.green)
-                                        .font(.system(size: 8))
-                                }
-                                
-                                Text("→")
-                                    .font(.system(size: 14))
-                                    .foregroundColor(.secondary)
-                                
-                                // To location
-                                Label {
-                                    Text(trip.endLocation)
-                                        .font(.system(size: 14))
-                                        .foregroundColor(.secondary)
-                                        .lineLimit(1)
-                                } icon: {
-                                    Image(systemName: "mappin.circle.fill")
-                                        .foregroundColor(.red)
-                                        .font(.system(size: 8))
-                                }
-                            }
-                        }
-                        .padding(.leading, 4)
                         
                         Spacer()
                         
-                        // Status badge
                         StatusBadge(status: trip.status)
-                            .scaleEffect(trip.status == .inProgress ? 1.05 : 1.0)
-                            .animation(
-                                trip.status == .inProgress ? 
-                                Animation.easeInOut(duration: 1.5).repeatForever(autoreverses: true) : 
-                                .default, 
-                                value: trip.status == .inProgress
-                            )
                     }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 14)
-                    .background(
-                        LinearGradient(
-                            gradient: Gradient(
-                                colors: [
-                                    Color(UIColor.systemBackground),
-                                    statusColor(trip.status).opacity(0.05)
-                                ]
-                            ),
-                            startPoint: .top,
-                            endPoint: .bottom
-                        )
-                    )
                     
-                    // Expandable details section
-                    if showDetails {
-                        Divider()
-                            .padding(.horizontal, 16)
-                        
-                        VStack(alignment: .leading, spacing: 12) {
-                            if !driverName.isEmpty && driverName != "Unassigned" {
-                                HStack(spacing: 8) {
-                                    ZStack {
-                                        Circle()
-                                            .fill(Color.blue.opacity(0.1))
-                                            .frame(width: 28, height: 28)
-                                        
-                                        Image(systemName: "person.fill")
-                                            .font(.system(size: 12))
-                                            .foregroundColor(.blue)
-                                    }
-                                    
-                                    Text(driverName)
-                                        .font(.system(size: 15))
-                                        .foregroundColor(.primary)
-                                }
-                            }
-                            
-                            if !vehicleName.isEmpty && vehicleName != "Unassigned" {
-                                HStack(spacing: 8) {
-                                    ZStack {
-                                        Circle()
-                                            .fill(Color.orange.opacity(0.1))
-                                            .frame(width: 28, height: 28)
-                                        
-                                        Image(systemName: "car.fill")
-                                            .font(.system(size: 12))
-                                            .foregroundColor(.orange)
-                                    }
-                                    
-                                    Text(vehicleName)
-                                        .font(.system(size: 15))
-                                        .foregroundColor(.primary)
-                                }
-                            }
-                            
-                            if let distance = trip.distance {
-                                HStack(spacing: 8) {
-                                    ZStack {
-                                        Circle()
-                                            .fill(Color.green.opacity(0.1))
-                                            .frame(width: 28, height: 28)
-                                        
-                                        Image(systemName: "arrow.up.right.circle.fill")
-                                            .font(.system(size: 12))
-                                            .foregroundColor(.green)
-                                    }
-                                    
-                                    Text(String(format: "%.1f km", distance))
-                                        .font(.system(size: 15))
-                                        .foregroundColor(.primary)
-                                }
-                            }
+                    Divider()
+                    
+                    HStack(spacing: 24) {
+                        Label {
+                            Text(driverName)
+                                .font(.caption)
+                                .lineLimit(1)
+                        } icon: {
+                            Image(systemName: "person.fill")
+                                .foregroundColor(.blue)
                         }
-                        .padding(16)
-                        .transition(.opacity.combined(with: .move(edge: .top)))
+                        
+                        Label {
+                            Text(vehicleName)
+                                .font(.caption)
+                                .lineLimit(1)
+                        } icon: {
+                            Image(systemName: "car.fill")
+                                .foregroundColor(.blue)
+                        }
                     }
                 }
+                .padding(.vertical, 12)
+                .padding(.horizontal, 8)
             }
-            .background(Color(UIColor.systemBackground))
-            .cornerRadius(16)
-            .shadow(color: Color.black.opacity(0.06), radius: 8, x: 0, y: 4)
-            .overlay(
-                RoundedRectangle(cornerRadius: 16)
-                    .stroke(statusColor(trip.status).opacity(0.2), lineWidth: 1)
-            )
-            .scaleEffect(isPressed ? 0.98 : 1.0)
-            .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isPressed)
-            .contentShape(Rectangle())
+            .background(Color(.systemBackground))
+            .cornerRadius(10)
+            .shadow(color: Color.black.opacity(0.05), radius: 2, x: 0, y: 1)
             .onTapGesture {
-                withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                    showDetails.toggle()
-                }
                 onTap()
             }
-            .onLongPressGesture(minimumDuration: .infinity, maximumDistance: .infinity, pressing: { pressing in
-                withAnimation(.easeInOut(duration: 0.2)) {
-                    isPressed = pressing
-                }
-            }, perform: {})
-            .padding(.bottom, 12)
         }
         
-        // Helper function for status color
         private func statusColor(_ status: TripStatus) -> Color {
             switch status {
             case .scheduled:
@@ -641,7 +487,7 @@ struct ScheduledTripsCalendarView: View {
             case .completed:
                 return .green
             case .cancelled:
-                return .red
+                return .gray
             }
         }
     }

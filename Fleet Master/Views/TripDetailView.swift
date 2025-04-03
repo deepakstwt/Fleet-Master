@@ -387,7 +387,7 @@ struct TripDetailView: View {
     }
     
     private var statusCard: some View {
-        VStack(spacing: 13) {
+        VStack(spacing: 16) {
             // Clean header with icon and toggle
             HStack {
                 Label {
@@ -1007,7 +1007,7 @@ struct TripDetailView: View {
         switch tripData.status {
         case .scheduled:
             return .blue
-        case .ongoing:
+        case .inProgress:
             return .green
         case .completed:
             return .gray
