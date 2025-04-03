@@ -139,4 +139,4 @@ struct Driver: Identifiable, Codable {
         // Encode date as ISO8601 string
         try container.encode(dateFormatter.string(from: hireDate), forKey: .hireDate)
     }
-} 
+}

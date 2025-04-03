@@ -7,6 +7,7 @@ struct DashboardView: View {
     @EnvironmentObject private var driverViewModel: DriverViewModel
     @EnvironmentObject private var vehicleViewModel: VehicleViewModel
     @EnvironmentObject private var maintenanceViewModel: MaintenanceViewModel
+    @StateObject private var notificationsViewModel = NotificationsViewModel()
     @State private var showNotificationCenter = false
     @State private var selectedTrip: Trip?
     @State private var showTripDetail = false
@@ -260,8 +261,21 @@ struct DashboardView: View {
                     Button {
                         showNotificationCenter = true
                     } label: {
-                        Image(systemName: "bell.fill")
-                            .foregroundStyle(.blue)
+                        ZStack(alignment: .topTrailing) {
+                            Image(systemName: "bell.fill")
+                                .foregroundStyle(.blue)
+                            
+                            if notificationsViewModel.unreadCount > 0 {
+                                Text("\(notificationsViewModel.unreadCount)")
+                                    .font(.system(size: 12))
+                                    .fontWeight(.bold)
+                                    .foregroundColor(.white)
+                                    .frame(width: 18, height: 18)
+                                    .background(Color.red)
+                                    .clipShape(Circle())
+                                    .offset(x: 8, y: -8)
+                            }
+                        }
                     }
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
@@ -286,7 +300,7 @@ struct DashboardView: View {
                 }
             }
             .sheet(isPresented: $showNotificationCenter) {
-                NotificationCenterView()
+                NotificationsView(viewModel: notificationsViewModel)
             }
             .sheet(item: $selectedTrip) { trip in
                 TripDetailView(trip: trip)
@@ -312,11 +326,36 @@ struct DashboardView: View {
                     await refreshAllData()
                 }
             }
+            
+            // Add observer for notification taps
+            setupNotificationObserver()
         }
         .onDisappear {
             // Clean up resources when the view disappears
             refreshTimer?.invalidate()
             refreshTimer = nil
+            
+            // Remove notification observer
+            NotificationCenter.default.removeObserver(self, name: NSNotification.Name("DidTapFleetNotification"), object: nil)
+        }
+    }
+    
+    private func setupNotificationObserver() {
+        NotificationCenter.default.addObserver(
+            forName: NSNotification.Name("DidTapFleetNotification"),
+            object: nil,
+            queue: .main
+        ) { notification in
+            // Show the notification center when a notification is tapped
+            showNotificationCenter = true
+            
+            // If the notification contains a trip ID, you could select that specific trip
+            if let userInfo = notification.userInfo,
+               let notificationType = userInfo["notificationType"] as? String,
+               notificationType.contains("trip") {
+                // You could add logic here to select and show the relevant trip
+                print("Should navigate to trip details for notification type: \(notificationType)")
+            }
         }
     }
     
@@ -640,97 +679,6 @@ struct StatRow: View {
                 .font(.headline)
                 .foregroundStyle(valueColor)
         }
-    }
-}
-
-struct NotificationCenterView: View {
-    @Environment(\.dismiss) private var dismiss
-    @State private var selectedTab: NotificationType = .driver
-    
-    enum NotificationType: String, CaseIterable {
-        case driver = "Drivers"
-        case maintenance = "Maintenance"
-    }
-    
-    var body: some View {
-        NavigationStack {
-            VStack(spacing: 0) {
-                // Segmented Control
-                Picker("Notification Type", selection: $selectedTab) {
-                    ForEach(NotificationType.allCases, id: \.self) { type in
-                        Text(type.rawValue).tag(type)
-                    }
-                }
-                .pickerStyle(.segmented)
-                .padding()
-                
-                // Notification List
-                ScrollView {
-                    LazyVStack(spacing: 0) {
-                        ForEach(0..<(selectedTab == .driver ? 5 : 3), id: \.self) { _ in
-                            NotificationRow(
-                                title: selectedTab == .driver ? "Trip Completed" : "Vehicle Service Required",
-                                message: selectedTab == .driver ? 
-                                    "Driver John Doe completed trip #1234" : 
-                                    "Vehicle ABC-123 requires maintenance",
-                                time: selectedTab == .driver ? "2 minutes ago" : "1 hour ago",
-                                type: selectedTab
-                            )
-                            .padding(.horizontal)
-                            .padding(.vertical, 8)
-                            
-                            Divider()
-                                .padding(.horizontal)
-                        }
-                    }
-                }
-            }
-            .navigationTitle("Notifications")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("Done") {
-                        dismiss()
-                    }
-                }
-            }
-        }
-    }
-}
-
-struct NotificationRow: View {
-    let title: String
-    let message: String
-    let time: String
-    let type: NotificationCenterView.NotificationType
-    
-    var body: some View {
-        HStack(spacing: 16) {
-            Circle()
-                .fill(type == .driver ? .blue : .orange)
-                .frame(width: 40, height: 40)
-                .overlay {
-                    Image(systemName: type == .driver ? "person.fill" : "wrench.fill")
-                        .foregroundStyle(.white)
-                }
-            
-            VStack(alignment: .leading, spacing: 4) {
-                Text(title)
-                    .font(.headline)
-                
-                Text(message)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(2)
-                
-                Text(time)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-            
-            Spacer(minLength: 0)
-        }
-        .background(Color(.systemBackground))
     }
 }
 

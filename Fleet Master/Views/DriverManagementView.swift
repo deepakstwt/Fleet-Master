@@ -1502,6 +1502,7 @@ struct EditDriverView: View {
 struct DriverDetailView: View {
     let driver: Driver
     @Environment(\.dismiss) private var dismiss
+    @State private var showingNotifications = false
     
     var body: some View {
         NavigationStack {
@@ -1552,6 +1553,27 @@ struct DriverDetailView: View {
                             DetailItem(icon: "creditcard.fill", title: "License Number", value: driver.licenseNumber),
                             DetailItem(icon: "calendar", title: "Hire Date", value: formatDate(driver.hireDate))
                         ])
+                        
+                        // Notifications Button
+                        Button(action: {
+                            showingNotifications = true
+                        }) {
+                            HStack {
+                                Image(systemName: "bell.fill")
+                                    .font(.system(size: 18))
+                                Text("View Notifications")
+                                    .font(.headline)
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                            .background(Color.blue)
+                            .foregroundColor(.white)
+                            .cornerRadius(10)
+                        }
+                        .padding(.horizontal)
+                        .navigationDestination(isPresented: $showingNotifications) {
+                            DriverNotificationsView(driverId: driver.id)
+                        }
                         
                         if !driver.vehicleCategories.isEmpty {
                             VStack(alignment: .leading, spacing: 16) {

@@ -210,6 +210,39 @@ class TripViewModel: ObservableObject {
             
             do {
                 let addedTrip = try await tripSupabaseManager.addTrip(newTrip)
+                
+                // If a driver is assigned, create a notification for them
+                if let driverID = addedTrip.driverId {
+                    do {
+                        let _ = try await DriverNotificationSupabaseManager.shared.createTripAssignedNotification(
+                            driverId: driverID,
+                            trip: addedTrip
+                        )
+                        print("Created trip assigned notification for driver")
+                    } catch {
+                        print("Error creating driver notification: \(error)")
+                        // Don't fail the whole operation if notification creation fails
+                    }
+                }
+                
+                // Add a fleet notification about the new trip
+                do {
+                    let message = driverId != nil ? 
+                        "New trip created and assigned to driver" : 
+                        "New trip created without driver assignment"
+                    
+                    let _ = try await FleetNotificationSupabaseManager.shared.addNotification(
+                        driverId: driverId,
+                        title: "Trip Created: \(addedTrip.title)",
+                        message: message,
+                        notificationType: "trip_created"
+                    )
+                    print("Created fleet notification for new trip")
+                } catch {
+                    print("Error creating fleet notification: \(error)")
+                    // Don't fail the whole operation if notification creation fails
+                }
+                
                 await MainActor.run {
                     trips.append(addedTrip)
                     resetForm()
@@ -264,28 +297,94 @@ class TripViewModel: ObservableObject {
             isLoading = true
             
             do {
-                let updated = try await tripSupabaseManager.updateTrip(updatedTrip)
-                await MainActor.run {
-                    if let index = trips.firstIndex(where: { $0.id == updated.id }) {
-                        trips[index] = updated
+                let updatedTripResponse = try await tripSupabaseManager.updateTrip(updatedTrip)
+                
+                // Check if the driver has been changed or newly assigned
+                if let newDriverId = updatedTripResponse.driverId {
+                    // If the driver ID is different from before or wasn't assigned before
+                    if selectedTrip.driverId != newDriverId {
+                        // This is a new assignment - create an assignment notification
+                        do {
+                            let _ = try await DriverNotificationSupabaseManager.shared.createTripAssignedNotification(
+                                driverId: newDriverId,
+                                trip: updatedTripResponse
+                            )
+                            print("Created trip assigned notification for new driver")
+                        } catch {
+                            print("Error creating driver assignment notification: \(error)")
+                        }
+                        
+                        // Create fleet notification about driver assignment
+                        do {
+                            let _ = try await FleetNotificationSupabaseManager.shared.addNotification(
+                                driverId: newDriverId,
+                                title: "Driver Assigned to Trip",
+                                message: "Trip \(updatedTripResponse.title) has been assigned to a driver",
+                                notificationType: "driver_assigned"
+                            )
+                        } catch {
+                            print("Error creating fleet notification for driver assignment: \(error)")
+                        }
+                    } else {
+                        // This is an update to an existing assignment
+                        do {
+                            let _ = try await DriverNotificationSupabaseManager.shared.createTripUpdatedNotification(
+                                driverId: newDriverId,
+                                trip: updatedTripResponse
+                            )
+                            print("Created trip updated notification for driver")
+                        } catch {
+                            print("Error creating driver update notification: \(error)")
+                        }
                     }
-                    resetForm()
+                }
+                
+                // If there was a previous driver who is now unassigned, we could notify them too
+                if let oldDriverId = selectedTrip.driverId, updatedTripResponse.driverId != oldDriverId {
+                    // Could add a notification about trip unassignment here if needed
+                    
+                    // Add fleet notification about driver unassignment
+                    do {
+                        let _ = try await FleetNotificationSupabaseManager.shared.addNotification(
+                            driverId: oldDriverId,
+                            title: "Driver Unassigned from Trip",
+                            message: "Driver has been unassigned from trip \(updatedTripResponse.title)",
+                            notificationType: "driver_unassigned"
+                        )
+                    } catch {
+                        print("Error creating fleet notification for driver unassignment: \(error)")
+                    }
+                }
+                
+                // Add a general trip update fleet notification
+                do {
+                    let _ = try await FleetNotificationSupabaseManager.shared.addNotification(
+                        driverId: updatedTripResponse.driverId,
+                        title: "Trip Updated: \(updatedTripResponse.title)",
+                        message: "Trip details have been updated",
+                        notificationType: "trip_updated"
+                    )
+                } catch {
+                    print("Error creating fleet notification for trip update: \(error)")
+                }
+                
+                await MainActor.run {
+                    if let index = self.trips.firstIndex(where: { $0.id == updatedTrip.id }) {
+                        self.trips[index] = updatedTripResponse
+                    }
+                    
                     isShowingEditTrip = false
                     alertMessage = "Trip updated successfully!"
                     showAlert = true
                 }
             } catch {
-                await MainActor.run {
-                    errorMessage = "Failed to update trip: \(error.localizedDescription)"
-                    print("Error updating trip: \(error)")
-                    showAlert = true
-                    alertMessage = "Failed to update trip: \(error.localizedDescription)"
-                }
+                errorMessage = "Failed to update trip: \(error.localizedDescription)"
+                print("Error updating trip: \(error)")
+                showAlert = true
+                alertMessage = "Failed to update trip: \(error.localizedDescription)"
             }
             
-            await MainActor.run {
-                isLoading = false
-            }
+            isLoading = false
         }
     }
     
@@ -352,6 +451,53 @@ class TripViewModel: ObservableObject {
                     actualStartTime: actualStart,
                     actualEndTime: actualEnd
                 )
+                
+                // Create notifications based on status change
+                do {
+                    var title = ""
+                    var message = ""
+                    var notificationType = ""
+                    
+                    switch newStatus {
+                    case .ongoing:
+                        title = "Trip Started"
+                        message = "Trip \(updatedTrip.title) has started"
+                        notificationType = "trip_started"
+                    case .completed:
+                        title = "Trip Completed"
+                        message = "Trip \(updatedTrip.title) has been completed"
+                        notificationType = "trip_completed"
+                    case .cancelled:
+                        title = "Trip Cancelled"
+                        message = "Trip \(updatedTrip.title) has been cancelled"
+                        notificationType = "trip_cancelled"
+                    default:
+                        title = "Trip Status Updated"
+                        message = "Trip \(updatedTrip.title) status changed to \(newStatus.rawValue)"
+                        notificationType = "trip_status_update"
+                    }
+                    
+                    // Create fleet notification
+                    let _ = try await FleetNotificationSupabaseManager.shared.addNotification(
+                        driverId: updatedTrip.driverId,
+                        title: title,
+                        message: message,
+                        notificationType: notificationType
+                    )
+                    
+                    // Create driver notification if a driver is assigned
+                    if let driverId = updatedTrip.driverId {
+                        let _ = try await DriverNotificationSupabaseManager.shared.addDriverNotification(
+                            driverId: driverId,
+                            title: title,
+                            message: message,
+                            notificationType: notificationType
+                        )
+                    }
+                } catch {
+                    print("Error creating notifications for trip status change: \(error)")
+                    // Continue with the operation even if notification creation fails
+                }
                 
                 await MainActor.run {
                     if let index = trips.firstIndex(where: { $0.id == updatedTrip.id }) {

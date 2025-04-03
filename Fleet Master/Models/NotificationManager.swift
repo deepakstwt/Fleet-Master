@@ -183,6 +183,37 @@ class NotificationManager: NSObject, ObservableObject {
             }
         }
     }
+    
+    // MARK: - Fleet Notification Methods
+    
+    func sendFleetNotification(notification: FleetNotification) {
+        guard isAuthorized else { return }
+        
+        let content = UNMutableNotificationContent()
+        content.title = notification.title
+        content.body = notification.message
+        content.sound = .default
+        content.badge = 1
+        
+        // Add category and notification type as user info for handling taps
+        content.userInfo = [
+            "notificationType": notification.notificationType,
+            "notificationId": notification.id,
+            "driverId": notification.driverId as Any
+        ]
+        
+        // Use fleetNotification ID in the identifier to avoid duplicates
+        let identifier = "fleet-notification-\(notification.id)"
+        let request = UNNotificationRequest(identifier: identifier, content: content, trigger: nil)
+        
+        notificationCenter.add(request) { error in
+            if let error = error {
+                print("Error sending fleet notification: \(error.localizedDescription)")
+            } else {
+                print("Successfully scheduled fleet notification: \(notification.title)")
+            }
+        }
+    }
 }
 
 // MARK: - UNUserNotificationCenterDelegate
@@ -209,6 +240,37 @@ extension NotificationManager: UNUserNotificationCenterDelegate {
             // Navigate to the specific trip
             print("User tapped on off-route notification for tripId: \(tripId)")
             // In a real app, you would use an AppState or similar to navigate to the trip
+        }
+        
+        // Handle fleet notifications
+        if identifier.starts(with: "fleet-notification-") {
+            let userInfo = response.notification.request.content.userInfo
+            
+            // Extract notification details from userInfo
+            if let notificationId = userInfo["notificationId"] as? String,
+               let notificationType = userInfo["notificationType"] as? String {
+                print("User tapped on fleet notification: \(notificationId) of type: \(notificationType)")
+                
+                // Mark notification as read in database
+                Task {
+                    do {
+                        let _ = try await FleetNotificationSupabaseManager.shared.markNotificationAsRead(
+                            notificationId: notificationId
+                        )
+                        print("Successfully marked notification as read: \(notificationId)")
+                    } catch {
+                        print("Error marking notification as read: \(error)")
+                    }
+                }
+                
+                // Open notifications view or navigate to relevant screen based on notification type
+                // This would be done via a NotificationCenter post or shared app state manager
+                NotificationCenter.default.post(
+                    name: NSNotification.Name("DidTapFleetNotification"),
+                    object: nil,
+                    userInfo: ["notificationId": notificationId, "notificationType": notificationType]
+                )
+            }
         }
         
         completionHandler()
