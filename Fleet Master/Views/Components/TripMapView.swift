@@ -64,8 +64,8 @@ struct TripMapView: View {
         
         // Check if any of the trips is assigned to a driver and vehicle and is in progress
         if let firstTrip = trips.first, 
-            firstTrip.status == .ongoing &&
-           firstTrip.driverId != nil &&
+           firstTrip.status == .ongoing && 
+           firstTrip.driverId != nil && 
            firstTrip.vehicleId != nil {
             self.isAssignedTrip = true
         }

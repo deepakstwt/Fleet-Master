@@ -217,7 +217,7 @@ struct Trip: Identifiable, Codable, Hashable, Equatable {
 
 enum TripStatus: String, Codable, CaseIterable {
     case scheduled = "scheduled"
-    case ongoing = "in_progress"  // Changed from 'ongoing'
+    case ongoing = "ongoing"
     case completed = "completed"
     case cancelled = "cancelled"
 }
@@ -229,4 +229,4 @@ struct RouteInformation: Equatable, Codable {
     static func == (lhs: RouteInformation, rhs: RouteInformation) -> Bool {
         return lhs.distance == rhs.distance && lhs.time == rhs.time
     }
-}
+} 

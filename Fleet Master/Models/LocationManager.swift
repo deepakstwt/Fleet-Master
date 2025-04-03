@@ -287,32 +287,31 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     }
     
     // Helper method to find the trip a vehicle is assigned to
-    // In findTripForVehicle method, change .ongoing to .inProgress
     private func findTripForVehicle(vehicleId: String) -> Trip? {
-    // In a real app, this would query your data model or backend
-    // For demo purposes, we'll create a simple placeholder trip
-    
-    // In a production app, we would query a shared trip store or database
-    // For this demo, we'll just create a placeholder trip when needed
-    if vehicleLocations[vehicleId] != nil {
-    // Create a simulated trip for this vehicle
-    let now = Date()
-    let later = now.addingTimeInterval(3600) // 1 hour later
-    
-    return Trip(
-    id: "trip-\(vehicleId)",
-    title: "Trip for Vehicle \(vehicleId)",
-    startLocation: "Starting Point",
-    endLocation: "Destination",
-    scheduledStartTime: now,
-    scheduledEndTime: later,
-    status: .ongoing,  // Changed from .ongoing
-    vehicleId: vehicleId,
-    description: "Simulated trip for tracking demo"
-    )
-    }
-    
-    return nil
+        // In a real app, this would query your data model or backend
+        // For demo purposes, we'll create a simple placeholder trip
+        
+        // In a production app, we would query a shared trip store or database
+        // For this demo, we'll just create a placeholder trip when needed
+        if vehicleLocations[vehicleId] != nil {
+            // Create a simulated trip for this vehicle
+            let now = Date()
+            let later = now.addingTimeInterval(3600) // 1 hour later
+            
+            return Trip(
+                id: "trip-\(vehicleId)",
+                title: "Trip for Vehicle \(vehicleId)",
+                startLocation: "Starting Point",
+                endLocation: "Destination",
+                scheduledStartTime: now,
+                scheduledEndTime: later,
+                status: .ongoing,
+                vehicleId: vehicleId,
+                description: "Simulated trip for tracking demo"
+            )
+        }
+        
+        return nil
     }
     
     func getVehicleLocation(vehicleId: String) -> CLLocation? {
@@ -445,98 +444,97 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     
     // MARK: - Delay Monitoring
     
-    // In checkForTripDelays method, change .inProgress to .ongoing
     func checkForTripDelays(trip: Trip) {
-    // Only proceed if trip is in progress
-    if trip.status == .ongoing {  // Changed from .ongoing
-    return
-    }
-    
-    // We need the scheduled arrival time (end time)
-    if trip.scheduledEndTime == nil {
-    return
-    }
-    
-    // Make sure we have a vehicleId
-    if trip.vehicleId == nil {
-    return
-    }
-    
-    // Now that we know vehicleId exists, we can safely unwrap
-    let vehicleId = trip.vehicleId!
-    
-    // Check if we have the vehicle location
-    if vehicleLocations[vehicleId] == nil {
-    return
-    }
-    
-    // Check if we have a monitored route
-    if monitoredRoutes[vehicleId] == nil {
-    return
-    }
-    
-    // Now we can safely use the unwrapped values
-    let scheduledArrival = trip.scheduledEndTime
-    let vehicleLocation = vehicleLocations[vehicleId]!.asLocation
-    let route = monitoredRoutes[vehicleId]!
-    
-    // Calculate estimated time of arrival
-    let remainingDistance = estimateRemainingDistance(vehicleLocation: vehicleLocation, route: route)
-    let estimatedTimeToArrival = estimateTimeToArrival(remainingDistance: remainingDistance, vehicleId: vehicleId)
-    
-    // Calculate projected arrival time - this is a non-optional Date
-    let projectedArrival = Date().addingTimeInterval(estimatedTimeToArrival)
-    
-    // Calculate the delay
-    let delayInSeconds = projectedArrival.timeIntervalSince(scheduledArrival)
-    
-    // Check if there's a delay
-    if delayInSeconds > 0 {
-    let delayMinutes = Int(delayInSeconds / 60)
-    let delayThreshold = NotificationManager.shared.delayThresholdMinutes
-    
-    // Send notification if delay exceeds threshold
-    if delayMinutes >= delayThreshold {
-    NotificationManager.shared.sendDelayAlert(
-    tripId: trip.id,
-    tripTitle: trip.title,
-    delayMinutes: delayMinutes
-    )
-    }
-    }
+        // Only proceed if trip is in progress
+        if trip.status != .ongoing {
+            return
+        }
+        
+        // We need the scheduled arrival time (end time)
+        if trip.scheduledEndTime == nil {
+            return
+        }
+        
+        // Make sure we have a vehicleId
+        if trip.vehicleId == nil {
+            return
+        }
+        
+        // Now that we know vehicleId exists, we can safely unwrap
+        let vehicleId = trip.vehicleId!
+        
+        // Check if we have the vehicle location
+        if vehicleLocations[vehicleId] == nil {
+            return
+        }
+        
+        // Check if we have a monitored route
+        if monitoredRoutes[vehicleId] == nil {
+            return
+        }
+        
+        // Now we can safely use the unwrapped values
+        let scheduledArrival = trip.scheduledEndTime
+        let vehicleLocation = vehicleLocations[vehicleId]!.asLocation
+        let route = monitoredRoutes[vehicleId]!
+        
+        // Calculate estimated time of arrival
+        let remainingDistance = estimateRemainingDistance(vehicleLocation: vehicleLocation, route: route)
+        let estimatedTimeToArrival = estimateTimeToArrival(remainingDistance: remainingDistance, vehicleId: vehicleId)
+        
+        // Calculate projected arrival time - this is a non-optional Date
+        let projectedArrival = Date().addingTimeInterval(estimatedTimeToArrival)
+        
+        // Calculate the delay
+        let delayInSeconds = projectedArrival.timeIntervalSince(scheduledArrival)
+        
+        // Check if there's a delay
+        if delayInSeconds > 0 {
+            let delayMinutes = Int(delayInSeconds / 60)
+            let delayThreshold = NotificationManager.shared.delayThresholdMinutes
+            
+            // Send notification if delay exceeds threshold
+            if delayMinutes >= delayThreshold {
+                NotificationManager.shared.sendDelayAlert(
+                    tripId: trip.id,
+                    tripTitle: trip.title,
+                    delayMinutes: delayMinutes
+                )
+            }
+        }
     }
     
     private func estimateRemainingDistance(vehicleLocation: CLLocation, route: MKRoute) -> Double {
-    // This is a simplified implementation
-    // In a real app, you would calculate the remaining distance along the route
-    // by finding the closest point on the route to the vehicle's current location
-    // and then calculating the distance from that point to the end of the route
-    
-    // For simplicity, we'll estimate based on straight-line distance to destination
-    let pointCount = route.polyline.pointCount
-    
-    let coordinates = UnsafeMutablePointer<CLLocationCoordinate2D>.allocate(capacity: pointCount)
-    route.polyline.getCoordinates(coordinates, range: NSRange(location: 0, length: pointCount))
-    
-    // Get the last coordinate
-    let endCoordinate = coordinates[pointCount - 1]
-    
-    coordinates.deallocate()
-    
-    let endLocation = CLLocation(latitude: endCoordinate.latitude, longitude: endCoordinate.longitude)
-    return vehicleLocation.distance(from: endLocation)
+        // This is a simplified implementation
+        // In a real app, you would calculate the remaining distance along the route
+        // by finding the closest point on the route to the vehicle's current location
+        // and then calculating the distance from that point to the end of the route
+        
+        // For simplicity, we'll estimate based on straight-line distance to destination
+        let pointCount = route.polyline.pointCount
+        
+        let coordinates = UnsafeMutablePointer<CLLocationCoordinate2D>.allocate(capacity: pointCount)
+        route.polyline.getCoordinates(coordinates, range: NSRange(location: 0, length: pointCount))
+        
+        // Get the last coordinate
+        let endCoordinate = coordinates[pointCount - 1]
+        
+        coordinates.deallocate()
+        
+        let endLocation = CLLocation(latitude: endCoordinate.latitude, longitude: endCoordinate.longitude)
+        return vehicleLocation.distance(from: endLocation)
     }
     
     private func estimateTimeToArrival(remainingDistance: Double, vehicleId: String) -> TimeInterval {
-    // In a real app, you would use more sophisticated methods including:
-    // - Current vehicle speed from GPS
-    // - Traffic conditions from an API
-    // - Historical travel time data
-    
-    // For simplicity, we'll use an average speed assumption
-    let averageSpeedMetersPerSecond = 13.9 // ~50 km/h or ~30 mph
-    
-    return remainingDistance / averageSpeedMetersPerSecond
+        // In a real app, you would use more sophisticated methods including:
+        // - Current vehicle speed from GPS
+        // - Traffic conditions from an API
+        // - Historical travel time data
+        
+        // For simplicity, we'll use an average speed assumption
+        let averageSpeedMetersPerSecond = 13.9 // ~50 km/h or ~30 mph
+        
+        return remainingDistance / averageSpeedMetersPerSecond
     }
     
     // MARK: - CLLocationManagerDelegate
@@ -577,4 +575,4 @@ enum LocationError: Error {
             return "Location access not authorized"
         }
     }
-}
+} 

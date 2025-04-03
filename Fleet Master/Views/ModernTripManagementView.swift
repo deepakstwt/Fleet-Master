@@ -157,8 +157,8 @@ struct StatusCardsSection: View {
                 
                 StatusCard(
                     title: "In Progress", 
-                    count: viewModel.trips.filter { $0.status == .ongoing }.count,
-                    icon: "airplane.departure",
+                    count: viewModel.trips.filter { $0.status == .ongoing }.count, 
+                    icon: "airplane.departure", 
                     color: .yellow
                 ) {
                     viewModel.filterStatus = .ongoing
@@ -652,4 +652,4 @@ struct ModernTripManagementView_Previews: PreviewProvider {
             vehicleViewModel: VehicleViewModel()
         )
     }
-}
+} 
