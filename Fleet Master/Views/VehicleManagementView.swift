@@ -9,13 +9,13 @@ struct VehicleManagementView: View {
     @State private var showAddVehicleSheet = false
     @State private var showEditVehicleSheet = false
     @State private var selectedVehicle: Vehicle?
-    @State private var selectedSortOption: SortOption = .available
+    @State private var selectedSortOption: SortOption = .newest
     @State private var showFilterMenu = false
     @State private var selectedVehicleTypeFilter: VehicleType?
     @State private var showActiveOnly = true
     
     enum SortOption {
-        case available, underMaintenance, onTrip, assigned
+        case newest, oldest, makeAsc, makeDesc
     }
     
     private var sortedVehicles: [Vehicle] {
@@ -40,13 +40,13 @@ struct VehicleManagementView: View {
         }
         
         switch selectedSortOption {
-        case .available:
+        case .newest:
             return filteredVehicles.sorted(by: { $0.year > $1.year })
-            case .underMaintenance:
+        case .oldest:
             return filteredVehicles.sorted(by: { $0.year < $1.year })
-            case .onTrip:
+        case .makeAsc:
             return filteredVehicles.sorted(by: { $0.make < $1.make })
-            case .assigned:
+        case .makeDesc:
             return filteredVehicles.sorted(by: { $0.make > $1.make })
         }
     }
@@ -91,7 +91,7 @@ struct VehicleManagementView: View {
                         viewModel.selectVehicleForEdit(vehicle: vehicle)
                     }
             }
-            .onChange(of: searchText) { oldValue, newValue in
+            .onChange(of: searchText) { newValue in
                 Task {
                     await viewModel.searchVehiclesInDatabase()
                 }
@@ -110,9 +110,9 @@ struct VehicleManagementView: View {
     private var searchAndFilterBar: some View {
             HStack(spacing: 12) {
                 HStack {
-                        Image(systemName: "magnifyingglass")
-                            .foregroundColor(.secondary)
-                        
+                    Image(systemName: "magnifyingglass")
+                    .foregroundColor(.secondary)
+                
                 TextField("Search by make, model, or registration", text: $searchText)
                     .autocorrectionDisabled()
                 
@@ -126,7 +126,7 @@ struct VehicleManagementView: View {
                         }
                 }
                 .padding(10)
-                    .background(Color(.systemGray6))
+            .background(Color(.systemGray6))
             .cornerRadius(10)
             
         Menu {
@@ -139,31 +139,31 @@ struct VehicleManagementView: View {
             Divider()
             
                 Button {
-                    selectedSortOption = .available
+                    selectedSortOption = .newest
                 } label: {
-                    Label("Available", systemImage: "arrow.down")
-                        .foregroundColor(selectedSortOption == .available ? .blue : .primary)
+                    Label("Newest First", systemImage: "arrow.down")
+                        .foregroundColor(selectedSortOption == .newest ? .blue : .primary)
                 }
                 
                 Button {
-                    selectedSortOption = .underMaintenance
+                    selectedSortOption = .oldest
                 } label: {
-                    Label("Under Maintenance", systemImage: "arrow.up")
-                        .foregroundColor(selectedSortOption == .underMaintenance ? .blue : .primary)
+                    Label("Oldest First", systemImage: "arrow.up")
+                        .foregroundColor(selectedSortOption == .oldest ? .blue : .primary)
                 }
                 
                 Button {
-                    selectedSortOption = .onTrip
+                    selectedSortOption = .makeAsc
                 } label: {
-                    Label("On Trip", systemImage: "arrow.up")
-                        .foregroundColor(selectedSortOption == .onTrip ? .blue : .primary)
+                    Label("Make (A-Z)", systemImage: "arrow.up")
+                        .foregroundColor(selectedSortOption == .makeAsc ? .blue : .primary)
                 }
                 
                 Button {
-                    selectedSortOption = .assigned
+                    selectedSortOption = .makeDesc
                 } label: {
-                    Label("Assigned Trip", systemImage: "arrow.down")
-                        .foregroundColor(selectedSortOption == .assigned ? .blue : .primary)
+                    Label("Make (Z-A)", systemImage: "arrow.down")
+                        .foregroundColor(selectedSortOption == .makeDesc ? .blue : .primary)
             }
         } label: {
             Image(systemName: "slider.horizontal.3")
@@ -176,8 +176,9 @@ struct VehicleManagementView: View {
             .sheet(isPresented: $showFilterMenu) {
                 filterView
     }
+    
             // Add vehicle button
-                    Button(action: {
+        Button(action: {
                 showAddVehicleSheet = true
         }) {
             Image(systemName: "plus")
@@ -193,31 +194,100 @@ struct VehicleManagementView: View {
     
     private var filterView: some View {
         NavigationStack {
-            Form {
-                Section {
-                    Picker("Vehicle Type", selection: $selectedVehicleTypeFilter) {
-                        Text("All Types").tag(nil as VehicleType?)
-                        ForEach(VehicleType.allCases, id: \.self) { type in
-                            HStack {
-                                Image(systemName: type.icon)
-                                Text(type.description)
-                            }
-                            .tag(type as VehicleType?)
+            VStack(spacing: 16) {
+                // Filter buttons
+                VStack(spacing: 12) {
+                    // Available button
+                    Button {
+                        selectedVehicleTypeFilter = nil
+                        showActiveOnly = true
+                        showFilterMenu = false
+                    } label: {
+                        HStack {
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundColor(.green)
+                            Text("Available")
+                                .font(.headline)
+                            Spacer()
                         }
+                        .padding()
+                        .background(Color(.systemBackground))
+                        .cornerRadius(10)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 10)
+                                .stroke(Color.green.opacity(0.3), lineWidth: 1)
+                        )
                     }
-                }
-                
-                Section {
-                    Toggle("Show Active Vehicles Only", isOn: $showActiveOnly)
-                }
-                
-                Section {
-                    Button("Clear Filters") {
+                    
+                    // Under Maintenance button
+                    Button {
                         selectedVehicleTypeFilter = nil
                         showActiveOnly = false
+                        showFilterMenu = false
+                    } label: {
+                        HStack {
+                            Image(systemName: "wrench.fill")
+                                .foregroundColor(.orange)
+                            Text("Under Maintenance")
+                                .font(.headline)
+                            Spacer()
+                        }
+                        .padding()
+                        .background(Color(.systemBackground))
+                        .cornerRadius(10)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 10)
+                                .stroke(Color.orange.opacity(0.3), lineWidth: 1)
+                        )
                     }
-                    .foregroundColor(.red)
+                    
+                    // On Trip button
+                    Button {
+                        selectedVehicleTypeFilter = nil
+                        showActiveOnly = true
+                        showFilterMenu = false
+                    } label: {
+                        HStack {
+                            Image(systemName: "car.fill")
+                                .foregroundColor(.blue)
+                            Text("On Trip")
+                                .font(.headline)
+                            Spacer()
+                        }
+                        .padding()
+                        .background(Color(.systemBackground))
+                        .cornerRadius(10)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 10)
+                                .stroke(Color.blue.opacity(0.3), lineWidth: 1)
+                        )
+                    }
+                    
+                    // Idle button
+                    Button {
+                        selectedVehicleTypeFilter = nil
+                        showActiveOnly = true
+                        showFilterMenu = false
+                    } label: {
+                        HStack {
+                            Image(systemName: "car.side.fill")
+                                .foregroundColor(.gray)
+                            Text("Idle")
+                                .font(.headline)
+                            Spacer()
+                        }
+                        .padding()
+                        .background(Color(.systemBackground))
+                        .cornerRadius(10)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 10)
+                                .stroke(Color.gray.opacity(0.3), lineWidth: 1)
+                        )
+                    }
                 }
+                .padding(.horizontal)
+                
+                Spacer()
             }
             .navigationTitle("Filter Options")
             .navigationBarTitleDisplayMode(.inline)
@@ -322,8 +392,8 @@ struct VehicleManagementView: View {
                     .font(.title2)
                     .fontWeight(.bold)
                 
-                Text(showActiveOnly ? 
-                     "No active vehicles match your search. Try adjusting your filter settings or including inactive vehicles." : 
+                Text(showActiveOnly ?
+                     "No active vehicles match your search. Try adjusting your filter settings or including inactive vehicles." :
                      "No vehicles match your search criteria. Try adjusting your filters.")
                     .font(.subheadline)
                     .foregroundColor(.secondary)
@@ -363,6 +433,21 @@ struct VehicleManagementView: View {
                     Text("Vehicle Info")
                         .font(.subheadline.bold())
                         .foregroundStyle(.primary)
+                    
+                    Button {
+                        withAnimation {
+                            if selectedSortOption == .makeAsc {
+                                selectedSortOption = .makeDesc
+                            } else {
+                                selectedSortOption = .makeAsc
+                            }
+                        }
+                    } label: {
+                        Image(systemName: selectedSortOption == .makeDesc ? "arrow.down" : "arrow.up")
+                            .font(.caption)
+                            .foregroundStyle(selectedSortOption == .makeAsc || selectedSortOption == .makeDesc ? .blue : .secondary)
+                    }
+                    .buttonStyle(BorderlessButtonStyle())
                 }
                 .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
                 .layoutPriority(2)
@@ -373,11 +458,28 @@ struct VehicleManagementView: View {
                     .frame(width: 80, alignment: .center)
                     .layoutPriority(1)
                 
-                // Year column
-                Text("Year")
-                    .font(.subheadline.bold())
-                    .frame(width: 70, alignment: .center)
-                    .layoutPriority(1)
+                // Year column with sort button
+                HStack(spacing: 4) {
+                    Text("Year")
+                        .font(.subheadline.bold())
+                    
+                    Button {
+                        withAnimation {
+                            if selectedSortOption == .newest {
+                                selectedSortOption = .oldest
+                            } else {
+                                selectedSortOption = .newest
+                            }
+                        }
+                    } label: {
+                        Image(systemName: selectedSortOption == .oldest ? "arrow.down" : "arrow.up")
+                            .font(.caption)
+                            .foregroundStyle(selectedSortOption == .newest || selectedSortOption == .oldest ? .blue : .secondary)
+                    }
+                    .buttonStyle(BorderlessButtonStyle())
+                }
+                .frame(width: 70, alignment: .center)
+                .layoutPriority(1)
                 
                 // Status column
                 Text("Status")
@@ -491,29 +593,28 @@ struct VehicleRow: View {
     let onTap: () -> Void
     
     @State private var isHovered = false
-    @State private var showMaintenanceSheet = false
     
     var body: some View {
         Button(action: onTap) {
             HStack(spacing: 0) {
                 // Vehicle info column
                 HStack(spacing: 12) {
-                    // Avatar/Icon
-                    ZStack {
-                        Circle()
-                            .fill(statusColor.opacity(0.15))
+            // Avatar/Icon
+            ZStack {
+                Circle()
+                    .fill(statusColor.opacity(0.15))
                             .frame(width: 48, height: 48)
-                        
-                        Image(systemName: vehicle.vehicleType.icon)
-                    .font(.system(size: 20))
-                            .foregroundColor(statusColor)
+                
+                Image(systemName: vehicle.vehicleType.icon)
+                            .font(.system(size: 20))
+                    .foregroundColor(statusColor)
             }
             
-                    // Vehicle Info
+            // Vehicle Info
                     VStack(alignment: .leading, spacing: 2) {
                 Text("\(vehicle.make) \(vehicle.model)")
                             .font(.subheadline)
-                            .fontWeight(.semibold)
+                    .fontWeight(.semibold)
                     .foregroundColor(vehicle.isActive ? .primary : .secondary)
                             .lineLimit(1)
                 
@@ -524,16 +625,16 @@ struct VehicleRow: View {
                 Text("VIN: \(vehicle.vin)")
                             .font(.caption2)
                     .foregroundColor(.secondary)
-            }
+                    }
                 }
                 .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
                 .layoutPriority(2)
-            
+                
                 // Type column
-                VehicleTypeBadge(type: vehicle.vehicleType)
+                    VehicleTypeBadge(type: vehicle.vehicleType)
                     .frame(width: 80, alignment: .center)
                     .layoutPriority(1)
-            
+                
                 // Year column - Display without commas
                 Text(String(format: "%d", vehicle.year))
                     .font(.subheadline)
@@ -546,32 +647,27 @@ struct VehicleRow: View {
                     .frame(width: 80, alignment: .center)
                     .layoutPriority(1)
                 
-                // Actions column with Menu
-                Menu {
+                // Actions column
+                HStack(spacing: 16) {
                     Button(action: onEdit) {
-                        Label("Edit", systemImage: "pencil")
+                        Image(systemName: "pencil")
+                            .font(.caption)
+                            .foregroundStyle(.blue)
                     }
+                    .buttonStyle(BorderlessButtonStyle())
                     
                     Button(action: onToggleStatus) {
-                        Label("Delete", systemImage: "trash")
-                            .foregroundColor(.red)
+                        Image(systemName: vehicle.isActive ? "trash" : "checkmark.circle")
+                            .font(.caption)
+                            .foregroundStyle(vehicle.isActive ? .red : .green)
                     }
-                    
-                    Button(action: { showMaintenanceSheet = true }) {
-                        Label("Schedule Maintenance", systemImage: "wrench.fill")
-                    }
-                } label: {
-                    Image(systemName: "ellipsis")
-                        .font(.system(size: 16, weight: .bold))
-                        .foregroundStyle(.secondary)
-                        .frame(width: 32, height: 32)
-                        .contentShape(Rectangle())
+                    .buttonStyle(BorderlessButtonStyle())
                 }
                 .opacity(isHovered ? 1 : 0.6)
                 .frame(width: 80, alignment: .center)
                 .layoutPriority(1)
             }
-            .padding(.horizontal, 16)
+        .padding(.horizontal, 16)
             .frame(maxWidth: .infinity)
             .frame(height: 72)
             .background(
@@ -590,10 +686,6 @@ struct VehicleRow: View {
                 .opacity(0.5),
             alignment: .bottom
         )
-        .sheet(isPresented: $showMaintenanceSheet) {
-            ScheduleMaintenanceView(vehicle: vehicle)
-                .presentationDetents([.large])
-        }
     }
     
     private var statusText: String {
@@ -890,10 +982,10 @@ struct AddVehicleView: View {
                         }
                         .disabled((currentStep == 1 && !isStep1Valid) || (currentStep == 2 && !isStep2Valid))
                     } else {
-                    Button(action: {
-                        viewModel.addVehicle()
-                        dismiss()
-                    }) {
+                        Button(action: {
+                            viewModel.addVehicle()
+                            dismiss()
+                        }) {
                             Text("Add Vehicle")
                                 .frame(maxWidth: .infinity)
                                 .padding(.vertical, 16)
@@ -939,13 +1031,13 @@ struct AddVehicleView: View {
                         .fontWeight(.bold)
                     
                     VStack(alignment: .leading, spacing: 16) {
-                        helpItem(icon: "1.circle.fill", title: "Basic Information", 
+                        helpItem(icon: "1.circle.fill", title: "Basic Information",
                                 description: "Enter the vehicle's registration, make, model, and other basic details.")
                         
-                        helpItem(icon: "2.circle.fill", title: "Documents", 
+                        helpItem(icon: "2.circle.fill", title: "Documents",
                                 description: "Enter details about RC, insurance, and pollution certificates.")
                         
-                        helpItem(icon: "3.circle.fill", title: "Service Information", 
+                        helpItem(icon: "3.circle.fill", title: "Service Information",
                                 description: "Add service history and odometer reading for maintenance tracking.")
                     }
                     
@@ -990,7 +1082,7 @@ struct AddVehicleView: View {
                 icon: "car.fill",
                 keyboardType: .default,
                 field: .registration,
-                errorMessage: viewModel.registrationNumber.isEmpty ? "Registration number is required" : 
+                errorMessage: viewModel.registrationNumber.isEmpty ? "Registration number is required" :
                               viewModel.registrationNumber.count < 4 ? "Registration number must be at least 4 characters" : nil,
                 autocapitalization: .characters
             )
@@ -1104,7 +1196,7 @@ struct AddVehicleView: View {
                     .padding(.bottom, 4)
                 
                 LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
-                        ForEach(FuelType.allCases, id: \.self) { fuelType in
+                    ForEach(FuelType.allCases, id: \.self) { fuelType in
                         fuelTypeCard(fuelType)
                     }
                 }
@@ -1298,8 +1390,8 @@ struct AddVehicleView: View {
                     DatePicker(
                         "",
                         selection: Binding(
-                        get: { viewModel.lastServiceDate ?? Date() },
-                        set: { viewModel.lastServiceDate = $0 }
+                            get: { viewModel.lastServiceDate ?? Date() },
+                            set: { viewModel.lastServiceDate = $0 }
                         ),
                         displayedComponents: .date
                     )
@@ -1324,8 +1416,8 @@ struct AddVehicleView: View {
                     DatePicker(
                         "",
                         selection: Binding(
-                        get: { viewModel.nextServiceDue ?? Date() },
-                        set: { viewModel.nextServiceDue = $0 }
+                            get: { viewModel.nextServiceDue ?? Date() },
+                            set: { viewModel.nextServiceDue = $0 }
                         ),
                         displayedComponents: .date
                     )
@@ -1359,7 +1451,7 @@ struct AddVehicleView: View {
             
             Toggle("Active Vehicle", isOn: Binding<Bool>(
                 get: { viewModel.selectedVehicle?.isActive ?? true },
-                set: { newValue in 
+                set: { newValue in
                     // Will be handled in addVehicle()
                 }
             ))
@@ -1425,7 +1517,7 @@ struct AddVehicleView: View {
                 // Icon with background
                 ZStack {
                     Circle()
-                        .fill(viewModel.selectedVehicleType == type ? 
+                        .fill(viewModel.selectedVehicleType == type ?
                               Color.blue : Color(.systemGray6))
                         .frame(width: 60, height: 60)
                     
@@ -1455,7 +1547,7 @@ struct AddVehicleView: View {
                 RoundedRectangle(cornerRadius: .cornerRadius)
                     .fill(Color(.systemBackground))
                     .shadow(
-                        color: viewModel.selectedVehicleType == type ? 
+                        color: viewModel.selectedVehicleType == type ?
                               Color.blue.opacity(0.3) : Color.black.opacity(0.05),
                         radius: 4,
                         x: 0,
@@ -1465,7 +1557,7 @@ struct AddVehicleView: View {
             .overlay(
                 RoundedRectangle(cornerRadius: .cornerRadius)
                     .stroke(
-                        viewModel.selectedVehicleType == type ? 
+                        viewModel.selectedVehicleType == type ?
                         Color.blue : Color.clear,
                         lineWidth: 2
                     )
@@ -1484,7 +1576,7 @@ struct AddVehicleView: View {
                 // Icon with background
                 ZStack {
                     Circle()
-                        .fill(viewModel.selectedFuelType == fuelType ? 
+                        .fill(viewModel.selectedFuelType == fuelType ?
                               Color.blue : Color(.systemGray6))
                         .frame(width: 50, height: 50)
                     
@@ -1505,7 +1597,7 @@ struct AddVehicleView: View {
                 RoundedRectangle(cornerRadius: .cornerRadius)
                     .fill(Color(.systemBackground))
                     .shadow(
-                        color: viewModel.selectedFuelType == fuelType ? 
+                        color: viewModel.selectedFuelType == fuelType ?
                               Color.blue.opacity(0.3) : Color.black.opacity(0.05),
                         radius: 4,
                         x: 0,
@@ -1515,7 +1607,7 @@ struct AddVehicleView: View {
             .overlay(
                 RoundedRectangle(cornerRadius: .cornerRadius)
                     .stroke(
-                        viewModel.selectedFuelType == fuelType ? 
+                        viewModel.selectedFuelType == fuelType ?
                         Color.blue : Color.clear,
                         lineWidth: 2
                     )
@@ -1725,8 +1817,8 @@ struct EditVehicleView: View {
                         .disabled((currentStep == 1 && !isStep1Valid) || (currentStep == 2 && !isStep2Valid))
                     } else {
                         Button(action: {
-                        viewModel.updateVehicle()
-                        dismiss()
+                            viewModel.updateVehicle()
+                            dismiss()
                         }) {
                             Text("Update Vehicle")
                                 .frame(maxWidth: .infinity)
@@ -1884,7 +1976,7 @@ struct EditVehicleView: View {
                 Text("RC Expiry Date")
                     .font(.headline)
                 
-                            HStack {
+        HStack {
                     Image(systemName: "doc.text.fill")
                         .foregroundColor(.blue)
                         .frame(width: 24)
@@ -1921,7 +2013,7 @@ struct EditVehicleView: View {
                         .onSubmit {
                             advanceToNextField(from: .insuranceNumber)
                         }
-                }
+                    }
                     .padding()
                 .background(
                     RoundedRectangle(cornerRadius: 10)
@@ -1934,7 +2026,7 @@ struct EditVehicleView: View {
                 
                 if viewModel.insuranceNumber.isEmpty {
                     Text("Insurance number is required")
-                                    .font(.caption)
+                        .font(.caption)
                         .foregroundColor(.red)
                         .padding(.leading, 4)
                 }
@@ -2099,7 +2191,7 @@ struct EditVehicleView: View {
                     TextField("Enter current kilometers", value: $viewModel.currentOdometer, formatter: NumberFormatter())
                         .keyboardType(.numberPad)
                 }
-                .padding()
+                    .padding()
                 .background(
                     RoundedRectangle(cornerRadius: 10)
                         .fill(Color(.systemBackground))
@@ -2108,7 +2200,7 @@ struct EditVehicleView: View {
             
             Toggle("Active Vehicle", isOn: Binding<Bool>(
                 get: { viewModel.selectedVehicle?.isActive ?? true },
-                set: { newValue in 
+                set: { newValue in
                     // Will be handled in updateVehicle()
                 }
             ))
@@ -2174,7 +2266,7 @@ struct EditVehicleView: View {
                 // Icon with background
                 ZStack {
                     Circle()
-                        .fill(viewModel.selectedVehicleType == type ? 
+                        .fill(viewModel.selectedVehicleType == type ?
                               Color.blue : Color(.systemGray6))
                         .frame(width: 60, height: 60)
                     
@@ -2204,7 +2296,7 @@ struct EditVehicleView: View {
                 RoundedRectangle(cornerRadius: .cornerRadius)
                     .fill(Color(.systemBackground))
                     .shadow(
-                        color: viewModel.selectedVehicleType == type ? 
+                        color: viewModel.selectedVehicleType == type ?
                               Color.blue.opacity(0.3) : Color.black.opacity(0.05),
                         radius: 4,
                         x: 0,
@@ -2214,7 +2306,7 @@ struct EditVehicleView: View {
             .overlay(
                 RoundedRectangle(cornerRadius: .cornerRadius)
                     .stroke(
-                        viewModel.selectedVehicleType == type ? 
+                        viewModel.selectedVehicleType == type ?
                         Color.blue : Color.clear,
                         lineWidth: 2
                     )
@@ -2233,7 +2325,7 @@ struct EditVehicleView: View {
                 // Icon with background
                 ZStack {
                     Circle()
-                        .fill(viewModel.selectedFuelType == fuelType ? 
+                        .fill(viewModel.selectedFuelType == fuelType ?
                               Color.blue : Color(.systemGray6))
                         .frame(width: 50, height: 50)
                     
@@ -2254,7 +2346,7 @@ struct EditVehicleView: View {
                 RoundedRectangle(cornerRadius: .cornerRadius)
                     .fill(Color(.systemBackground))
                     .shadow(
-                        color: viewModel.selectedFuelType == fuelType ? 
+                        color: viewModel.selectedFuelType == fuelType ?
                               Color.blue.opacity(0.3) : Color.black.opacity(0.05),
                         radius: 4,
                         x: 0,
@@ -2264,7 +2356,7 @@ struct EditVehicleView: View {
             .overlay(
                 RoundedRectangle(cornerRadius: .cornerRadius)
                     .stroke(
-                        viewModel.selectedFuelType == fuelType ? 
+                        viewModel.selectedFuelType == fuelType ?
                         Color.blue : Color.clear,
                         lineWidth: 2
                     )
