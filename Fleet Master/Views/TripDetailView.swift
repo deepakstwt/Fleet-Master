@@ -26,7 +26,23 @@ struct TripDetailView: View {
     @EnvironmentObject private var tripViewModel: TripViewModel
     
     init(trip: Trip) {
-        _tripData = State(initialValue: trip)
+        _tripData = State(initialValue: Trip(
+            id: trip.id,
+            title: trip.title,
+            startLocation: trip.startLocation,
+            endLocation: trip.endLocation,
+            scheduledStartTime: trip.scheduledStartTime,
+            scheduledEndTime: trip.scheduledEndTime,
+            status: trip.status,
+            driverId: trip.driverId,
+            vehicleId: trip.vehicleId,
+            description: trip.description,
+            distance: trip.distance,
+            actualStartTime: trip.actualStartTime,
+            actualEndTime: trip.actualEndTime,
+            notes: trip.notes,
+            routeInfo: trip.routeInfo
+        ))
     }
     
     var body: some View {
@@ -388,28 +404,22 @@ struct TripDetailView: View {
     
     private var statusCard: some View {
         VStack(spacing: 16) {
-            // Header section
+            // Header Section
             statusCardHeader
             
-            // Info banner
+            // Info Banner
             if !isCustomSchedule {
-                statusCardInfoBanner
+                statusInfoBanner
             }
             
-            // Custom time inputs
+            // Custom Time Inputs
             if isCustomSchedule {
-                statusCardCustomTimeInputs
+                customTimeInputs
             }
             
-            // Timeline view
-            statusCardTimeline
+            // Timeline View
+            timelineView
         }
-        .padding(20)
-        .background(Color(.systemBackground))
-        .cornerRadius(16)
-        .shadow(color: Color.black.opacity(0.05), radius: 8, x: 0, y: 2)
-        .offset(y: animateContent ? 0 : 20)
-        .opacity(animateContent ? 1 : 0)
     }
     
     private var statusCardHeader: some View {
@@ -446,7 +456,7 @@ struct TripDetailView: View {
         }
     }
     
-    private var statusCardInfoBanner: some View {
+    private var statusInfoBanner: some View {
         HStack(spacing: 10) {
             Image(systemName: "info.circle.fill")
                 .foregroundColor(.blue)
@@ -464,46 +474,11 @@ struct TripDetailView: View {
         )
     }
     
-    private var statusCardCustomTimeInputs: some View {
+    private var customTimeInputs: some View {
         VStack(spacing: 16) {
-            // Start time
-            customTimeInputRow(
-                icon: "clock",
-                title: "Departure Time",
-                time: $customStartTime,
-                color: .blue,
-                onTimeChange: { newTime in
-                    tripData.scheduledStartTime = newTime
-                    if !userHasEditedEndTime {
-                        customEndTime = newTime.addingTimeInterval(estimatedDuration)
-                        tripData.scheduledEndTime = customEndTime
-                    }
-                }
-            )
-            
-            // Vertical connector
-            HStack {
-                Rectangle()
-                    .fill(Color.blue.opacity(0.4))
-                    .frame(width: 2, height: 24)
-                    .padding(.leading, 19)
-                
-                Spacer()
-            }
-            
-            // End time
-            customTimeInputRow(
-                icon: "flag.checkered",
-                title: "Arrival Time",
-                time: $customEndTime,
-                color: .purple,
-                onTimeChange: { newTime in
-                    userHasEditedEndTime = true
-                    tripData.scheduledEndTime = newTime
-                }
-            )
-            
-            // Warning message for custom duration
+            startTimeInput
+            timeConnector
+            endTimeInput
             if userHasEditedEndTime {
                 customDurationWarning
             }
@@ -516,34 +491,76 @@ struct TripDetailView: View {
         )
     }
     
-    private func customTimeInputRow(
-        icon: String,
-        title: String,
-        time: Binding<Date>,
-        color: Color,
-        onTimeChange: @escaping (Date) -> Void
-    ) -> some View {
+    private var startTimeInput: some View {
         HStack(alignment: .center, spacing: 16) {
             ZStack {
                 Circle()
-                    .fill(color.opacity(0.15))
+                    .fill(Color.blue.opacity(0.15))
                     .frame(width: 40, height: 40)
                 
-                Image(systemName: icon)
+                Image(systemName: "clock")
                     .font(.system(size: 18))
-                    .foregroundColor(color)
+                    .foregroundColor(.blue)
             }
             
             VStack(alignment: .leading, spacing: 4) {
-                Text(title)
+                Text("Departure Time")
                     .font(.system(size: 14, weight: .medium))
                     .foregroundColor(.secondary)
                 
-                DatePicker("", selection: time, displayedComponents: [.date, .hourAndMinute])
+                DatePicker("", selection: $customStartTime, displayedComponents: [.date, .hourAndMinute])
                     .labelsHidden()
-                    .accentColor(color)
-                    .onChange(of: time.wrappedValue) { newValue in
-                        onTimeChange(newValue)
+                    .accentColor(.blue)
+                    .onChange(of: customStartTime) { _ in
+                        withAnimation {
+                            tripData.scheduledStartTime = customStartTime
+                            if !userHasEditedEndTime {
+                                customEndTime = customStartTime.addingTimeInterval(estimatedDuration)
+                                tripData.scheduledEndTime = customEndTime
+                            }
+                        }
+                    }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+    
+    private var timeConnector: some View {
+        HStack {
+            Rectangle()
+                .fill(Color.blue.opacity(0.4))
+                .frame(width: 2, height: 24)
+                .padding(.leading, 19)
+            
+            Spacer()
+        }
+    }
+    
+    private var endTimeInput: some View {
+        HStack(alignment: .center, spacing: 16) {
+            ZStack {
+                Circle()
+                    .fill(Color.purple.opacity(0.15))
+                    .frame(width: 40, height: 40)
+                
+                Image(systemName: "flag.checkered")
+                    .font(.system(size: 18))
+                    .foregroundColor(.purple)
+            }
+            
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Arrival Time")
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundColor(.secondary)
+                
+                DatePicker("", selection: $customEndTime, displayedComponents: [.date, .hourAndMinute])
+                    .labelsHidden()
+                    .accentColor(.purple)
+                    .onChange(of: customEndTime) { _ in
+                        withAnimation {
+                            userHasEditedEndTime = true
+                            tripData.scheduledEndTime = customEndTime
+                        }
                     }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -589,10 +606,10 @@ struct TripDetailView: View {
         .padding(.top, 8)
     }
     
-    private var statusCardTimeline: some View {
+    private var timelineView: some View {
         VStack(spacing: 12) {
-            // Timeline track
             ZStack(alignment: .center) {
+                // Timeline track
                 Rectangle()
                     .fill(Color(.systemGray5))
                     .frame(height: 4)
@@ -600,107 +617,18 @@ struct TripDetailView: View {
                 
                 // Progress dots
                 HStack(spacing: 0) {
-                    ForEach([0, 1, 2], id: \.self) { i in
-                        ZStack {
-                            Circle()
-                                .fill(getTripProgressColor(stage: i))
-                                .frame(width: 10, height: 10)
-                            
-                            if i == 1 && tripData.status == .ongoing {
+                    ForEach(0..<3) { i in
+                        Circle()
+                            .fill(i == 0 ? Color.green : (i == 1 ? Color.orange : Color.red))
+                            .frame(width: 12, height: 12)
+                            .overlay(
                                 Circle()
-                                    .stroke(Color.blue, lineWidth: 2)
-                                    .frame(width: 18, height: 18)
-                                    .scaleEffect(1.2)
-                                    .opacity(0.5)
-                                    .animation(
-                                        Animation.easeInOut(duration: 1.0)
-                                            .repeatForever(autoreverses: true),
-                                        value: tripData.status == .inProgress
-                                    )
-                            }
-                        }
-                        .frame(maxWidth: .infinity)
+                                    .stroke(Color.white, lineWidth: 2)
+                            )
                     }
                 }
             }
-            .padding(.horizontal, 20)
-            .padding(.bottom, 4)
-            .padding(.top, 8)
-            
-            // Time display
-            HStack(alignment: .top) {
-                // Start time
-                timeDisplayColumn(
-                    time: tripData.scheduledStartTime,
-                    label: "START",
-                    dateColor: .blue
-                )
-                
-                // End time
-                timeDisplayColumn(
-                    time: tripData.scheduledEndTime,
-                    label: "END",
-                    dateColor: .red.opacity(0.8)
-                )
-            }
-            .padding(.bottom, 8)
-            
-            // Duration pill
-            durationPill
         }
-        .padding(.top, 8)
-    }
-    
-    private func timeDisplayColumn(time: Date, label: String, dateColor: Color) -> some View {
-        VStack(alignment: .center, spacing: 4) {
-            Text(formatTimeWithoutAmPm(time))
-                .font(.system(size: 36, weight: .bold))
-                .foregroundColor(.primary)
-                .minimumScaleFactor(0.7)
-                .lineLimit(1)
-                .padding(.bottom, -5)
-            
-            Text(getAmPm(time))
-                .font(.system(size: 36, weight: .bold))
-                .foregroundColor(.primary)
-                .minimumScaleFactor(0.7)
-                .lineLimit(1)
-                .padding(.bottom, 8)
-            
-            Text(label)
-                .font(.system(size: 12, weight: .medium))
-                .foregroundColor(.secondary)
-            
-            Text(formatDateOnly(time))
-                .font(.system(size: 16, weight: .medium))
-                .foregroundColor(dateColor)
-        }
-        .frame(maxWidth: .infinity)
-    }
-    
-    private var durationPill: some View {
-        HStack(spacing: 8) {
-            Image(systemName: "timer")
-                .font(.system(size: 14))
-                .foregroundColor(.white)
-            
-            Text(estimatedTime)
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundColor(.white)
-        }
-        .frame(width: 120)
-        .padding(.vertical, 10)
-        .background(
-            Capsule()
-                .fill(
-                    LinearGradient(
-                        gradient: Gradient(colors: [.blue, .purple.opacity(0.8)]),
-                        startPoint: .leading,
-                        endPoint: .trailing
-                    )
-                )
-        )
-        .shadow(color: Color.black.opacity(0.1), radius: 4, x: 0, y: 2)
     }
     
     private var locationsCard: some View {
