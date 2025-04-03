@@ -150,21 +150,7 @@ struct ActiveTripCard: View {
                 Spacer()
                 
                 // Track Location Button
-                Button {
-                    showMap = true
-                } label: {
-                    HStack(spacing: 6) {
-                        Image(systemName: "location.fill")
-                            .font(.system(size: 14))
-                        Text("Track")
-                            .font(.system(size: 14, weight: .semibold))
-                    }
-                    .padding(.vertical, 8)
-                    .padding(.horizontal, 12)
-                    .background(Color.blue)
-                    .foregroundColor(.white)
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
-                }
+                
             }
             .padding(.horizontal, 18)
             .padding(.bottom, 16)
