@@ -11,6 +11,8 @@ struct DashboardView: View {
     @State private var selectedTrip: Trip?
     @State private var showTripDetail = false
     @State private var isRefreshing = false
+    @State private var selectedMaintenanceRequest: MaintenanceRequest?
+    @State private var showMaintenanceDetail = false
     
     var body: some View {
         NavigationStack {
@@ -122,8 +124,8 @@ struct DashboardView: View {
                                     )
                                 ]
                             )
-            }
-            .padding(.horizontal)
+                        }
+                        .padding(.horizontal)
                     }
                     
                     // Active Trips Section
@@ -168,6 +170,61 @@ struct DashboardView: View {
                             .padding(.horizontal)
                         }
                     }
+                    
+                    // Maintenance and Repair Requests Section
+                    VStack(alignment: .leading, spacing: 16) {
+                        HStack {
+                            Text("Maintenance & Repair Requests")
+                                .font(.title2)
+                                .fontWeight(.bold)
+                            
+                            Spacer()
+                        }
+                        .padding(.horizontal)
+                        
+                        // Horizontal scrollable cards
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 16) {
+                                // Overdue Maintenance Cards
+                                ForEach(maintenanceViewModel.overdueMaintenanceRequests) { request in
+                                    MaintenanceRequestCard(request: request, isOverdue: true)
+                                        .onTapGesture {
+                                            selectedMaintenanceRequest = request
+                                            showMaintenanceDetail = true
+                                        }
+                                }
+                                
+                                // Driver-generated Repair Request Cards
+                                ForEach(maintenanceViewModel.driverRepairRequests) { request in
+                                    MaintenanceRequestCard(request: request, isOverdue: false)
+                                        .onTapGesture {
+                                            selectedMaintenanceRequest = request
+                                            showMaintenanceDetail = true
+                                        }
+                                }
+                                
+                                // Empty state
+                                if maintenanceViewModel.overdueMaintenanceRequests.isEmpty && 
+                                   maintenanceViewModel.driverRepairRequests.isEmpty {
+                                    VStack(spacing: 12) {
+                                        Image(systemName: "checkmark.circle.fill")
+                                            .font(.system(size: 40))
+                                            .foregroundStyle(.green)
+                                        Text("No Pending Requests")
+                                            .font(.headline)
+                                        Text("All maintenance is up to date")
+                                            .font(.subheadline)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                    .frame(width: 280, height: 180)
+                                    .background(Color(.systemBackground))
+                                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                                    .shadow(color: Color(.systemGray4).opacity(0.5), radius: 5)
+                                }
+                            }
+                            .padding(.horizontal)
+                        }
+                    }
                 }
             }
             .navigationTitle("Dashboard")
@@ -207,6 +264,11 @@ struct DashboardView: View {
             .sheet(item: $selectedTrip) { trip in
                 TripDetailView(trip: trip)
             }
+            .sheet(isPresented: $showMaintenanceDetail) {
+                if let request = selectedMaintenanceRequest {
+                    MaintenanceDetailView(person: request.personnel)
+                }
+            }
         }
     }
     
@@ -214,6 +276,7 @@ struct DashboardView: View {
         // Use public methods to refresh data
         await tripViewModel.loadTrips()
         await vehicleViewModel.fetchVehicles()
+        await maintenanceViewModel.fetchMaintenanceRequests()
     }
 }
 
@@ -616,6 +679,160 @@ struct FrequentRepairRow: View {
         .padding()
         .background(Color(.systemGray6))
         .clipShape(RoundedRectangle(cornerRadius: 12))
+    }
+}
+
+// MaintenanceRequest Card Component
+struct MaintenanceRequestCard: View {
+    let request: MaintenanceRequest
+    let isOverdue: Bool
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            // Header
+            HStack {
+                Image(systemName: isOverdue ? "exclamationmark.triangle.fill" : "wrench.fill")
+                    .font(.title2)
+                    .foregroundStyle(.white)
+                    .frame(width: 40, height: 40)
+                    .background(
+                        Circle()
+                            .fill(isOverdue ? Color.red : Color.orange)
+                    )
+                
+                VStack(alignment: .leading) {
+                    Text(isOverdue ? "Maintenance Due" : "Repair Request")
+                        .font(.headline)
+                    
+                    Text(request.vehicle.registrationNumber)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+                
+                Spacer()
+                
+                Text(isOverdue ? "Overdue" : "Pending")
+                    .font(.caption)
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(isOverdue ? Color.red : Color.orange)
+                    .clipShape(Capsule())
+            }
+            
+            Divider()
+            
+            // Details
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Text("Vehicle:")
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Text(request.vehicle.make + " " + request.vehicle.model)
+                        .fontWeight(.medium)
+                }
+                
+                HStack {
+                    Text(isOverdue ? "Due Date:" : "Reported:")
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Text(isOverdue ? formattedDate(request.dueDateTimestamp) : formattedDate(request.createdTimestamp))
+                        .fontWeight(.medium)
+                }
+                
+                if !isOverdue {
+                    HStack {
+                        Text("Issue:")
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                        Text(request.description)
+                            .fontWeight(.medium)
+                            .lineLimit(1)
+                    }
+                }
+            }
+            
+            Spacer()
+            
+            // Action Button
+            Button(action: {
+                // Action to schedule maintenance or view details
+            }) {
+                Text(isOverdue ? "Schedule Maintenance" : "View Details")
+                    .font(.subheadline)
+                    .fontWeight(.semibold)
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 10)
+                    .background(isOverdue ? Color.red : Color.orange)
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+            }
+        }
+        .padding(16)
+        .frame(width: 280, height: 220)
+        .background(Color(.systemBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .shadow(color: (isOverdue ? Color.red : Color.orange).opacity(0.2), radius: 10)
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(
+                    LinearGradient(
+                        colors: [
+                            (isOverdue ? Color.red : Color.orange).opacity(0.3),
+                            (isOverdue ? Color.red : Color.orange).opacity(0.1),
+                            .clear
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    lineWidth: 1
+                )
+        )
+    }
+    
+    private func formattedDate(_ timestamp: Double) -> String {
+        let date = Date(timeIntervalSince1970: timestamp)
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .none
+        return formatter.string(from: date)
+    }
+}
+
+// MaintenanceRequest Model
+struct MaintenanceRequest: Identifiable {
+    let id: String
+    let vehicle: Vehicle
+    let description: String
+    let dueDateTimestamp: Double
+    let createdTimestamp: Double
+    let isDriverRequest: Bool
+    var isScheduled: Bool = false
+    let personnel: MaintenancePersonnel
+}
+
+// Extension for MaintenanceViewModel to access requests
+extension MaintenanceViewModel {
+    var overdueMaintenanceRequests: [MaintenanceRequest] {
+        // Return vehicles with maintenance due dates that have passed but not scheduled
+        let currentDate = Date().timeIntervalSince1970
+        return pendingMaintenanceRequests.filter { !$0.isScheduled && !$0.isDriverRequest && $0.dueDateTimestamp < currentDate }
+    }
+    
+    var driverRepairRequests: [MaintenanceRequest] {
+        // Return repair requests generated by drivers
+        return pendingMaintenanceRequests.filter { !$0.isScheduled && $0.isDriverRequest }
+    }
+    
+    // Dummy data for preview
+    var pendingMaintenanceRequests: [MaintenanceRequest] {
+        // Return maintenance requests that need attention
+        // In a real app, this would be fetched from the database
+        return []
+    }
+    
+    func fetchMaintenanceRequests() async {
+        // Implementation for fetching maintenance requests
     }
 }
 
