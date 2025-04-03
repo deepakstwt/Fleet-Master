@@ -14,6 +14,7 @@ struct VehicleManagementView: View {
     @State private var selectedVehicleTypeFilter: VehicleType?
     @State private var selectedStatusFilter: VehicleStatus?
     @State private var selectedVehicleStatus: VehicleStatus = .available
+    @State private var showingHelp = false
     
     enum SortOption {
         case newest, oldest, makeAsc, makeDesc
@@ -131,6 +132,109 @@ struct VehicleManagementView: View {
         }
         .alert(viewModel.alertMessage, isPresented: $viewModel.showAlert) {
                 Button("OK", role: .cancel) {}
+        }
+        .sheet(isPresented: $showingHelp) {
+            NavigationStack {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 24) {
+                        // Registration Number format
+                        VStack(alignment: .leading, spacing: 12) {
+                            Text("Registration Number Format")
+                                .font(.headline)
+                                .foregroundColor(.primary)
+                            
+                            Text(VehicleViewModel.registrationNumberHelpText)
+                                .font(.body)
+                                .foregroundColor(.secondary)
+                        }
+                        .padding(.horizontal)
+                        .padding(.top)
+                        
+                        // VIN format
+                        VStack(alignment: .leading, spacing: 12) {
+                            Text("VIN Format")
+                                .font(.headline)
+                                .foregroundColor(.primary)
+                            
+                            Text(VehicleViewModel.vinHelpText)
+                                .font(.body)
+                                .foregroundColor(.secondary)
+                        }
+                        .padding(.horizontal)
+                        
+                        // Help about fields
+                        VStack(alignment: .leading, spacing: 12) {
+                            Text("Required Fields")
+                                .font(.headline)
+                                .foregroundColor(.primary)
+                            
+                            Text("All fields marked with validation messages are required. Make sure to fill them accurately to maintain your fleet records.")
+                                .font(.body)
+                                .foregroundColor(.secondary)
+                        }
+                        .padding(.horizontal)
+                        
+                        // Status explanation
+                        VStack(alignment: .leading, spacing: 12) {
+                            Text("Vehicle Status")
+                                .font(.headline)
+                                .foregroundColor(.primary)
+                            
+                            VStack(alignment: .leading, spacing: 8) {
+                                HStack(spacing: 8) {
+                                    Circle()
+                                        .fill(Color.green)
+                                        .frame(width: 12, height: 12)
+                                    Text("Available")
+                                        .font(.body)
+                                        .foregroundColor(.primary)
+                                }
+                                
+                                Text("Vehicle is operational and ready for assignment")
+                                    .font(.subheadline)
+                                    .foregroundColor(.secondary)
+                                
+                                HStack(spacing: 8) {
+                                    Circle()
+                                        .fill(Color.orange)
+                                        .frame(width: 12, height: 12)
+                                    Text("Under Maintenance")
+                                        .font(.body)
+                                        .foregroundColor(.primary)
+                                }
+                                
+                                Text("Vehicle is being serviced or repaired")
+                                    .font(.subheadline)
+                                    .foregroundColor(.secondary)
+                                
+                                HStack(spacing: 8) {
+                                    Circle()
+                                        .fill(Color.blue)
+                                        .frame(width: 12, height: 12)
+                                    Text("On Trip")
+                                        .font(.body)
+                                        .foregroundColor(.primary)
+                                }
+                                
+                                Text("Vehicle is currently in use for a trip")
+                                    .font(.subheadline)
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                        .padding(.horizontal)
+                    }
+                    .padding(.bottom, 40)
+                }
+                .navigationTitle("Help & Information")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .primaryAction) {
+                        Button("Done") {
+                            showingHelp = false
+                        }
+                    }
+                }
+            }
         }
         }
     }
@@ -1092,36 +1196,107 @@ struct AddVehicleView: View {
                 }
             }
             .sheet(isPresented: $showingHelp) {
-                VStack(alignment: .leading, spacing: 20) {
-                    Text("Adding a New Vehicle")
-                        .font(.title2)
-                        .fontWeight(.bold)
-                    
-                    VStack(alignment: .leading, spacing: 16) {
-                        helpItem(icon: "1.circle.fill", title: "Basic Information",
-                                description: "Enter the vehicle's registration, make, model, and other basic details.")
-                        
-                        helpItem(icon: "2.circle.fill", title: "Documents",
-                                description: "Enter details about RC, insurance, and pollution certificates.")
-                        
-                        helpItem(icon: "3.circle.fill", title: "Service Information",
-                                description: "Add service history and odometer reading for maintenance tracking.")
+                NavigationStack {
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 24) {
+                            // Registration Number format
+                            VStack(alignment: .leading, spacing: 12) {
+                                Text("Registration Number Format")
+                                    .font(.headline)
+                                    .foregroundColor(.primary)
+                                
+                                Text(VehicleViewModel.registrationNumberHelpText)
+                                    .font(.body)
+                                    .foregroundColor(.secondary)
+                            }
+                            .padding(.horizontal)
+                            .padding(.top)
+                            
+                            // VIN format
+                            VStack(alignment: .leading, spacing: 12) {
+                                Text("VIN Format")
+                                    .font(.headline)
+                                    .foregroundColor(.primary)
+                                
+                                Text(VehicleViewModel.vinHelpText)
+                                    .font(.body)
+                                    .foregroundColor(.secondary)
+                            }
+                            .padding(.horizontal)
+                            
+                            // Help about fields
+                            VStack(alignment: .leading, spacing: 12) {
+                                Text("Required Fields")
+                                    .font(.headline)
+                                    .foregroundColor(.primary)
+                                
+                                Text("All fields marked with validation messages are required. Make sure to fill them accurately to maintain your fleet records.")
+                                    .font(.body)
+                                    .foregroundColor(.secondary)
+                            }
+                            .padding(.horizontal)
+                            
+                            // Status explanation
+                            VStack(alignment: .leading, spacing: 12) {
+                                Text("Vehicle Status")
+                                    .font(.headline)
+                                    .foregroundColor(.primary)
+                                
+                                VStack(alignment: .leading, spacing: 8) {
+                                    HStack(spacing: 8) {
+                                        Circle()
+                                            .fill(Color.green)
+                                            .frame(width: 12, height: 12)
+                                        Text("Available")
+                                            .font(.body)
+                                            .foregroundColor(.primary)
+                                    }
+                                    
+                                    Text("Vehicle is operational and ready for assignment")
+                                        .font(.subheadline)
+                                        .foregroundColor(.secondary)
+                                    
+                                    HStack(spacing: 8) {
+                                        Circle()
+                                            .fill(Color.orange)
+                                            .frame(width: 12, height: 12)
+                                        Text("Under Maintenance")
+                                            .font(.body)
+                                            .foregroundColor(.primary)
+                                    }
+                                    
+                                    Text("Vehicle is being serviced or repaired")
+                                        .font(.subheadline)
+                                        .foregroundColor(.secondary)
+                                    
+                                    HStack(spacing: 8) {
+                                        Circle()
+                                            .fill(Color.blue)
+                                            .frame(width: 12, height: 12)
+                                        Text("On Trip")
+                                            .font(.body)
+                                            .foregroundColor(.primary)
+                                    }
+                                    
+                                    Text("Vehicle is currently in use for a trip")
+                                        .font(.subheadline)
+                                        .foregroundColor(.secondary)
+                                }
+                            }
+                            .padding(.horizontal)
+                        }
+                        .padding(.bottom, 40)
                     }
-                    
-                    Spacer()
-                    
-                    Button {
-                        showingHelp = false
-                    } label: {
-                        Text("Got It")
-                    .frame(maxWidth: .infinity)
-                            .padding(.vertical, 16)
-                            .background(Color.blue)
-                            .foregroundColor(.white)
-                            .cornerRadius(10)
+                    .navigationTitle("Help & Information")
+                    .navigationBarTitleDisplayMode(.inline)
+                    .toolbar {
+                        ToolbarItem(placement: .primaryAction) {
+                            Button("Done") {
+                                showingHelp = false
+                            }
+                        }
                     }
                 }
-                .padding(24)
             }
             .onAppear {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
@@ -1149,8 +1324,7 @@ struct AddVehicleView: View {
                 icon: "car.fill",
                 keyboardType: .default,
                 field: .registration,
-                errorMessage: viewModel.registrationNumber.isEmpty ? "Registration number is required" :
-                              viewModel.registrationNumber.count < 4 ? "Registration number must be at least 4 characters" : nil,
+                errorMessage: viewModel.registrationNumberErrorMessage(),
                 autocapitalization: .characters
             )
             
@@ -1195,12 +1369,12 @@ struct AddVehicleView: View {
                         .fill(Color(.systemBackground))
                         .overlay(
                             RoundedRectangle(cornerRadius: 10)
-                                .stroke(viewModel.year < 1990 ? Color.red : Color.clear, lineWidth: 1.5)
+                                .stroke(!viewModel.isValidYear() ? Color.red : Color.clear, lineWidth: 1.5)
                         )
                 )
                 
-                if viewModel.year < 1990 {
-                    Text("Year must be 1990 or later")
+                if let errorMessage = viewModel.yearErrorMessage() {
+                    Text(errorMessage)
                         .font(.caption)
                         .foregroundColor(.red)
                         .padding(.leading, 4)
@@ -1215,7 +1389,7 @@ struct AddVehicleView: View {
                 icon: "barcode.fill",
                 keyboardType: .default,
                 field: .vin,
-                errorMessage: viewModel.vin.isEmpty ? "VIN is required" : nil,
+                errorMessage: viewModel.vinErrorMessage(),
                 autocapitalization: .characters
             )
             
@@ -1286,87 +1460,53 @@ struct AddVehicleView: View {
                 .font(.title3)
                 .fontWeight(.bold)
             
-            Text("Update the vehicle's documentation information as they expire and renew.")
+            Text("Enter details about the vehicle's registration certificate, insurance, and pollution certificate.")
                 .font(.subheadline)
                 .foregroundColor(.secondary)
             
+            // RC Expiry Date
             VStack(alignment: .leading, spacing: 8) {
                 Text("RC Expiry Date")
                     .font(.headline)
                 
-                HStack {
-                    Image(systemName: "doc.text.fill")
-                        .foregroundColor(.blue)
-                        .frame(width: 24)
-                    
-                    DatePicker(
-                        "",
-                        selection: $viewModel.rcExpiryDate,
-                        displayedComponents: .date
-                    )
-                    .labelsHidden()
-                }
+                DatePicker(
+                    "RC Expiry Date",
+                    selection: $viewModel.rcExpiryDate,
+                    displayedComponents: .date
+                )
+                .datePickerStyle(CompactDatePickerStyle())
+                .labelsHidden()
                 .padding()
-            .background(
+                .background(
                     RoundedRectangle(cornerRadius: 10)
                         .fill(Color(.systemBackground))
                 )
             }
             
             // Insurance Number
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Insurance Number")
-                    .font(.headline)
-                
-                HStack {
-                    Image(systemName: "shield.fill")
-                        .foregroundColor(.blue)
-                        .frame(width: 24)
-                    
-                    TextField("Enter insurance policy number", text: $viewModel.insuranceNumber)
-                        .keyboardType(.default)
-                        .autocorrectionDisabled()
-                        .textInputAutocapitalization(.characters)
-                        .focused($focusField, equals: FormField.insuranceNumber)
-                        .onSubmit {
-                            advanceToNextField(from: .insuranceNumber)
-                        }
-                }
-                    .padding()
-                .background(
-                    RoundedRectangle(cornerRadius: 10)
-                        .fill(Color(.systemBackground))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 10)
-                                .stroke(viewModel.insuranceNumber.isEmpty ? Color.red : focusField == .insuranceNumber ? Color.blue : Color.clear, lineWidth: 1.5)
-                        )
-                )
-                
-                if viewModel.insuranceNumber.isEmpty {
-                    Text("Insurance number is required")
-                        .font(.caption)
-                        .foregroundColor(.red)
-                        .padding(.leading, 4)
-                }
-            }
+            inputField(
+                title: "Insurance Number",
+                placeholder: "Enter insurance policy number",
+                text: $viewModel.insuranceNumber,
+                icon: "doc.text.fill",
+                keyboardType: .default,
+                field: .insuranceNumber,
+                errorMessage: viewModel.insuranceNumberErrorMessage()
+            )
             
+            // Insurance Expiry Date
             VStack(alignment: .leading, spacing: 8) {
                 Text("Insurance Expiry Date")
                     .font(.headline)
                 
-                HStack {
-                    Image(systemName: "calendar.badge.clock")
-                        .foregroundColor(.blue)
-                        .frame(width: 24)
-                    
-                    DatePicker(
-                        "",
-                        selection: $viewModel.insuranceExpiryDate,
-                        displayedComponents: .date
-                    )
-                    .labelsHidden()
-                }
-                    .padding()
+                DatePicker(
+                    "Insurance Expiry Date",
+                    selection: $viewModel.insuranceExpiryDate,
+                    displayedComponents: .date
+                )
+                .datePickerStyle(CompactDatePickerStyle())
+                .labelsHidden()
+                .padding()
                 .background(
                     RoundedRectangle(cornerRadius: 10)
                         .fill(Color(.systemBackground))
@@ -1374,58 +1514,28 @@ struct AddVehicleView: View {
             }
             
             // Pollution Certificate Number
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Pollution Certificate Number")
-                    .font(.headline)
-                
-                HStack {
-                    Image(systemName: "leaf.fill")
-                        .foregroundColor(.blue)
-                        .frame(width: 24)
-                    
-                    TextField("Enter certificate number", text: $viewModel.pollutionCertificateNumber)
-                        .keyboardType(.default)
-                        .autocorrectionDisabled()
-                        .textInputAutocapitalization(.characters)
-                        .focused($focusField, equals: FormField.pollutionNumber)
-                        .onSubmit {
-                            advanceToNextField(from: .pollutionNumber)
-                        }
-                }
-                .padding()
-                .background(
-                    RoundedRectangle(cornerRadius: 10)
-                        .fill(Color(.systemBackground))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 10)
-                                .stroke(viewModel.pollutionCertificateNumber.isEmpty ? Color.red : focusField == .pollutionNumber ? Color.blue : Color.clear, lineWidth: 1.5)
-                        )
-                )
-                
-                if viewModel.pollutionCertificateNumber.isEmpty {
-                    Text("Certificate number is required")
-                        .font(.caption)
-                        .foregroundColor(.red)
-                        .padding(.leading, 4)
-                }
-            }
+            inputField(
+                title: "Pollution Certificate Number",
+                placeholder: "Enter pollution certificate number",
+                text: $viewModel.pollutionCertificateNumber,
+                icon: "leaf.fill",
+                keyboardType: .default,
+                field: .pollutionNumber,
+                errorMessage: viewModel.pollutionCertificateNumberErrorMessage()
+            )
             
+            // Pollution Certificate Expiry Date
             VStack(alignment: .leading, spacing: 8) {
-                Text("Pollution Certificate Expiry")
+                Text("Pollution Certificate Expiry Date")
                     .font(.headline)
                 
-                HStack {
-                    Image(systemName: "calendar.badge.clock")
-                        .foregroundColor(.blue)
-                        .frame(width: 24)
-                    
-                    DatePicker(
-                        "",
-                        selection: $viewModel.pollutionCertificateExpiryDate,
-                        displayedComponents: .date
-                    )
-                    .labelsHidden()
-                }
+                DatePicker(
+                    "Pollution Certificate Expiry Date",
+                    selection: $viewModel.pollutionCertificateExpiryDate,
+                    displayedComponents: .date
+                )
+                .datePickerStyle(CompactDatePickerStyle())
+                .labelsHidden()
                 .padding()
                 .background(
                     RoundedRectangle(cornerRadius: 10)
@@ -1589,7 +1699,7 @@ struct AddVehicleView: View {
     }
     
     private var isFormValid: Bool {
-        return isStep1Valid && isStep2Valid && viewModel.registrationNumber.count >= 4
+        return viewModel.isVehicleFormValid()
     }
     
     private var vehicleTypeSelector: some View {
@@ -1732,6 +1842,7 @@ struct EditVehicleView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var currentStep = 1
     @State private var selectedVehicleStatus: VehicleStatus = .available
+    @State private var showingHelp = false
     @FocusState private var focusField: FormField?
     
     enum FormField {
@@ -1944,6 +2055,14 @@ struct EditVehicleView: View {
                         dismiss()
                     }
                 }
+                
+                ToolbarItem(placement: .primaryAction) {
+                    Button {
+                        showingHelp.toggle()
+                    } label: {
+                        Image(systemName: "info.circle")
+                    }
+                }
             }
             .onAppear {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
@@ -2067,87 +2186,53 @@ struct EditVehicleView: View {
                 .font(.title3)
                 .fontWeight(.bold)
             
-            Text("Update the vehicle's documentation information as they expire and renew.")
+            Text("Enter details about the vehicle's registration certificate, insurance, and pollution certificate.")
                 .font(.subheadline)
                 .foregroundColor(.secondary)
             
+            // RC Expiry Date
             VStack(alignment: .leading, spacing: 8) {
                 Text("RC Expiry Date")
                     .font(.headline)
                 
-        HStack {
-                    Image(systemName: "doc.text.fill")
-                        .foregroundColor(.blue)
-                        .frame(width: 24)
-                    
-            DatePicker(
-                        "",
-                        selection: $viewModel.rcExpiryDate,
-                displayedComponents: .date
-            )
-            .labelsHidden()
-                }
+                DatePicker(
+                    "RC Expiry Date",
+                    selection: $viewModel.rcExpiryDate,
+                    displayedComponents: .date
+                )
+                .datePickerStyle(CompactDatePickerStyle())
+                .labelsHidden()
                 .padding()
-            .background(
+                .background(
                     RoundedRectangle(cornerRadius: 10)
                         .fill(Color(.systemBackground))
                 )
             }
             
             // Insurance Number
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Insurance Number")
-                    .font(.headline)
-                
-                HStack {
-                    Image(systemName: "shield.fill")
-                        .foregroundColor(.blue)
-                        .frame(width: 24)
-                    
-                    TextField("Enter insurance policy number", text: $viewModel.insuranceNumber)
-                        .keyboardType(.default)
-                        .autocorrectionDisabled()
-                        .textInputAutocapitalization(.characters)
-                        .focused($focusField, equals: FormField.insuranceNumber)
-                        .onSubmit {
-                            advanceToNextField(from: .insuranceNumber)
-                        }
-                }
-                    .padding()
-                .background(
-                    RoundedRectangle(cornerRadius: 10)
-                        .fill(Color(.systemBackground))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 10)
-                                .stroke(viewModel.insuranceNumber.isEmpty ? Color.red : focusField == .insuranceNumber ? Color.blue : Color.clear, lineWidth: 1.5)
-                        )
-                )
-                
-                if viewModel.insuranceNumber.isEmpty {
-                    Text("Insurance number is required")
-                        .font(.caption)
-                        .foregroundColor(.red)
-                        .padding(.leading, 4)
-                }
-            }
+            inputField(
+                title: "Insurance Number",
+                placeholder: "Enter insurance policy number",
+                text: $viewModel.insuranceNumber,
+                icon: "doc.text.fill",
+                keyboardType: .default,
+                field: .insuranceNumber,
+                errorMessage: viewModel.insuranceNumberErrorMessage()
+            )
             
+            // Insurance Expiry Date
             VStack(alignment: .leading, spacing: 8) {
                 Text("Insurance Expiry Date")
                     .font(.headline)
                 
-                HStack {
-                    Image(systemName: "calendar.badge.clock")
-                        .foregroundColor(.blue)
-                        .frame(width: 24)
-                    
-                    DatePicker(
-                        "",
-                        selection: $viewModel.insuranceExpiryDate,
-                        displayedComponents: .date
-                    )
-                    .labelsHidden()
-                }
-                    .padding()
+                DatePicker(
+                    "Insurance Expiry Date",
+                    selection: $viewModel.insuranceExpiryDate,
+                    displayedComponents: .date
+                )
+                .datePickerStyle(CompactDatePickerStyle())
+                .labelsHidden()
+                .padding()
                 .background(
                     RoundedRectangle(cornerRadius: 10)
                         .fill(Color(.systemBackground))
@@ -2155,58 +2240,28 @@ struct EditVehicleView: View {
             }
             
             // Pollution Certificate Number
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Pollution Certificate Number")
-                    .font(.headline)
-                
-                HStack {
-                    Image(systemName: "leaf.fill")
-                        .foregroundColor(.blue)
-                        .frame(width: 24)
-                    
-                    TextField("Enter certificate number", text: $viewModel.pollutionCertificateNumber)
-                        .keyboardType(.default)
-                        .autocorrectionDisabled()
-                        .textInputAutocapitalization(.characters)
-                        .focused($focusField, equals: FormField.pollutionNumber)
-                        .onSubmit {
-                            advanceToNextField(from: .pollutionNumber)
-                        }
-                }
-                .padding()
-                .background(
-                    RoundedRectangle(cornerRadius: 10)
-                        .fill(Color(.systemBackground))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 10)
-                                .stroke(viewModel.pollutionCertificateNumber.isEmpty ? Color.red : focusField == .pollutionNumber ? Color.blue : Color.clear, lineWidth: 1.5)
-                        )
-                )
-                
-                if viewModel.pollutionCertificateNumber.isEmpty {
-                    Text("Certificate number is required")
-                        .font(.caption)
-                        .foregroundColor(.red)
-                        .padding(.leading, 4)
-                }
-            }
+            inputField(
+                title: "Pollution Certificate Number",
+                placeholder: "Enter pollution certificate number",
+                text: $viewModel.pollutionCertificateNumber,
+                icon: "leaf.fill",
+                keyboardType: .default,
+                field: .pollutionNumber,
+                errorMessage: viewModel.pollutionCertificateNumberErrorMessage()
+            )
             
+            // Pollution Certificate Expiry Date
             VStack(alignment: .leading, spacing: 8) {
-                Text("Pollution Certificate Expiry")
+                Text("Pollution Certificate Expiry Date")
                     .font(.headline)
                 
-                HStack {
-                    Image(systemName: "calendar.badge.clock")
-                        .foregroundColor(.blue)
-                        .frame(width: 24)
-                    
-                    DatePicker(
-                        "",
-                        selection: $viewModel.pollutionCertificateExpiryDate,
-                        displayedComponents: .date
-                    )
-                    .labelsHidden()
-                }
+                DatePicker(
+                    "Pollution Certificate Expiry Date",
+                    selection: $viewModel.pollutionCertificateExpiryDate,
+                    displayedComponents: .date
+                )
+                .datePickerStyle(CompactDatePickerStyle())
+                .labelsHidden()
                 .padding()
                 .background(
                     RoundedRectangle(cornerRadius: 10)
@@ -2370,7 +2425,7 @@ struct EditVehicleView: View {
     }
     
     private var isFormValid: Bool {
-        return isStep1Valid && isStep2Valid && viewModel.registrationNumber.count >= 4
+        return viewModel.isVehicleFormValid()
     }
     
     private var vehicleTypeSelector: some View {

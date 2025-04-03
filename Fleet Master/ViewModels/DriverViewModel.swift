@@ -94,13 +94,24 @@ class DriverViewModel: ObservableObject,@unchecked Sendable{
     
     /// Add a new driver to Supabase
     func addDriver() {
+        // Validate form inputs first
+        if !isDriverFormValid() {
+            return
+        }
+        
         isLoading = true
         
+        // Clean up input values
+        let cleanName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let cleanEmail = email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let cleanPhone = phone.trimmingCharacters(in: .whitespacesAndNewlines)
+        let cleanLicenseNumber = licenseNumber.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        
         let newDriver = Driver(
-            name: name, 
-            email: email, 
-            phone: phone, 
-            licenseNumber: licenseNumber,
+            name: cleanName, 
+            email: cleanEmail, 
+            phone: cleanPhone, 
+            licenseNumber: cleanLicenseNumber,
             isAvailable: isAvailable,
             vehicleCategories: vehicleCategories
         )
@@ -138,13 +149,25 @@ class DriverViewModel: ObservableObject,@unchecked Sendable{
     /// Update an existing driver in Supabase
     func updateDriver() {
         guard let selectedDriver = selectedDriver else { return }
+        
+        // Validate form inputs first
+        if !isDriverFormValid() {
+            return
+        }
+        
         isLoading = true
         
+        // Clean up input values
+        let cleanName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let cleanEmail = email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let cleanPhone = phone.trimmingCharacters(in: .whitespacesAndNewlines)
+        let cleanLicenseNumber = licenseNumber.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        
         var updatedDriver = selectedDriver
-        updatedDriver.name = name
-        updatedDriver.email = email
-        updatedDriver.phone = phone
-        updatedDriver.licenseNumber = licenseNumber
+        updatedDriver.name = cleanName
+        updatedDriver.email = cleanEmail
+        updatedDriver.phone = cleanPhone
+        updatedDriver.licenseNumber = cleanLicenseNumber
         updatedDriver.isAvailable = isAvailable
         updatedDriver.vehicleCategories = vehicleCategories
         
@@ -289,4 +312,96 @@ class DriverViewModel: ObservableObject,@unchecked Sendable{
     func getDriverById(_ id: String) -> Driver? {
         return drivers.first { $0.id == id }
     }
+    
+    // MARK: - Validation Methods
+    
+    // Validate if a phone number matches Indian format
+    func isValidPhoneNumber(_ phoneNumber: String) -> Bool {
+        // Indian phone numbers are typically 10 digits
+        let phoneRegex = #"^\d{10}$"#
+        return phoneNumber.range(of: phoneRegex, options: .regularExpression) != nil
+    }
+    
+    // Validate if an email is properly formatted
+    func isValidEmail(_ email: String) -> Bool {
+        let emailRegex = #"^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$"#
+        return email.range(of: emailRegex, options: .regularExpression) != nil
+    }
+    
+    // Validate if a license number is properly formatted
+    func isValidLicenseNumber(_ licenseNumber: String) -> Bool {
+        // Indian driving license format: typically two letters (state code) followed by numbers
+        // Example: DL-0123456789 or DL0123456789 or MH 01 20210034567
+        let licenseRegex = #"^[A-Z]{2}[-\s]?\d{2}[-\s]?\d{4}[-\s]?\d{7}$|^[A-Z]{2}[-\s]?\d{13}$"#
+        return licenseNumber.range(of: licenseRegex, options: .regularExpression) != nil
+    }
+    
+    // Check if entire driver form is valid
+    func isDriverFormValid() -> Bool {
+        // Name validation
+        if name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            errorMessage = "Driver name is required"
+            return false
+        }
+        
+        // Email validation
+        if email.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            errorMessage = "Email address is required"
+            return false
+        }
+        
+        if !isValidEmail(email) {
+            errorMessage = "Please enter a valid email address"
+            return false
+        }
+        
+        // Phone validation
+        if phone.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            errorMessage = "Phone number is required"
+            return false
+        }
+        
+        if !isValidPhoneNumber(phone) {
+            errorMessage = "Please enter a valid 10-digit Indian phone number"
+            return false
+        }
+        
+        // License validation
+        if licenseNumber.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            errorMessage = "License number is required"
+            return false
+        }
+        
+        if !isValidLicenseNumber(licenseNumber) {
+            errorMessage = "Please enter a valid Indian driving license number"
+            return false
+        }
+        
+        // Categories validation
+        if vehicleCategories.isEmpty {
+            errorMessage = "At least one vehicle category must be selected"
+            return false
+        }
+        
+        return true
+    }
+    
+    // Static help text for driver fields
+    static let licenseNumberHelpText = """
+    Indian driving license format:
+    • Format: [State Code][RTO Code][Year][Serial Number]
+    • Example: MH 01 20210034567
+    
+    State codes are two letters (e.g., DL for Delhi, MH for Maharashtra)
+    The RTO code is typically 1-2 digits
+    The year is 4 digits
+    The serial number is 7 digits
+    """
+    
+    static let phoneNumberHelpText = """
+    Indian phone number format:
+    • Must be exactly 10 digits
+    • Should not include the country code (+91)
+    • Example: 9876543210
+    """
 } 

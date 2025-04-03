@@ -377,6 +377,8 @@ struct AddDriverView: View {
     @State private var currentStep = 1
     @State private var showingHelp = false
     @FocusState private var focusField: FormField?
+    @State private var showLicenseHelp = false
+    @State private var showPhoneHelp = false
     
     enum FormField {
         case name, email, phone, license
@@ -595,15 +597,68 @@ struct AddDriverView: View {
                 errorMessage: !isEmailValid ? "Enter a valid email address" : nil
             )
             
-            inputField(
-                title: "Phone Number",
-                placeholder: "Enter 10-digit phone number",
-                text: $viewModel.phone,
-                icon: "phone.fill",
-                keyboardType: .phonePad,
-                field: .phone,
-                errorMessage: !isPhoneValid ? "Enter a valid 10-digit phone number" : nil
-            )
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Text("Phone Number")
+                        .font(.headline)
+                    
+                    Button(action: {
+                        showPhoneHelp = true
+                    }) {
+                        Image(systemName: "info.circle")
+                            .foregroundColor(.blue)
+                    }
+                    .sheet(isPresented: $showPhoneHelp) {
+                        NavigationView {
+                            ScrollView {
+                                VStack(alignment: .leading, spacing: 16) {
+                                    Text(DriverViewModel.phoneNumberHelpText)
+                                        .padding()
+                                }
+                            }
+                            .navigationTitle("Phone Number Format")
+                            .navigationBarTitleDisplayMode(.inline)
+                            .toolbar {
+                                ToolbarItem(placement: .confirmationAction) {
+                                    Button("Done") {
+                                        showPhoneHelp = false
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                HStack {
+                    Image(systemName: "phone.fill")
+                        .foregroundColor(.blue)
+                        .frame(width: 24)
+                    
+                    TextField("Enter 10-digit phone number", text: $viewModel.phone)
+                        .keyboardType(.phonePad)
+                        .autocorrectionDisabled()
+                        .focused($focusField, equals: .phone)
+                        .onSubmit {
+                            advanceToNextField(from: .phone)
+                        }
+                }
+                .padding()
+                .background(
+                    RoundedRectangle(cornerRadius: 10)
+                        .fill(Color(.systemBackground))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 10)
+                                .stroke(!isPhoneValid ? Color.red : focusField == .phone ? Color.blue : Color.clear, lineWidth: 1.5)
+                        )
+                )
+                
+                if !isPhoneValid && !viewModel.phone.isEmpty {
+                    Text("Enter a valid 10-digit Indian phone number")
+                        .font(.caption)
+                        .foregroundColor(.red)
+                        .padding(.leading, 4)
+                }
+            }
         }
     }
     
@@ -613,19 +668,70 @@ struct AddDriverView: View {
                 .font(.title3)
                 .fontWeight(.bold)
             
-            Text("Enter the driver's license details as they appear on their RTO-issued driving license.")
+            Text("Enter the driver's license details for regulatory compliance.")
                 .font(.subheadline)
                 .foregroundColor(.secondary)
             
-            inputField(
-                title: "License Number",
-                placeholder: "e.g., DL-0420110012345",
-                text: $viewModel.licenseNumber,
-                icon: "creditcard.fill",
-                keyboardType: .default,
-                field: .license,
-                errorMessage: viewModel.licenseNumber.isEmpty ? "License number is required" : nil
-            )
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Text("License Number")
+                        .font(.headline)
+                    
+                    Button(action: {
+                        showLicenseHelp = true
+                    }) {
+                        Image(systemName: "info.circle")
+                            .foregroundColor(.blue)
+                    }
+                    .sheet(isPresented: $showLicenseHelp) {
+                        NavigationView {
+                            ScrollView {
+                                VStack(alignment: .leading, spacing: 16) {
+                                    Text(DriverViewModel.licenseNumberHelpText)
+                                        .padding()
+                                }
+                            }
+                            .navigationTitle("License Number Format")
+                            .navigationBarTitleDisplayMode(.inline)
+                            .toolbar {
+                                ToolbarItem(placement: .confirmationAction) {
+                                    Button("Done") {
+                                        showLicenseHelp = false
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                HStack {
+                    Image(systemName: "rectangle.and.pencil.and.ellipsis")
+                        .foregroundColor(.blue)
+                        .frame(width: 24)
+                    
+                    TextField("Enter driving license number", text: $viewModel.licenseNumber)
+                        .keyboardType(.default)
+                        .autocorrectionDisabled()
+                        .textInputAutocapitalization(.characters)
+                        .focused($focusField, equals: .license)
+                }
+                .padding()
+                .background(
+                    RoundedRectangle(cornerRadius: 10)
+                        .fill(Color(.systemBackground))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 10)
+                                .stroke(!isLicenseValid ? Color.red : focusField == .license ? Color.blue : Color.clear, lineWidth: 1.5)
+                        )
+                )
+                
+                if !isLicenseValid && !viewModel.licenseNumber.isEmpty {
+                    Text("Please enter a valid license number (e.g., MH 01 20210034567)")
+                        .font(.caption)
+                        .foregroundColor(.red)
+                        .padding(.leading, 4)
+                }
+            }
             
             Toggle("Available for Trips", isOn: $viewModel.isAvailable)
                 .padding(.vertical, 8)
@@ -808,14 +914,17 @@ struct AddDriverView: View {
     
     private var isEmailValid: Bool {
         if viewModel.email.isEmpty { return true }
-        let emailRegex = #"^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$"#
-        return viewModel.email.range(of: emailRegex, options: .regularExpression) != nil
+        return viewModel.isValidEmail(viewModel.email)
     }
     
     private var isPhoneValid: Bool {
         if viewModel.phone.isEmpty { return true }
-        let phoneRegex = #"^\d{10}$"#
-        return viewModel.phone.range(of: phoneRegex, options: .regularExpression) != nil
+        return viewModel.isValidPhoneNumber(viewModel.phone)
+    }
+    
+    private var isLicenseValid: Bool {
+        if viewModel.licenseNumber.isEmpty { return true }
+        return viewModel.isValidLicenseNumber(viewModel.licenseNumber)
     }
     
     private var isStep1Valid: Bool {
@@ -823,7 +932,7 @@ struct AddDriverView: View {
     }
     
     private var isStep2Valid: Bool {
-        return !viewModel.licenseNumber.isEmpty
+        return !viewModel.licenseNumber.isEmpty && isLicenseValid
     }
     
     private func vehicleCategoryIcon(for category: String) -> String {
@@ -847,6 +956,8 @@ struct EditDriverView: View {
     @State private var selectedCategories: Set<String> = []
     @State private var currentStep = 1
     @FocusState private var focusField: FormField?
+    @State private var showLicenseHelp = false
+    @State private var showPhoneHelp = false
     
     enum FormField {
         case name, email, phone, license
@@ -1054,15 +1165,68 @@ struct EditDriverView: View {
                 errorMessage: !isEmailValid ? "Enter a valid email address" : nil
             )
             
-            inputField(
-                title: "Phone Number",
-                placeholder: "Enter 10-digit phone number",
-                text: $viewModel.phone,
-                icon: "phone.fill",
-                keyboardType: .phonePad,
-                field: .phone,
-                errorMessage: !isPhoneValid ? "Enter a valid 10-digit phone number" : nil
-            )
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Text("Phone Number")
+                        .font(.headline)
+                    
+                    Button(action: {
+                        showPhoneHelp = true
+                    }) {
+                        Image(systemName: "info.circle")
+                            .foregroundColor(.blue)
+                    }
+                    .sheet(isPresented: $showPhoneHelp) {
+                        NavigationView {
+                            ScrollView {
+                                VStack(alignment: .leading, spacing: 16) {
+                                    Text(DriverViewModel.phoneNumberHelpText)
+                                        .padding()
+                                }
+                            }
+                            .navigationTitle("Phone Number Format")
+                            .navigationBarTitleDisplayMode(.inline)
+                            .toolbar {
+                                ToolbarItem(placement: .confirmationAction) {
+                                    Button("Done") {
+                                        showPhoneHelp = false
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                HStack {
+                    Image(systemName: "phone.fill")
+                        .foregroundColor(.blue)
+                        .frame(width: 24)
+                    
+                    TextField("Enter 10-digit phone number", text: $viewModel.phone)
+                        .keyboardType(.phonePad)
+                        .autocorrectionDisabled()
+                        .focused($focusField, equals: .phone)
+                        .onSubmit {
+                            advanceToNextField(from: .phone)
+                        }
+                }
+                .padding()
+                .background(
+                    RoundedRectangle(cornerRadius: 10)
+                        .fill(Color(.systemBackground))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 10)
+                                .stroke(!isPhoneValid ? Color.red : focusField == .phone ? Color.blue : Color.clear, lineWidth: 1.5)
+                        )
+                )
+                
+                if !isPhoneValid && !viewModel.phone.isEmpty {
+                    Text("Enter a valid 10-digit Indian phone number")
+                        .font(.caption)
+                        .foregroundColor(.red)
+                        .padding(.leading, 4)
+                }
+            }
         }
     }
     
@@ -1072,16 +1236,70 @@ struct EditDriverView: View {
                 .font(.title3)
                 .fontWeight(.bold)
             
-            Text("License number cannot be modified. Update the driver's availability status as needed.")
+            Text("Enter the driver's license details for regulatory compliance.")
                 .font(.subheadline)
                 .foregroundColor(.secondary)
             
-            // License Number - Read Only
-            readOnlyField(
-                title: "License Number",
-                value: viewModel.licenseNumber,
-                icon: "creditcard.fill"
-            )
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Text("License Number")
+                        .font(.headline)
+                    
+                    Button(action: {
+                        showLicenseHelp = true
+                    }) {
+                        Image(systemName: "info.circle")
+                            .foregroundColor(.blue)
+                    }
+                    .sheet(isPresented: $showLicenseHelp) {
+                        NavigationView {
+                            ScrollView {
+                                VStack(alignment: .leading, spacing: 16) {
+                                    Text(DriverViewModel.licenseNumberHelpText)
+                                        .padding()
+                                }
+                            }
+                            .navigationTitle("License Number Format")
+                            .navigationBarTitleDisplayMode(.inline)
+                            .toolbar {
+                                ToolbarItem(placement: .confirmationAction) {
+                                    Button("Done") {
+                                        showLicenseHelp = false
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                HStack {
+                    Image(systemName: "rectangle.and.pencil.and.ellipsis")
+                        .foregroundColor(.blue)
+                        .frame(width: 24)
+                    
+                    TextField("Enter driving license number", text: $viewModel.licenseNumber)
+                        .keyboardType(.default)
+                        .autocorrectionDisabled()
+                        .textInputAutocapitalization(.characters)
+                        .focused($focusField, equals: .license)
+                }
+                .padding()
+                .background(
+                    RoundedRectangle(cornerRadius: 10)
+                        .fill(Color(.systemBackground))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 10)
+                                .stroke(!isLicenseValid ? Color.red : focusField == .license ? Color.blue : Color.clear, lineWidth: 1.5)
+                        )
+                )
+                
+                if !isLicenseValid && !viewModel.licenseNumber.isEmpty {
+                    Text("Please enter a valid license number (e.g., MH 01 20210034567)")
+                        .font(.caption)
+                        .foregroundColor(.red)
+                        .padding(.leading, 4)
+                }
+            }
             
             Toggle("Available for Trips", isOn: $viewModel.isAvailable)
                 .padding(.vertical, 8)
@@ -1246,14 +1464,17 @@ struct EditDriverView: View {
     
     private var isEmailValid: Bool {
         if viewModel.email.isEmpty { return true }
-        let emailRegex = #"^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$"#
-        return viewModel.email.range(of: emailRegex, options: .regularExpression) != nil
+        return viewModel.isValidEmail(viewModel.email)
     }
     
     private var isPhoneValid: Bool {
         if viewModel.phone.isEmpty { return true }
-        let phoneRegex = #"^\d{10}$"#
-        return viewModel.phone.range(of: phoneRegex, options: .regularExpression) != nil
+        return viewModel.isValidPhoneNumber(viewModel.phone)
+    }
+    
+    private var isLicenseValid: Bool {
+        if viewModel.licenseNumber.isEmpty { return true }
+        return viewModel.isValidLicenseNumber(viewModel.licenseNumber)
     }
     
     private var isStep1Valid: Bool {
@@ -1261,7 +1482,7 @@ struct EditDriverView: View {
     }
     
     private var isStep2Valid: Bool {
-        return !viewModel.licenseNumber.isEmpty
+        return !viewModel.licenseNumber.isEmpty && isLicenseValid
     }
     
     private func vehicleCategoryIcon(for category: String) -> String {

@@ -109,26 +109,32 @@ class VehicleViewModel: ObservableObject {
     }
     
     func addVehicle(status: VehicleStatus = .available) {
+        // First validate all inputs
+        if !isVehicleFormValid() {
+            errorMessage = "Please correct the validation errors before adding the vehicle."
+            return
+        }
+        
         let newVehicle = Vehicle(
-            registrationNumber: registrationNumber,
-            make: make,
-            model: model,
+            registrationNumber: registrationNumber.uppercased().trimmingCharacters(in: .whitespacesAndNewlines),
+            make: make.trimmingCharacters(in: .whitespacesAndNewlines),
+            model: model.trimmingCharacters(in: .whitespacesAndNewlines),
             year: year,
-            vin: vin,
-            color: color,
+            vin: vin.uppercased().trimmingCharacters(in: .whitespacesAndNewlines),
+            color: color.trimmingCharacters(in: .whitespacesAndNewlines),
             fuelType: selectedFuelType,
             vehicleType: selectedVehicleType,
             isActive: true,
             vehicle_status: status,
             rcExpiryDate: rcExpiryDate,
-            insuranceNumber: insuranceNumber,
+            insuranceNumber: insuranceNumber.uppercased().trimmingCharacters(in: .whitespacesAndNewlines),
             insuranceExpiryDate: insuranceExpiryDate,
-            pollutionCertificateNumber: pollutionCertificateNumber,
+            pollutionCertificateNumber: pollutionCertificateNumber.uppercased().trimmingCharacters(in: .whitespacesAndNewlines),
             pollutionCertificateExpiryDate: pollutionCertificateExpiryDate,
             lastServiceDate: lastServiceDate,
             nextServiceDue: nextServiceDue,
             currentOdometer: currentOdometer,
-            additionalNotes: additionalNotes.isEmpty ? nil : additionalNotes
+            additionalNotes: additionalNotes.isEmpty ? nil : additionalNotes.trimmingCharacters(in: .whitespacesAndNewlines)
         )
         
         Task {
@@ -160,17 +166,17 @@ class VehicleViewModel: ObservableObject {
         
         // Create updated vehicle object
         var updatedVehicle = selectedVehicle
-        updatedVehicle.color = color
+        updatedVehicle.color = color.trimmingCharacters(in: .whitespacesAndNewlines)
         updatedVehicle.fuelType = selectedFuelType
         updatedVehicle.rcExpiryDate = rcExpiryDate
-        updatedVehicle.insuranceNumber = insuranceNumber
+        updatedVehicle.insuranceNumber = insuranceNumber.uppercased().trimmingCharacters(in: .whitespacesAndNewlines)
         updatedVehicle.insuranceExpiryDate = insuranceExpiryDate
-        updatedVehicle.pollutionCertificateNumber = pollutionCertificateNumber
+        updatedVehicle.pollutionCertificateNumber = pollutionCertificateNumber.uppercased().trimmingCharacters(in: .whitespacesAndNewlines)
         updatedVehicle.pollutionCertificateExpiryDate = pollutionCertificateExpiryDate
         updatedVehicle.lastServiceDate = lastServiceDate
         updatedVehicle.nextServiceDue = nextServiceDue
         updatedVehicle.currentOdometer = currentOdometer
-        updatedVehicle.additionalNotes = additionalNotes.isEmpty ? nil : additionalNotes
+        updatedVehicle.additionalNotes = additionalNotes.isEmpty ? nil : additionalNotes.trimmingCharacters(in: .whitespacesAndNewlines)
         
         // Update the vehicle status if provided
         if let status = status {
@@ -308,4 +314,199 @@ class VehicleViewModel: ObservableObject {
         let now = Date()
         return nextDue < now
     }
+    
+    // MARK: - Vehicle Validation Methods
+    
+    /// Validates if the registration number follows the Indian vehicle registration format
+    /// Format: [State Code][District Number][Series][Vehicle Number] - e.g., MH12AB1234
+    func isValidRegistrationNumber(_ registration: String? = nil) -> Bool {
+        let registrationToValidate = registration ?? self.registrationNumber
+        
+        // Trim and uppercase the input
+        let cleanRegistration = registrationToValidate.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        
+        // Basic validation - Minimum 8 characters, maximum 11 characters
+        guard cleanRegistration.count >= 8 && cleanRegistration.count <= 11 else {
+            return false
+        }
+        
+        // Check for the standard Indian registration format (e.g., MH12AB1234)
+        // State code: 2 letters, District code: 1-2 digits, Series: 1-2 letters, Number: 1-4 digits
+        let regex = "^[A-Z]{2}[0-9]{1,2}[A-Z]{1,3}[0-9]{1,4}$"
+        return cleanRegistration.range(of: regex, options: .regularExpression) != nil
+    }
+    
+    /// Returns a detailed error message for an invalid registration number
+    func registrationNumberErrorMessage() -> String? {
+        let registration = self.registrationNumber.trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        if registration.isEmpty {
+            return "Registration number is required"
+        }
+        
+        if !isValidRegistrationNumber() {
+            return "Invalid format. Expected: XXNNXX1234 (State code, district, series, number)"
+        }
+        
+        return nil
+    }
+    
+    /// Validates if the VIN follows the standard 17-character VIN format
+    func isValidVIN(_ vin: String? = nil) -> Bool {
+        let vinToValidate = vin ?? self.vin
+        
+        // Trim and uppercase the input
+        let cleanVIN = vinToValidate.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        
+        // Standard VIN is 17 characters
+        guard cleanVIN.count == 17 else {
+            return false
+        }
+        
+        // VIN should only contain letters and numbers (excluding I, O, Q)
+        let validCharacters = CharacterSet(charactersIn: "ABCDEFGHJKLMNPRSTUVWXYZ0123456789")
+        let vinCharacterSet = CharacterSet(charactersIn: cleanVIN)
+        return validCharacters.isSuperset(of: vinCharacterSet)
+    }
+    
+    /// Returns a detailed error message for an invalid VIN
+    func vinErrorMessage() -> String? {
+        let vin = self.vin.trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        if vin.isEmpty {
+            return "VIN is required"
+        }
+        
+        if vin.count != 17 {
+            return "VIN must be exactly 17 characters"
+        }
+        
+        if !isValidVIN() {
+            return "VIN contains invalid characters (Only A-Z, 0-9, excluding I, O, Q)"
+        }
+        
+        return nil
+    }
+    
+    /// Validates if the insurance number is in a valid format
+    func isValidInsuranceNumber(_ insurance: String? = nil) -> Bool {
+        let insuranceToValidate = insurance ?? self.insuranceNumber
+        
+        // Trim whitespace
+        let cleanInsurance = insuranceToValidate.trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        // Basic validation - at least 8 characters, alphanumeric with possible hyphens
+        guard cleanInsurance.count >= 8 else {
+            return false
+        }
+        
+        // Insurance numbers typically are alphanumeric with possible hyphens or slashes
+        let regex = "^[A-Za-z0-9\\-\\/]{8,}$"
+        return cleanInsurance.range(of: regex, options: .regularExpression) != nil
+    }
+    
+    /// Returns a detailed error message for an invalid insurance number
+    func insuranceNumberErrorMessage() -> String? {
+        let insurance = self.insuranceNumber.trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        if insurance.isEmpty {
+            return "Insurance number is required"
+        }
+        
+        if !isValidInsuranceNumber() {
+            return "Insurance number must be at least 8 alphanumeric characters"
+        }
+        
+        return nil
+    }
+    
+    /// Validates if the pollution certificate number is in a valid format
+    func isValidPollutionCertificateNumber(_ certificate: String? = nil) -> Bool {
+        let certificateToValidate = certificate ?? self.pollutionCertificateNumber
+        
+        // Trim whitespace
+        let cleanCertificate = certificateToValidate.trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        // Basic validation - at least 6 characters, alphanumeric with possible hyphens
+        guard cleanCertificate.count >= 6 else {
+            return false
+        }
+        
+        // Pollution certificates typically are alphanumeric with possible hyphens
+        let regex = "^[A-Za-z0-9\\-]{6,}$"
+        return cleanCertificate.range(of: regex, options: .regularExpression) != nil
+    }
+    
+    /// Returns a detailed error message for an invalid pollution certificate number
+    func pollutionCertificateNumberErrorMessage() -> String? {
+        let certificate = self.pollutionCertificateNumber.trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        if certificate.isEmpty {
+            return "Pollution certificate number is required"
+        }
+        
+        if !isValidPollutionCertificateNumber() {
+            return "Pollution certificate must be at least 6 alphanumeric characters"
+        }
+        
+        return nil
+    }
+    
+    /// Validates if the year is valid based on acceptable range
+    func isValidYear(_ year: Int? = nil) -> Bool {
+        let yearToValidate = year ?? self.year
+        let currentYear = Calendar.current.component(.year, from: Date())
+        
+        // Year should be between 1990 and the current year + 1 (for upcoming models)
+        return yearToValidate >= 1990 && yearToValidate <= currentYear + 1
+    }
+    
+    /// Returns a detailed error message for an invalid year
+    func yearErrorMessage() -> String? {
+        if !isValidYear() {
+            let currentYear = Calendar.current.component(.year, from: Date())
+            return "Year must be between 1990 and \(currentYear + 1)"
+        }
+        
+        return nil
+    }
+    
+    /// Comprehensive validation for the vehicle form
+    func isVehicleFormValid() -> Bool {
+        return isValidRegistrationNumber() &&
+               !make.isEmpty &&
+               !model.isEmpty &&
+               isValidYear() &&
+               isValidVIN() &&
+               !color.isEmpty &&
+               isValidInsuranceNumber() &&
+               isValidPollutionCertificateNumber()
+    }
+    
+    // MARK: - Vehicle Validation Help Text
+    
+    /// Help text explaining the Indian vehicle registration format
+    static let registrationNumberHelpText = """
+    Indian vehicle registration follows this format:
+    
+    XX NN XX NNNN where:
+    - First 2 letters (XX): State code (e.g., MH for Maharashtra, KA for Karnataka)
+    - 1-2 digits (NN): District code (e.g., 01, 12)
+    - 1-3 letters (XX): Series (e.g., AB, C, XYZ)
+    - 1-4 digits (NNNN): Vehicle number (e.g., 1234)
+    
+    Examples: MH01AB1234, KA02MG365, DL3CAB7749
+    
+    For special series like BH (Bharat Series), the format is slightly different.
+    """
+    
+    /// Help text explaining the VIN format
+    static let vinHelpText = """
+    Vehicle Identification Number (VIN) must:
+    - Be exactly 17 characters
+    - Contain only letters and numbers (excluding I, O, Q)
+    - Follow the global standard format
+    
+    Example: 1HGCM82633A004352
+    """
 } 
