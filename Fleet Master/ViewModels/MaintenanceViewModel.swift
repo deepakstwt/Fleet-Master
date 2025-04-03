@@ -702,4 +702,223 @@ class MaintenanceViewModel: ObservableObject, @unchecked Sendable {
     • Should not include the country code (+91)
     • Example: 9876543210
     """
+    // MARK: - Driver Maintenance Requests
+    
+    @Published var driverMaintenanceRequests: [DriverMaintenanceRequest] = []
+    
+    /// Fetch driver maintenance requests from Supabase
+    func fetchDriverMaintenanceRequests() {
+        isLoading = true
+        errorMessage = nil
+        
+        print("Starting driver maintenance requests fetch operation...")
+        Task {
+            do {
+                let fetchedRequests = try await DriverMaintenanceSupabaseManager.shared.fetchAllDriverMaintenanceRequests()
+                
+                DispatchQueue.main.async {
+                    self.driverMaintenanceRequests = fetchedRequests
+                    self.isLoading = false
+                    print("Successfully loaded \(fetchedRequests.count) driver maintenance requests")
+                }
+            } catch {
+                DispatchQueue.main.async {
+                    self.errorMessage = "Failed to load driver maintenance requests: \(error.localizedDescription)"
+                    self.isLoading = false
+                    print("Error loading driver maintenance requests: \(error)")
+                }
+            }
+        }
+    }
+    
+    /// Get all driver maintenance requests converted to MaintenanceRequest format for the dashboard
+    func getAllDriverMaintenanceRequests(vehicles: [Vehicle]) -> [MaintenanceRequest] {
+        print("Converting \(driverMaintenanceRequests.count) driver requests to maintenance requests")
+        print("Available vehicles: \(vehicles.count)")
+        
+        // Log vehicle IDs for debugging
+        for vehicle in vehicles.prefix(5) {
+            print("Vehicle available for matching: \(vehicle.id) - \(vehicle.make) \(vehicle.model) (\(vehicle.registrationNumber))")
+        }
+        
+        if driverMaintenanceRequests.isEmpty {
+            print("⚠️ No driver maintenance requests found to convert")
+        } else {
+            // Log the first few driver requests
+            for request in driverMaintenanceRequests.prefix(3) {
+                print("Driver request to convert: ID: \(request.id), Vehicle ID: \(request.vehicleId), Problem: \(request.problem)")
+            }
+        }
+        
+        let requests = driverMaintenanceRequests.compactMap { driverRequest -> MaintenanceRequest? in
+            let request = convertToMaintenanceRequest(driverRequest: driverRequest, vehicles: vehicles)
+            if request == nil {
+                print("❌ Failed to convert driver request: \(driverRequest.id) for vehicle \(driverRequest.vehicleId)")
+                
+                // Try to understand why conversion failed
+                if !vehicles.contains(where: { $0.id == driverRequest.vehicleId }) {
+                    print("  - Vehicle ID \(driverRequest.vehicleId) not found in available vehicles")
+                }
+            }
+            return request
+        }
+        
+        print("✅ Converted \(requests.count)/\(driverMaintenanceRequests.count) driver maintenance requests")
+        
+        // Log successful conversions
+        for request in requests.prefix(3) {
+            print("  ✓ Converted request: \(request.id) for vehicle \(request.vehicle.registrationNumber)")
+        }
+        
+        return requests
+    }
+    
+    /// Convert DriverMaintenanceRequest to MaintenanceRequest for the dashboard cards
+    /// - Parameter request: The driver maintenance request to convert
+    /// - Returns: A MaintenanceRequest object
+    func convertToMaintenanceRequest(driverRequest: DriverMaintenanceRequest, vehicles: [Vehicle]) -> MaintenanceRequest? {
+        // Find the associated vehicle
+        guard let vehicle = vehicles.first(where: { $0.id == driverRequest.vehicleId }) else {
+            print("  - Could not find vehicle with ID: \(driverRequest.vehicleId) for request \(driverRequest.id)")
+            return nil
+        }
+        
+        // Default personnel if not assigned
+        let defaultPersonnel = MaintenancePersonnel(
+            id: "unassigned",
+            name: "Not Assigned",
+            email: "",
+            phone: "",
+            hireDate: Date(),
+            isActive: true,
+            password: "",
+            certifications: [],
+            skills: []
+        )
+        
+        // Try to find assigned personnel
+        let assignedPersonnel: MaintenancePersonnel
+        if let personnelId = driverRequest.assignedPersonnelId,
+           let foundPersonnel = personnel.first(where: { $0.id == personnelId }) {
+            print("  - Using assigned personnel: \(foundPersonnel.name) for request \(driverRequest.id)")
+            assignedPersonnel = foundPersonnel
+        } else {
+            print("  - Using default personnel for request \(driverRequest.id)")
+            assignedPersonnel = defaultPersonnel
+        }
+        
+        // Create the maintenance request
+        let maintenanceRequest = MaintenanceRequest(
+            id: driverRequest.id,
+            vehicle: vehicle,
+            description: driverRequest.problem,
+            dueDateTimestamp: driverRequest.scheduleDate?.timeIntervalSince1970 ?? driverRequest.createdAt.timeIntervalSince1970,
+            createdTimestamp: driverRequest.createdAt.timeIntervalSince1970,
+            isDriverRequest: true,
+            isScheduled: driverRequest.accepted,
+            personnel: assignedPersonnel
+        )
+        
+        print("  + Successfully created maintenance request from driver request \(driverRequest.id)")
+        return maintenanceRequest
+    }
+    
+    // MARK: - Dashboard Integration
+    
+    /// Get all driver maintenance requests converted to MaintenanceRequest format for the dashboard
+//    func getAllDriverMaintenanceRequests(vehicles: [Vehicle]) -> [MaintenanceRequest] {
+//        return driverMaintenanceRequests.compactMap { convertToMaintenanceRequest(driverRequest: $0, vehicles: vehicles) }
+//    }
+    
+    /// Get pending (unscheduled) driver maintenance requests for the dashboard
+    func getPendingMaintenanceRequests(vehicles: [Vehicle]) -> [MaintenanceRequest] {
+        // First, get scheduled maintenance based on vehicle next service dates
+        let scheduledMaintenance = generateScheduledMaintenanceRequests(vehicles: vehicles)
+        
+        // Then get driver-submitted maintenance requests
+        let driverRequests = getAllDriverMaintenanceRequests(vehicles: vehicles)
+        
+        // Combine both types
+        return scheduledMaintenance + driverRequests
+    }
+    
+    /// Generate maintenance requests based on vehicle service schedules
+    private func generateScheduledMaintenanceRequests(vehicles: [Vehicle]) -> [MaintenanceRequest] {
+        var requests: [MaintenanceRequest] = []
+        
+        // Get default maintenance personnel (first active one)
+        let defaultPersonnel = personnel.first { $0.isActive } ?? MaintenancePersonnel(
+            id: "unassigned",
+            name: "Not Assigned",
+            email: "",
+            phone: "",
+            hireDate: Date(),
+            isActive: true,
+            password: "",
+            certifications: [],
+            skills: []
+        )
+        
+        // Create maintenance requests for vehicles with upcoming or overdue service
+        for vehicle in vehicles {
+            if let nextServiceDue = vehicle.nextServiceDue {
+                // Check if service is due within the next 7 days or overdue
+                let daysUntilService = Calendar.current.dateComponents([.day], from: Date(), to: nextServiceDue).day ?? 0
+                
+                if daysUntilService <= 7 {
+                    let request = MaintenanceRequest(
+                        id: "scheduled-\(vehicle.id)",
+                        vehicle: vehicle,
+                        description: "Scheduled maintenance for \(vehicle.make) \(vehicle.model)",
+                        dueDateTimestamp: nextServiceDue.timeIntervalSince1970,
+                        createdTimestamp: Date().timeIntervalSince1970,
+                        isDriverRequest: false,
+                        isScheduled: false,
+                        personnel: defaultPersonnel
+                    )
+                    
+                    requests.append(request)
+                }
+            }
+        }
+        
+        return requests
+    }
+    
+    /// Fetch all maintenance requests for the dashboard
+    func fetchMaintenanceRequests() async {
+        Task {
+            // Fetch driver-submitted maintenance requests
+            await withTaskGroup(of: Void.self) { group in
+                group.addTask {
+                    await self.fetchDriverMaintenanceRequestsAsync()
+                }
+                group.addTask {
+                    await self.fetchPersonnelAsync()
+                }
+            }
+        }
+    }
+    
+    /// Async wrapper for fetchDriverMaintenanceRequests
+    private func fetchDriverMaintenanceRequestsAsync() async {
+        await withCheckedContinuation { continuation in
+            fetchDriverMaintenanceRequests()
+            // Continue after a short delay to ensure the refresh indicator shows
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                continuation.resume()
+            }
+        }
+    }
+    
+    /// Async wrapper for fetchPersonnel
+    private func fetchPersonnelAsync() async {
+        await withCheckedContinuation { continuation in
+            fetchPersonnel()
+            // Continue after a short delay to ensure the refresh indicator shows
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                continuation.resume()
+            }
+        }
+    }
 } 

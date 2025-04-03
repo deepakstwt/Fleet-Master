@@ -156,7 +156,7 @@ struct StatusCardsSection: View {
                 }
                 
                 StatusCard(
-                    title: "In Progress", 
+                    title: "Ongoing", 
                     count: viewModel.trips.filter { $0.status == .ongoing }.count, 
                     icon: "airplane.departure", 
                     color: .yellow
