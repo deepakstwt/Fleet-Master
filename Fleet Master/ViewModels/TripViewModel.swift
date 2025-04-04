@@ -21,7 +21,7 @@ class TripViewModel: ObservableObject {
     @Published var startLocation = ""
     @Published var endLocation = ""
     @Published var scheduledStartTime = Date()
-    @Published var scheduledEndTime = Date().addingTimeInterval(3600) // 1 hour later
+    @Published var scheduledEndTime = Date()
     @Published var status: TripStatus = TripStatus.scheduled
     @Published var driverId: String?
     @Published var vehicleId: String?

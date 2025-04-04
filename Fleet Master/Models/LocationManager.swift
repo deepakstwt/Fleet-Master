@@ -31,6 +31,14 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
     @Published var location: CLLocation?
     @Published var isLoadingLocation = false
     
+    // Add region property for map
+    @Published var region = MKCoordinateRegion(
+        // Center of India (approximate)
+        center: CLLocationCoordinate2D(latitude: 20.5937, longitude: 78.9629),
+        // Zoom level suitable for India
+        span: MKCoordinateSpan(latitudeDelta: 30.0, longitudeDelta: 30.0)
+    )
+    
     // Update vehicle tracking to use VehicleLocationInfo
     @Published var vehicleLocations: [String: VehicleLocationInfo] = [:]
     @Published var trackedVehicles: Set<String> = []

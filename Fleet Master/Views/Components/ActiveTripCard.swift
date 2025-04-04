@@ -1,4 +1,5 @@
 import SwiftUI
+import MapKit
 
 struct ActiveTripCard: View {
     let trip: Trip
@@ -36,7 +37,7 @@ struct ActiveTripCard: View {
             
             // Route Information
             VStack(spacing: 18) {
-                // Start location
+                // Start location with scheduled start time
                 HStack(spacing: 12) {
                     // Start point indicator
                     ZStack {
@@ -55,9 +56,14 @@ struct ActiveTripCard: View {
                         .lineLimit(1)
                     
                     Spacer()
+                    
+                    // Show scheduled start time
+                    Text(formatTime(trip.scheduledStartTime))
+                        .font(.system(size: 16, weight: .bold))
+                        .foregroundColor(.primary)
                 }
                 
-                // End location with ETA
+                // End location with scheduled end time
                 HStack(spacing: 12) {
                     // End point indicator
                     ZStack {
@@ -77,11 +83,18 @@ struct ActiveTripCard: View {
                     
                     Spacer()
                     
-                    // Estimated arrival (if we have route info)
-                    if let routeInfo = trip.routeInfo {
-                        Text("ETA: \(formatTimeInterval(routeInfo.time))")
+                    // Show either scheduled end time or calculate it based on route info
+                    if trip.routeInfo != nil && trip.scheduledEndTime == trip.scheduledStartTime.addingTimeInterval(3600) {
+                        // If end time wasn't manually set but calculated from route info
+                        let estimatedEnd = trip.scheduledStartTime.addingTimeInterval(trip.routeInfo!.time)
+                        Text(formatTime(estimatedEnd))
                             .font(.system(size: 16, weight: .bold))
-                            .foregroundColor(.black)
+                            .foregroundColor(.primary)
+                    } else {
+                        // Show the scheduled end time
+                        Text(formatTime(trip.scheduledEndTime))
+                            .font(.system(size: 16, weight: .bold))
+                            .foregroundColor(.primary)
                     }
                 }
             }
@@ -95,14 +108,10 @@ struct ActiveTripCard: View {
             
             // Trip duration
             if let startTime = trip.actualStartTime {
-                HStack(spacing: 6) {
-                    Image(systemName: "clock.fill")
-                        .font(.system(size: 14))
-                        .foregroundColor(.secondary)
-                    Text(formatDuration(since: startTime))
-                        .font(.system(size: 14, weight: .medium))
-                        .foregroundColor(.secondary)
-                }
+                CurrentTimeIndicator(
+                    scheduledTime: trip.scheduledStartTime,
+                    actualStartTime: startTime
+                )
                 .padding(.horizontal, 18)
                 .padding(.top, 10)
                 .padding(.bottom, 10)
@@ -182,6 +191,12 @@ struct ActiveTripCard: View {
         }
     }
     
+    private func formatScheduledTime(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.timeStyle = .short
+        return formatter.string(from: date)
+    }
+    
     private func formatTimeInterval(_ seconds: TimeInterval) -> String {
         let minutes = Int(seconds / 60)
         let hours = minutes / 60
@@ -192,6 +207,68 @@ struct ActiveTripCard: View {
         } else {
             return "\(mins)m"
         }
+    }
+    
+    // Helper function to format time
+    private func formatTime(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.timeStyle = .short
+        formatter.timeZone = TimeZone.current
+        return formatter.string(from: date)
+    }
+}
+
+struct CurrentTimeIndicator: View {
+    let scheduledTime: Date?
+    let actualStartTime: Date?
+    
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "clock.fill")
+                .font(.system(size: 14))
+                .foregroundColor(.secondary)
+            
+            if let scheduledTime = scheduledTime {
+                Text("Scheduled: \(formatTime(scheduledTime))")
+                    .font(.system(size: 14))
+                    .foregroundColor(.secondary)
+            } else if let startTime = actualStartTime {
+                Text("Started: \(formatTime(startTime))")
+                    .font(.system(size: 14))
+                    .foregroundColor(.secondary)
+            } else {
+                Text("Not started")
+                    .font(.system(size: 14))
+                    .foregroundColor(.secondary)
+            }
+        }
+    }
+    
+    private func formatTime(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .short
+        return formatter.string(from: date)
+    }
+}
+
+// Replace ETADisplay with a simpler version that just shows the scheduled end time
+struct ETADisplay: View {
+    let scheduledEndTime: Date
+    let scheduledStartTime: Date
+    let routeInfo: RouteInformation?
+    
+    var body: some View {
+        // Default to showing the scheduled end time
+        Text("Arrival: \(formatTime(scheduledEndTime))")
+            .font(.system(size: 15, weight: .bold))
+            .foregroundColor(.primary)
+    }
+    
+    private func formatTime(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.timeStyle = .short
+        return formatter.string(from: date)
     }
 }
 

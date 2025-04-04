@@ -1,4 +1,5 @@
 import Foundation
+import CoreLocation
 
 struct Trip: Identifiable, Codable, Hashable, Equatable {
     var id: String
@@ -16,6 +17,17 @@ struct Trip: Identifiable, Codable, Hashable, Equatable {
     var actualEndTime: Date?
     var notes: String?
     var routeInfo: RouteInformation?
+    
+    // Computed properties for coordinates
+    var startLocationCoordinate: CLLocationCoordinate2D? {
+        // Default to a location in India if geocoding fails
+        return CLLocationCoordinate2D(latitude: 20.5937, longitude: 78.9629)
+    }
+    
+    var endLocationCoordinate: CLLocationCoordinate2D? {
+        // Default to a location in India if geocoding fails
+        return CLLocationCoordinate2D(latitude: 20.5937, longitude: 78.9629)
+    }
     
     // MARK: - Hashable & Equatable
     

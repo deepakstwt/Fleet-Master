@@ -231,6 +231,7 @@ struct TripDetailView: View {
                         locationManager.calculateRoute(from: tripData.startLocation, to: tripData.endLocation) { result in
                             if case .success = result {
                                 // Route calculation successful, map will center on the route
+                                print("Indian route calculated and displayed with proper zoom")
                             }
                         }
                     }
@@ -376,7 +377,7 @@ struct TripDetailView: View {
     
     private var statusCard: some View {
         VStack(spacing: 16) {
-            // Clean header with icon and toggle
+            // Clean header with icon
             HStack {
                 Label {
                     Text("Time Schedule")
@@ -384,295 +385,80 @@ struct TripDetailView: View {
                         .foregroundColor(.primary)
                 } icon: {
                     Image(systemName: "clock.fill")
-                    .foregroundColor(.blue)
+                        .foregroundColor(.blue)
                         .font(.system(size: 18))
                 }
                 
                 Spacer()
-                
-                // Modern toggle switch for Auto/Manual mode
-                Toggle("", isOn: $isCustomSchedule.animation())
-                    .labelsHidden()
-                    .toggleStyle(SwitchToggleStyle(tint: .blue))
-                    .overlay(
-                        Text("Auto")
-                            .font(.system(size: 16, weight: .medium))
-                            .foregroundColor(.secondary)
-                            .padding(.trailing, 60),
-                        alignment: .trailing
-                    )
-                .onChange(of: isCustomSchedule) { oldValue, newValue in
-                    if !newValue {
-                            withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
-                        updateScheduledTimes()
-                            }
-                        }
-                    }
             }
             
-            // Info banner with auto-update message
-            if !isCustomSchedule {
-                HStack(spacing: 10) {
-                    Image(systemName: "info.circle.fill")
-                        .foregroundColor(.blue)
-                        .font(.system(size: 16))
-                    
-                    Text("Schedule automatically updates based on route duration (\(estimatedTime))")
-                        .font(.system(size: 14))
+            // Simple time display
+            HStack(spacing: 40) {
+                // Start time
+                VStack(alignment: .center, spacing: 8) {
+                    Text("Start")
+                        .font(.system(size: 14, weight: .medium))
                         .foregroundColor(.secondary)
-                        .lineLimit(1)
-                }
-                .padding(12)
-                .background(
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(Color.blue.opacity(0.08))
-                )
-            }
-            
-            // Custom time inputs (only shown in manual mode)
-            if isCustomSchedule {
-                VStack(spacing: 16) {
-                    // Start time
-                    HStack(alignment: .center, spacing: 16) {
-                        ZStack {
-                            Circle()
-                                .fill(Color.blue.opacity(0.15))
-                                .frame(width: 40, height: 40)
-                            
-                            Image(systemName: "clock")
-                                .font(.system(size: 18))
-                                .foregroundColor(.blue)
-                        }
-                        
-                    VStack(alignment: .leading, spacing: 4) {
-                            Text("Departure Time")
-                                .font(.system(size: 14, weight: .medium))
-                            .foregroundColor(.secondary)
-                        
-                        DatePicker("", selection: $customStartTime, displayedComponents: [.date, .hourAndMinute])
-                            .labelsHidden()
-                                .accentColor(.blue)
-                            .onChange(of: customStartTime) {
-                                    withAnimation {
-                                tripData.scheduledStartTime = customStartTime
-                                if !userHasEditedEndTime {
-                                    customEndTime = customStartTime.addingTimeInterval(estimatedDuration)
-                                    tripData.scheduledEndTime = customEndTime
-                                }
-                            }
-                                }
-                        }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                    }
                     
-                    // Vertical connector
-                    HStack {
-                        Rectangle()
-                            .fill(Color.blue.opacity(0.4))
-                            .frame(width: 2, height: 24)
-                            .padding(.leading, 19)
-                        
-                        Spacer()
-                    }
-                    
-                    // End time
-                    HStack(alignment: .center, spacing: 16) {
-                        ZStack {
-                            Circle()
-                                .fill(Color.purple.opacity(0.15))
-                                .frame(width: 40, height: 40)
-                            
-                            Image(systemName: "flag.checkered")
-                                .font(.system(size: 18))
-                                .foregroundColor(.purple)
-                    }
-                    
-                    VStack(alignment: .leading, spacing: 4) {
-                            Text("Arrival Time")
-                                .font(.system(size: 14, weight: .medium))
-                            .foregroundColor(.secondary)
-                        
-                        DatePicker("", selection: $customEndTime, displayedComponents: [.date, .hourAndMinute])
-                            .labelsHidden()
-                                .accentColor(.purple)
-                            .onChange(of: customEndTime) {                                     withAnimation {
-                                userHasEditedEndTime = true
-                                tripData.scheduledEndTime = customEndTime
-                            }
-                                }
-                        }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                    }
-                    
-                    // Warning message for custom duration
-                    if userHasEditedEndTime {
-                        HStack(spacing: 8) {
-                            Image(systemName: "exclamationmark.triangle.fill")
-                                .foregroundColor(.orange)
-                                .font(.system(size: 14))
-                            
-                            Text("Custom duration differs from route estimate (\(estimatedTime))")
-                                .font(.system(size: 13))
-                                .foregroundColor(.secondary)
-                            
-                            Spacer()
-                            
-                            Button(action: {
-                                withAnimation(.spring(response: 0.3)) {
-                                userHasEditedEndTime = false
-                                customEndTime = customStartTime.addingTimeInterval(estimatedDuration)
-                                tripData.scheduledEndTime = customEndTime
-                                }
-                            }) {
-                                Text("Reset")
-                                    .font(.system(size: 13, weight: .medium))
-                                    .foregroundColor(.blue)
-                                    .padding(.horizontal, 8)
-                                    .padding(.vertical, 4)
-                                    .background(
-                                        Capsule()
-                                            .fill(Color.blue.opacity(0.1))
-                                    )
-                            }
-                        }
-                        .padding(.vertical, 10)
-                .padding(.horizontal, 12)
-                        .background(
-                            RoundedRectangle(cornerRadius: 12)
-                                .fill(Color.orange.opacity(0.08))
-                        )
-                        .padding(.top, 8)
-                    }
-                }
-                .padding(16)
-                .background(
-                    RoundedRectangle(cornerRadius: 16)
-                        .fill(Color(.systemBackground).opacity(0.8))
-                        .shadow(color: Color.black.opacity(0.05), radius: 2, x: 0, y: 1)
-                )
-            }
-            
-            // Main timeline view - simplified horizontal layout matching screenshot
-            VStack(spacing: 12) {
-                ZStack(alignment: .center) {
-                    // Timeline track
-                    Rectangle()
-                        .fill(Color(.systemGray5))
-                        .frame(height: 4)
-                        .cornerRadius(2)
-                    
-                    // Progress dots - simpler design with 3 dots
-                    HStack(spacing: 0) {
-                        ForEach(0..<3) { i in
-                            ZStack {
-                                // Background circle
-                            Circle()
-                                .fill(getTripProgressColor(stage: i))
-                                    .frame(width: 10, height: 10)
-                                
-                                // Animated pulse for current point
-                                if i == 1 && tripData.status == .ongoing {
-                                    Circle()
-                                        .stroke(Color.blue, lineWidth: 2)
-                                        .frame(width: 18, height: 18)
-                                        .scaleEffect(1.2)
-                                        .opacity(0.5)
-                                        .animation(
-                                            Animation.easeInOut(duration: 1.0)
-                                                .repeatForever(autoreverses: true),
-                                            value: tripData.status == .ongoing
-                                        )
-                                }
-                            }
-                            .frame(maxWidth: .infinity)
-                        }
-                    }
-                }
-                .padding(.horizontal, 20)
-                .padding(.bottom, 4)
-                .padding(.top, 8)
-                
-                // Time display in large format
-                HStack(alignment: .top) {
-                    // Start time
-                    VStack(alignment: .center, spacing: 4) {
+                    HStack(alignment: .firstTextBaseline, spacing: 4) {
                         Text(formatTimeWithoutAmPm(tripData.scheduledStartTime))
-                            .font(.system(size: 36, weight: .bold))
-                            .foregroundColor(.primary)
-                            .minimumScaleFactor(0.7)
-                            .lineLimit(1)
-                            .padding(.bottom, -5)
-                        
+                            .font(.system(size: 28, weight: .bold))
                         Text(getAmPm(tripData.scheduledStartTime))
-                            .font(.system(size: 36, weight: .bold))
-                            .foregroundColor(.primary)
-                            .minimumScaleFactor(0.7)
-                            .lineLimit(1)
-                            .padding(.bottom, 8)
-                        
-                        Text("START")
-                            .font(.system(size: 12, weight: .medium))
-                            .foregroundColor(.secondary)
-                        
-                        Text(formatDateOnly(tripData.scheduledStartTime))
                             .font(.system(size: 16, weight: .medium))
-                            .foregroundColor(.blue)
+                            .foregroundColor(.secondary)
                     }
-                    .frame(maxWidth: .infinity)
                     
-                    // End time
-                    VStack(alignment: .center, spacing: 4) {
-                        Text(formatTimeWithoutAmPm(tripData.scheduledEndTime))
-                            .font(.system(size: 36, weight: .bold))
-                            .foregroundColor(.primary)
-                            .minimumScaleFactor(0.7)
-                            .lineLimit(1)
-                            .padding(.bottom, -5)
-                        
-                        Text(getAmPm(tripData.scheduledEndTime))
-                            .font(.system(size: 36, weight: .bold))
-                            .foregroundColor(.primary)
-                            .minimumScaleFactor(0.7)
-                            .lineLimit(1)
-                            .padding(.bottom, 8)
-                    
-                    Text("END")
-                            .font(.system(size: 12, weight: .medium))
+                    Text(formatDateOnly(tripData.scheduledStartTime))
+                        .font(.system(size: 14))
+                        .foregroundColor(.blue)
+                }
+                .frame(maxWidth: .infinity)
+                
+                // End time
+                VStack(alignment: .center, spacing: 8) {
+                    Text("End")
+                        .font(.system(size: 14, weight: .medium))
                         .foregroundColor(.secondary)
+                    
+                    HStack(alignment: .firstTextBaseline, spacing: 4) {
+                        Text(formatTimeWithoutAmPm(tripData.scheduledEndTime))
+                            .font(.system(size: 28, weight: .bold))
+                        Text(getAmPm(tripData.scheduledEndTime))
+                            .font(.system(size: 16, weight: .medium))
+                            .foregroundColor(.secondary)
+                    }
                     
                     Text(formatDateOnly(tripData.scheduledEndTime))
-                            .font(.system(size: 16, weight: .medium))
-                            .foregroundColor(.red.opacity(0.8))
-                    }
-                    .frame(maxWidth: .infinity)
-                }
-                .padding(.bottom, 8)
-                
-                // Duration pill at bottom
-                HStack(spacing: 8) {
-                    Image(systemName: "timer")
                         .font(.system(size: 14))
-                        .foregroundColor(.white)
-                    
-                    Text(estimatedTime)
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundColor(.white)
+                        .foregroundColor(.red.opacity(0.8))
                 }
-                .frame(width: 120)
-                .padding(.vertical, 10)
-                .background(
-                    Capsule()
-                        .fill(
-                            LinearGradient(
-                                gradient: Gradient(colors: [.blue, .purple.opacity(0.8)]),
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            )
-                        )
-                )
-                .shadow(color: Color.black.opacity(0.1), radius: 4, x: 0, y: 2)
+                .frame(maxWidth: .infinity)
             }
-            .padding(.top, 8)
+            .padding(.vertical, 8)
+            
+            // Duration pill
+            HStack(spacing: 8) {
+                Image(systemName: "timer")
+                    .font(.system(size: 14))
+                    .foregroundColor(.white)
+                
+                Text(estimatedTime)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(.white)
+            }
+            .frame(width: 120)
+            .padding(.vertical, 10)
+            .background(
+                Capsule()
+                    .fill(
+                        LinearGradient(
+                            gradient: Gradient(colors: [.blue, .purple.opacity(0.8)]),
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+            )
+            .shadow(color: Color.black.opacity(0.1), radius: 4, x: 0, y: 2)
         }
         .padding(20)
         .background(Color(.systemBackground))
@@ -774,7 +560,8 @@ struct TripDetailView: View {
                         .font(.subheadline)
                         .foregroundColor(.primary)
                         .multilineTextAlignment(.leading)
-                        .onChange(of: tripData.startLocation) {                             calculateRouteInfo() // Recalculate when location changes
+                        .onChange(of: tripData.startLocation) { _ in
+                            calculateRouteInfo() // Recalculate when location changes
                         }
                 }
                 
@@ -813,7 +600,8 @@ struct TripDetailView: View {
                         .font(.subheadline)
                         .foregroundColor(.primary)
                         .multilineTextAlignment(.leading)
-                        .onChange(of: tripData.endLocation) {                            calculateRouteInfo() // Recalculate when location changes
+                        .onChange(of: tripData.endLocation) { _ in
+                            calculateRouteInfo() // Recalculate when location changes
                         }
                 }
                 
