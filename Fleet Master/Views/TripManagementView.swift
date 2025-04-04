@@ -407,13 +407,14 @@ struct TripManagementView: View {
                         await refreshData()
                     }
                 case .map:
-                    ScrollView {
-                        mapContent
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    }
-                    .refreshable {
-                        await refreshData()
-                    }
+                    TripMapView(
+                        trips: filteredTrips,
+                        locationManager: locationManager,
+                        isAssignedTrip: true,
+                        showAllRoutes: true,
+                        highlightSelectedRoute: true
+                    )
+                    .edgesIgnoringSafeArea(.all)
                 }
             }
         }

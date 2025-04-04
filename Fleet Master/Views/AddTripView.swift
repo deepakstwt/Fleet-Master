@@ -42,8 +42,8 @@ struct AddTripView: View {
     @State private var endCoordinate: CLLocationCoordinate2D?
     
     // Add search completers for location suggestions
-    @StateObject private var startLocationSearch = MapSearch()
-    @StateObject private var endLocationSearch = MapSearch()
+    @StateObject private var startLocationSearch = AddTripMapSearch()
+    @StateObject private var endLocationSearch = AddTripMapSearch()
     @State private var showStartSuggestions = false
     @State private var showEndSuggestions = false
     
@@ -1951,7 +1951,7 @@ struct AppleStyleMapView: View {
     
     // Search state
     @State private var searchText = ""
-    @StateObject private var searchCompleter = MapSearch()
+    @StateObject private var searchCompleter = AddTripMapSearch()
     @State private var showSearchResults = false
     @State private var isLoadingLocation = false
     @State private var wrappedLocation: LocationWrapper?
@@ -2727,7 +2727,7 @@ struct MapLocationPicker: View {
         span: MKCoordinateSpan(latitudeDelta: 20, longitudeDelta: 20)
     )
     @State private var searchText = ""
-    @StateObject private var searchCompleter = MapSearch()
+    @StateObject private var searchCompleter = AddTripMapSearch()
     
     var body: some View {
         VStack(spacing: 0) {
@@ -2826,7 +2826,7 @@ struct SearchBar: View {
     }
 }
 
-class MapSearch: NSObject, ObservableObject {
+class AddTripMapSearch: NSObject, ObservableObject {
     @Published var locationResults: [MKLocalSearchCompletion] = []
     @Published var searchTerm = ""
     @Published var isLoading = false
@@ -2906,7 +2906,7 @@ class MapSearch: NSObject, ObservableObject {
     }
 }
 
-extension MapSearch: MKLocalSearchCompleterDelegate {
+extension AddTripMapSearch: MKLocalSearchCompleterDelegate {
     func completerDidUpdateResults(_ completer: MKLocalSearchCompleter) {
         DispatchQueue.main.async { [weak self] in
             self?.locationResults = completer.results
@@ -3458,7 +3458,7 @@ struct LocationSelectionView: View {
         span: MKCoordinateSpan(latitudeDelta: 0.5, longitudeDelta: 0.5)
     )
     @State private var searchText = ""
-    @StateObject private var searchCompleter = MapSearch()
+    @StateObject private var searchCompleter = AddTripMapSearch()
     @State private var showSearchResults = false
     @State private var isLoadingLocation = false
     @State private var isDraggingMap = false

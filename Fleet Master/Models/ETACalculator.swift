@@ -377,4 +377,70 @@ enum TrafficLevel: String, CaseIterable {
         case .heavy: return 0.5
         }
     }
+}
+
+class MapSearch: NSObject, ObservableObject {
+    @Published var locationResults: [MKLocalSearchCompletion] = []
+    @Published var isLoading = false
+    @Published var errorMessage: String? = nil
+    @Published var recentSearches: [String] = []
+    
+    private var completer: MKLocalSearchCompleter
+    
+    override init() {
+        completer = MKLocalSearchCompleter()
+        super.init()
+        completer.delegate = self
+        completer.resultTypes = [.address, .pointOfInterest]
+        
+        if let saved = UserDefaults.standard.stringArray(forKey: "recentLocationSearches") {
+            recentSearches = saved
+        }
+    }
+    
+    func update(queryFragment: String) {
+        isLoading = true
+        errorMessage = nil
+        
+        if queryFragment.isEmpty {
+            locationResults = []
+            isLoading = false
+            return
+        }
+        
+        completer.queryFragment = queryFragment
+    }
+    
+    func saveRecentSearch(_ search: String) {
+        if !recentSearches.contains(search) {
+            recentSearches.insert(search, at: 0)
+            
+            if recentSearches.count > 5 {
+                recentSearches = Array(recentSearches.prefix(5))
+            }
+            
+            UserDefaults.standard.set(recentSearches, forKey: "recentLocationSearches")
+        }
+    }
+    
+    func clearRecentSearches() {
+        recentSearches = []
+        UserDefaults.standard.removeObject(forKey: "recentLocationSearches")
+    }
+}
+
+extension MapSearch: MKLocalSearchCompleterDelegate {
+    func completerDidUpdateResults(_ completer: MKLocalSearchCompleter) {
+        DispatchQueue.main.async { [weak self] in
+            self?.locationResults = completer.results
+            self?.isLoading = false
+        }
+    }
+    
+    func completer(_ completer: MKLocalSearchCompleter, didFailWithError error: Error) {
+        DispatchQueue.main.async { [weak self] in
+            self?.errorMessage = "Search error: \(error.localizedDescription)"
+            self?.isLoading = false
+        }
+    }
 } 

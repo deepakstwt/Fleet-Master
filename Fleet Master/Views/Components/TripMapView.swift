@@ -787,16 +787,69 @@ struct ProMapViewRepresentable: UIViewRepresentable {
         
         // Add annotations and route overlays for trips
         for trip in trips {
-            addTripAnnotations(trip, to: mapView)
+            // Only show flags for assigned trips or the selected trip
+            if trip.driverId != nil || trip == selectedTrip {
+                // Add start location
+                locationManager.geocodeAddress(trip.startLocation) { result in
+                    if case .success(let startCoordinate) = result {
+                        let startAnnotation = ProTripPointAnnotation(
+                            coordinate: startCoordinate,
+                            title: isHindiMode ? "शुरुआत: \(trip.startLocation)" : "Start: \(trip.startLocation)",
+                            subtitle: formatDateTime(trip.scheduledStartTime),
+                            type: .start,
+                            tripId: trip.id
+                        )
+                        
+                        DispatchQueue.main.async {
+                            mapView.addAnnotation(startAnnotation)
+                        }
+                    }
+                }
+                
+                // Add end location
+                locationManager.geocodeAddress(trip.endLocation) { result in
+                    if case .success(let endCoordinate) = result {
+                        let endAnnotation = ProTripPointAnnotation(
+                            coordinate: endCoordinate,
+                            title: isHindiMode ? "समाप्ति: \(trip.endLocation)" : "End: \(trip.endLocation)",
+                            subtitle: formatDateTime(trip.scheduledEndTime),
+                            type: .end,
+                            tripId: trip.id
+                        )
+                        
+                        DispatchQueue.main.async {
+                            mapView.addAnnotation(endAnnotation)
+                        }
+                    }
+                }
+            }
             
+            // Add route overlay
             if let routeOverlay = routeOverlays[trip.id] {
                 mapView.addOverlay(routeOverlay.route.polyline, level: .aboveRoads)
+                
+                // Add waypoints for the route
+                if routeOverlay.route.steps.count > 2 {
+                    let keySteps = routeOverlay.route.steps.dropFirst().dropLast()
+                    
+                    for (index, step) in keySteps.enumerated() {
+                        if step.distance > 1000 || isSignificantManeuver(step.instructions) {
+                            let annotation = ProWaypointAnnotation(
+                                coordinate: step.polyline.coordinate,
+                                title: step.instructions,
+                                subtitle: formatDistance(step.distance),
+                                index: index,
+                                tripId: trip.id
+                            )
+                            mapView.addAnnotation(annotation)
+                        }
+                    }
+                }
             }
         }
         
         // Update vehicle annotations if tracking
         if isAssignedTrip || showAllRoutes {
-            // Safely access the coordinator
             if let coordinator = mapView.delegate as? Coordinator {
                 coordinator.addVehicleAnnotations(to: mapView)
             }
@@ -836,75 +889,9 @@ struct ProMapViewRepresentable: UIViewRepresentable {
             }
         }
     }
-    
-    // Add missing methods for Trip annotations
-    private func addTripAnnotations(_ trip: Trip, to mapView: MKMapView) {
-        // Geocode start location
-        locationManager.geocodeAddress(trip.startLocation) { result in
-            if case .success(let startCoordinate) = result {
-                let startAnnotation = ProTripPointAnnotation(
-                    coordinate: startCoordinate,
-                    title: isHindiMode ? "शुरुआत: \(trip.startLocation)" : "Start: \(trip.startLocation)",
-                    subtitle: formatDateTime(trip.scheduledStartTime),
-                    type: .start,
-                    tripId: trip.id
-                )
-                
-                DispatchQueue.main.async {
-                    mapView.addAnnotation(startAnnotation)
-                }
-                
-                // Geocode end location
-                locationManager.geocodeAddress(trip.endLocation) { result in
-                    if case .success(let endCoordinate) = result {
-                        let endAnnotation = ProTripPointAnnotation(
-                            coordinate: endCoordinate,
-                            title: isHindiMode ? "समाप्ति: \(trip.endLocation)" : "End: \(trip.endLocation)",
-                            subtitle: formatDateTime(trip.scheduledEndTime),
-                            type: .end,
-                            tripId: trip.id
-                        )
-                        
-                        DispatchQueue.main.async {
-                            mapView.addAnnotation(endAnnotation)
-                            
-                            // Add waypoints along the route if available
-                            if let routeOverlay = routeOverlays[trip.id] {
-                                addWaypointAnnotations(for: routeOverlay.route, trip: trip, to: mapView)
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-    
-    // Add missing waypoint annotations method
-    private func addWaypointAnnotations(for route: MKRoute, trip: Trip, to mapView: MKMapView) {
-        // Add waypoint annotations at key points along the route
-        if route.steps.count > 2 {
-            // Skip first and last step (departure and arrival)
-            let keySteps = route.steps.dropFirst().dropLast()
-            
-            // Add annotations for major turns or maneuvers
-            for (index, step) in keySteps.enumerated() {
-                if step.distance > 1000 || isSignificantManeuver(step.instructions) {
-                    let annotation = ProWaypointAnnotation(
-                        coordinate: step.polyline.coordinate,
-                        title: step.instructions,
-                        subtitle: "\(formatDistance(step.distance))",
-                        index: index,
-                        tripId: trip.id
-                    )
-                    mapView.addAnnotation(annotation)
-                }
-            }
-        }
-    }
-    
+
     // Helper for significant maneuvers
     private func isSignificantManeuver(_ instructions: String) -> Bool {
-        // Check if the instruction contains keywords indicating major maneuvers
         let significantTerms = ["turn", "exit", "merge", "highway", "freeway", "roundabout", "u-turn"]
         return significantTerms.contains { instructions.lowercased().contains($0) }
     }
@@ -1108,18 +1095,23 @@ struct ProMapViewRepresentable: UIViewRepresentable {
             case .start:
                 annotationView?.markerTintColor = .systemGreen
                 annotationView?.glyphImage = UIImage(systemName: "flag.fill")
+                annotationView?.glyphTintColor = .white
+                annotationView?.animatesWhenAdded = true
             case .end:
                 annotationView?.markerTintColor = .systemRed
                 annotationView?.glyphImage = UIImage(systemName: "flag.checkered")
+                annotationView?.glyphTintColor = .white
+                annotationView?.animatesWhenAdded = true
             }
             
-            // Highlight if selected
-            if let selectedTrip = parent.selectedTrip, selectedTrip.id == annotation.tripId {
-                annotationView?.markerTintColor = annotationView?.markerTintColor?.withAlphaComponent(1.0)
-                annotationView?.glyphTintColor = .white
-            } else {
-                annotationView?.markerTintColor = annotationView?.markerTintColor?.withAlphaComponent(0.7)
-            }
+            // Make flags larger and more visible
+            annotationView?.transform = CGAffineTransform(scaleX: 1.2, y: 1.2)
+            
+            // Add shadow for better visibility
+            annotationView?.layer.shadowColor = UIColor.black.cgColor
+            annotationView?.layer.shadowOpacity = 0.3
+            annotationView?.layer.shadowOffset = CGSize(width: 0, height: 2)
+            annotationView?.layer.shadowRadius = 2
             
             return annotationView!
         }
@@ -1814,5 +1806,11 @@ struct LookAroundFallbackView: View {
 }
 
 #Preview {
-    TripMapView(trips: [], locationManager: LocationManager())
+    TripMapView(
+        trips: [],
+        locationManager: LocationManager(),
+        isAssignedTrip: false,
+        showAllRoutes: false,
+        highlightSelectedRoute: false
+    )
 } 
