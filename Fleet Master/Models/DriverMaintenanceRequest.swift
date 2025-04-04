@@ -73,7 +73,7 @@ struct DriverMaintenanceRequest: Identifiable, Codable {
         }
         
         if let scheduleDateString = try? container.decodeIfPresent(String.self, forKey: .scheduleDate) {
-            scheduleDate = scheduleDateString != nil ? dateFormatter.date(from: scheduleDateString) : nil
+            scheduleDate = dateFormatter.date(from: scheduleDateString)
         } else {
             scheduleDate = try container.decodeIfPresent(Date.self, forKey: .scheduleDate)
         }

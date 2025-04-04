@@ -19,6 +19,7 @@ class CustomLookAroundView: UIView {
 struct TripMapView: View {
     let trips: [Trip]
     let locationManager: LocationManager
+    let coordinate = CLLocationCoordinate2D(latitude: 37.7749, longitude: -122.4194)
     
     @State private var selectedTrip: Trip?
     @State private var region = MKCoordinateRegion(
@@ -188,7 +189,7 @@ struct TripMapView: View {
                 selectedTrip = trips.first
             }
         }
-        .onChange(of: selectedTrip) { _ in
+        .onChange(of: selectedTrip) {
             if let trip = selectedTrip {
                 centerMapOnTrip(trip)
                 
@@ -576,7 +577,7 @@ struct TripMapView: View {
             switch result {
             case .success(let coordinate):
                 // Request Look Around scene
-                let lookAroundSceneRequest = MKLookAroundSceneRequest(coordinate: coordinate)
+//                let lookAroundSceneRequest = MKLookAroundSceneRequest(coordinate: coordinate)
                 
                 // Using correct API syntax for iOS 16+
                 if #available(iOS 16.0, *) {
@@ -1060,7 +1061,7 @@ struct ProMapViewRepresentable: UIViewRepresentable {
             if let vehicleAnnotation = annotation as? VehicleAnnotation {
                 let identifier = "VehicleAnnotation"
                 
-                var annotationView = mapView.dequeueReusableAnnotationView(withIdentifier: identifier) as? MKAnnotationView
+                var annotationView = mapView.dequeueReusableAnnotationView(withIdentifier: identifier)
                 
                 if annotationView == nil {
                     annotationView = MKAnnotationView(annotation: vehicleAnnotation, reuseIdentifier: identifier)
@@ -1242,7 +1243,7 @@ struct ProMapViewRepresentable: UIViewRepresentable {
                         // Create pulsing effect timer with premium animation
                         let polylineID = "assigned-\(selectedTripId)"
                         if animationTimers[polylineID] == nil {
-                            animationTimers[polylineID] = Timer.scheduledTimer(withTimeInterval: 1.2, repeats: true) { [weak self, weak gradientRenderer, weak mapView] _ in
+                            animationTimers[polylineID] = Timer.scheduledTimer(withTimeInterval: 1.2, repeats: true) { [weak gradientRenderer, weak mapView] _ in
                                 guard let renderer = gradientRenderer, let mapView = mapView else { return }
                                 
                                 // Elegant pulsing animation with smooth transitions
@@ -1304,7 +1305,7 @@ struct ProMapViewRepresentable: UIViewRepresentable {
                             // Add animated pulsing for in-progress routes
                             let polylineID = "selected-\(selectedTripId)"
                             if animationTimers[polylineID] == nil {
-                                animationTimers[polylineID] = Timer.scheduledTimer(withTimeInterval: 1.5, repeats: true) { [weak self, weak gradientRenderer, weak mapView] _ in
+                                animationTimers[polylineID] = Timer.scheduledTimer(withTimeInterval: 1.5, repeats: true) { [weak gradientRenderer, weak mapView] _ in
                                     guard let renderer = gradientRenderer, let mapView = mapView else { return }
                                     
                                     UIView.animate(withDuration: 0.75, delay: 0, options: .curveEaseInOut) {
@@ -1790,16 +1791,9 @@ struct LookAroundPreview: UIViewRepresentable {
     let initialScene: MKLookAroundScene
     
     func makeUIView(context: Context) -> UIView {
-        if #available(iOS 16.0, *) {
             let view = CustomLookAroundView()
             view.scene = initialScene
             return view
-        } else {
-            // Fallback for compiler - this code won't actually run due to @available check
-            let label = UILabel()
-            label.text = "Look Around requires iOS 16+"
-            return label
-        }
     }
     
     func updateUIView(_ uiView: UIView, context: Context) {
@@ -1832,28 +1826,28 @@ struct LookAroundFallbackView: View {
     let coordinate: CLLocationCoordinate2D
     
     var body: some View {
-        VStack(spacing: 12) {
-            // Simple map view
-            Map(coordinateRegion: .constant(MKCoordinateRegion(
-                center: coordinate,
-                span: MKCoordinateSpan(latitudeDelta: 0.01, longitudeDelta: 0.01)
-            )), annotationItems: [MapLocation(coordinate: coordinate)]) { location in
-                MapMarker(coordinate: location.coordinate, tint: .red)
+            VStack(spacing: 12) {
+                // Updated Map view
+                Map(position: .constant(MapCameraPosition.region(MKCoordinateRegion(
+                    center: coordinate,
+                    span: MKCoordinateSpan(latitudeDelta: 0.01, longitudeDelta: 0.01)
+                )))) {
+                    // Corrected: Wrapping annotations inside a builder
+                    Annotation("Location", coordinate: coordinate) {
+                        Image(systemName: "mappin.circle.fill")
+                            .foregroundColor(.red)
+                            .font(.title)
+                    }
+                }
+                .cornerRadius(12)
+                .frame(height: 300) // Adjust as needed
+                
+                Text("Look Around not available")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
             }
-            .cornerRadius(12)
-            
-            Text("Look Around not available")
-                .font(.caption)
-                .foregroundColor(.secondary)
         }
     }
-    
-    // Simple location struct for map annotation
-    struct MapLocation: Identifiable {
-        let id = UUID()
-        let coordinate: CLLocationCoordinate2D
-    }
-}
 
 #Preview {
     TripMapView(

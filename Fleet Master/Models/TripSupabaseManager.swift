@@ -60,7 +60,7 @@ final class TripSupabaseManager {
         do {
             print("===== TESTING SUPABASE CONNECTION =====")
             // First, test basic connection
-            let connectionTest = try await supabase.database
+            let connectionTest = try await supabase
                 .from("_test_connection")
                 .select("*")
                 .limit(1)
@@ -70,7 +70,7 @@ final class TripSupabaseManager {
             
             // Now test trip table access
             print("Testing trip table access...")
-            let tripAccessTest = try await supabase.database
+            let tripAccessTest = try await supabase
                 .from("trip")
                 .select("id")
                 .limit(1)
@@ -94,7 +94,7 @@ final class TripSupabaseManager {
             )
             
             // Try to insert
-            let insertTest = try await supabase.database
+            let insertTest = try await supabase
                 .from("trip")
                 .insert(testTrip)
                 .select()
@@ -116,7 +116,7 @@ final class TripSupabaseManager {
                 
                     // Now clean up by deleting the test trip
                     print("Cleaning up test data...")
-                    try await supabase.database
+                    try await supabase
                         .from("trip")
                         .delete()
                         .eq("id", value: insertedTestTrip.id)
@@ -131,7 +131,6 @@ final class TripSupabaseManager {
             return "Connection and permissions verified successfully"
         } catch let error as PostgrestError {
             print("PostgrestError during connection test:")
-            print("Code: \(error.code)")
             print("Message: \(error.message)")
             // PostgrestError doesn't have 'details' property so we remove it
             return "Error testing connection: \(error.message)"
@@ -288,7 +287,7 @@ final class TripSupabaseManager {
             return newTrip
         } catch let error as PostgrestError {
             print("===== SUPABASE POSTGREST ERROR =====")
-            print("Error code: \(error.code)")
+            
             print("Error message: \(error.message)")
             // PostgrestError doesn't have a 'details' property
             print("===================================")
@@ -322,7 +321,7 @@ final class TripSupabaseManager {
     /// - Throws: Database errors
     func updateTrip(_ trip: Trip) async throws -> Trip {
         // Verify connection first
-        try await verifyConnection()
+//        try await verifyConnection()
         
         do {
             let response = try await supabase
@@ -393,7 +392,7 @@ final class TripSupabaseManager {
     /// - Throws: Database errors
     func updateTripStatus(tripId: String, status: TripStatus, actualStartTime: Date? = nil, actualEndTime: Date? = nil) async throws -> Trip {
         // Verify connection first
-        try await verifyConnection()
+//        try await verifyConnection()
         
         do {
             let formatter = ISO8601DateFormatter()

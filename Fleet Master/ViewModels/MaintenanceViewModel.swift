@@ -159,8 +159,10 @@ class MaintenanceViewModel: ObservableObject, @unchecked Sendable {
     
     /// Fetch all maintenance personnel from Supabase
     func fetchPersonnel() {
-        isLoading = true
-        errorMessage = nil
+        DispatchQueue.main.async {
+            self.isLoading = true
+            self.errorMessage = nil
+        }
         
         print("Starting maintenance personnel fetch operation...")
         Task {
@@ -210,8 +212,10 @@ class MaintenanceViewModel: ObservableObject, @unchecked Sendable {
             return
         }
         
-        isLoading = true
-        errorMessage = nil
+        DispatchQueue.main.async {
+            self.isLoading = true
+            self.errorMessage = nil
+        }
         
         Task {
             do {
@@ -247,7 +251,9 @@ class MaintenanceViewModel: ObservableObject, @unchecked Sendable {
             return
         }
         
-        isLoading = true
+        DispatchQueue.main.async {
+            self.isLoading = true
+        }
         
         // Clean up input values
         let cleanName = name.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -303,7 +309,9 @@ class MaintenanceViewModel: ObservableObject, @unchecked Sendable {
             return
         }
         
-        isLoading = true
+        DispatchQueue.main.async {
+            self.isLoading = true
+        }
         
         // Clean up input values
         let cleanName = name.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -342,7 +350,9 @@ class MaintenanceViewModel: ObservableObject, @unchecked Sendable {
     
     /// Toggle the active status of a maintenance personnel in Supabase
     func togglePersonnelStatus(person: MaintenancePersonnel) {
-        isLoading = true
+        DispatchQueue.main.async {
+            self.isLoading = true
+        }
         
         Task {
             do {
@@ -708,8 +718,10 @@ class MaintenanceViewModel: ObservableObject, @unchecked Sendable {
     
     /// Fetch driver maintenance requests from Supabase
     func fetchDriverMaintenanceRequests() {
-        isLoading = true
-        errorMessage = nil
+        DispatchQueue.main.async {
+            self.isLoading = true
+            self.errorMessage = nil
+        }
         
         print("Starting driver maintenance requests fetch operation...")
         Task {
@@ -734,7 +746,10 @@ class MaintenanceViewModel: ObservableObject, @unchecked Sendable {
     /// Mark a maintenance request as completed
     func markRequestCompleted(requestId: String) async {
         print("Marking request \(requestId) as completed")
-        isLoading = true
+        
+        await MainActor.run {
+            isLoading = true
+        }
         
         do {
             // Update the request in the database
@@ -743,14 +758,14 @@ class MaintenanceViewModel: ObservableObject, @unchecked Sendable {
             print("Successfully marked request \(requestId) as completed in database")
             
             // Update local state by removing the completed request
-            DispatchQueue.main.async {
+            await MainActor.run {
                 self.driverMaintenanceRequests.removeAll { $0.id == requestId }
                 print("Removed completed request from local state")
                 self.isLoading = false
             }
         } catch {
             print("Failed to mark request as completed: \(error)")
-            DispatchQueue.main.async {
+            await MainActor.run {
                 self.errorMessage = "Failed to mark request as completed: \(error.localizedDescription)"
                 self.isLoading = false
             }
@@ -899,6 +914,31 @@ class MaintenanceViewModel: ObservableObject, @unchecked Sendable {
             // Continue after a short delay to ensure the refresh indicator shows
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                 continuation.resume()
+            }
+        }
+    }
+    
+    /// Setup maintenance personnel table in Supabase
+    func setup() {
+        DispatchQueue.main.async {
+            self.isLoading = true
+            self.errorMessage = nil
+        }
+        
+        Task {
+            do {
+                // Try to fetch maintenance personnel first
+                _ = try await maintenanceManager.fetchAllPersonnel()
+                
+                DispatchQueue.main.async {
+                    self.isLoading = false
+                    self.errorMessage = nil
+                }
+            } catch {
+                DispatchQueue.main.async {
+                    self.errorMessage = "Failed to setup maintenance personnel table: \(error.localizedDescription)"
+                    self.isLoading = false
+                }
             }
         }
     }

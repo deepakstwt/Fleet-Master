@@ -458,15 +458,11 @@ class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
             return
         }
         
-        // We need the scheduled arrival time (end time)
-        if trip.scheduledEndTime == nil {
-            return
-        }
-        
+        // We need the scheduled arrival time (end time)        
         // Make sure we have a vehicleId
-        if trip.vehicleId == nil {
-            return
-        }
+//        if trip.vehicleId == nil {
+//            return
+//        }
         
         // Now that we know vehicleId exists, we can safely unwrap
         let vehicleId = trip.vehicleId!

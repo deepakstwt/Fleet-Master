@@ -2190,7 +2190,7 @@ struct AppleStyleMapView: View {
                             .frame(width: 36, height: 5)
                             .padding(.vertical, 6)
                         
-                        if let location = wrappedLocation {
+                        if let _ = wrappedLocation {
                             // Location icon and pin
                             ZStack {
                                 Circle()
@@ -3329,7 +3329,7 @@ struct RouteMapFullScreenView: View {
         routeError = nil
         
         let geocoder = CLGeocoder()
-        let locationManager = CLLocationManager()
+//        let locationManager = CLLocationManager()
         
         // Get coordinates for start location
         geocoder.geocodeAddressString(startLocation) { startPlacemarks, startError in

@@ -83,10 +83,8 @@ class ETACalculator: ObservableObject {
             // Calculate delay compared to scheduled arrival
             var delayInMinutes = 0
             let scheduledArrival = trip.scheduledEndTime
-            if scheduledArrival != nil {
-                let delayInSeconds = expectedArrivalTime.timeIntervalSince(scheduledArrival)
+            let delayInSeconds = expectedArrivalTime.timeIntervalSince(scheduledArrival)
                 delayInMinutes = max(0, Int(delayInSeconds / 60.0))
-            }
             
             // Traffic condition at the destination
             let trafficLevel = self.getTrafficLevelForLocation(destinationCoordinate)
@@ -129,11 +127,11 @@ class ETACalculator: ObservableObject {
                 
                 // Recalculate delay minutes
                 let trip = findTripById(tripId)
-                if trip != nil, trip!.scheduledEndTime != nil {
+
                     let scheduledArrival = trip!.scheduledEndTime
                     let delayInSeconds = newArrivalTime.timeIntervalSince(scheduledArrival)
                     etaInfo.delayMinutes = max(0, Int(delayInSeconds / 60.0))
-                }
+                
                 
                 // Update in the map
                 DispatchQueue.main.async {

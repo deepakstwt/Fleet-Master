@@ -122,13 +122,13 @@ struct TripDetailView: View {
                             .edgesIgnoringSafeArea(.all)
                             .overlay(alignment: .topTrailing) {
                                 Button(action: {
-                                    isMapFullScreen = false
+                                        isMapFullScreen = false
                                 }) {
                                     Image(systemName: "xmark.circle.fill")
                                         .font(.system(size: 32))
                                         .foregroundColor(.gray)
                                         .background(
-                                            Circle()
+                                        Circle()
                                                 .fill(Color(.systemBackground))
                                                 .shadow(radius: 2)
                                         )
@@ -298,7 +298,7 @@ struct TripDetailView: View {
                         .foregroundColor(.primary)
                 } icon: {
                     Image(systemName: "clock.fill")
-                        .foregroundColor(.blue)
+                    .foregroundColor(.blue)
                         .font(.system(size: 18))
                 }
                 
@@ -307,12 +307,12 @@ struct TripDetailView: View {
             
             // Simple time display
             HStack(spacing: 40) {
-                // Start time
+                    // Start time
                 VStack(alignment: .center, spacing: 8) {
                     Text("Start")
-                        .font(.system(size: 14, weight: .medium))
-                        .foregroundColor(.secondary)
-                    
+                                .font(.system(size: 14, weight: .medium))
+                            .foregroundColor(.secondary)
+                        
                     HStack(alignment: .firstTextBaseline, spacing: 4) {
                         Text(formatTimeWithoutAmPm(tripData.scheduledStartTime))
                             .font(.system(size: 28, weight: .bold))
@@ -320,14 +320,14 @@ struct TripDetailView: View {
                             .font(.system(size: 16, weight: .medium))
                             .foregroundColor(.secondary)
                     }
-                    
-                    Text(formatDateOnly(tripData.scheduledStartTime))
+                        
+                        Text(formatDateOnly(tripData.scheduledStartTime))
                         .font(.system(size: 14))
-                        .foregroundColor(.blue)
-                }
-                .frame(maxWidth: .infinity)
-                
-                // End time
+                            .foregroundColor(.blue)
+                    }
+                    .frame(maxWidth: .infinity)
+                    
+                    // End time
                 VStack(alignment: .center, spacing: 8) {
                     Text("End")
                         .font(.system(size: 14, weight: .medium))
@@ -338,40 +338,40 @@ struct TripDetailView: View {
                             .font(.system(size: 28, weight: .bold))
                         Text(getAmPm(tripData.scheduledEndTime))
                             .font(.system(size: 16, weight: .medium))
-                            .foregroundColor(.secondary)
+                        .foregroundColor(.secondary)
                     }
                     
                     Text(formatDateOnly(tripData.scheduledEndTime))
                         .font(.system(size: 14))
-                        .foregroundColor(.red.opacity(0.8))
+                            .foregroundColor(.red.opacity(0.8))
+                    }
+                    .frame(maxWidth: .infinity)
                 }
-                .frame(maxWidth: .infinity)
-            }
             .padding(.vertical, 8)
-            
-            // Duration pill
-            HStack(spacing: 8) {
-                Image(systemName: "timer")
-                    .font(.system(size: 14))
-                    .foregroundColor(.white)
                 
-                Text(estimatedTime)
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(.white)
-            }
-            .frame(width: 120)
-            .padding(.vertical, 10)
-            .background(
-                Capsule()
-                    .fill(
-                        LinearGradient(
-                            gradient: Gradient(colors: [.blue, .purple.opacity(0.8)]),
-                            startPoint: .leading,
-                            endPoint: .trailing
+            // Duration pill
+                HStack(spacing: 8) {
+                    Image(systemName: "timer")
+                        .font(.system(size: 14))
+                        .foregroundColor(.white)
+                    
+                    Text(estimatedTime)
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundColor(.white)
+                }
+                .frame(width: 120)
+                .padding(.vertical, 10)
+                .background(
+                    Capsule()
+                        .fill(
+                            LinearGradient(
+                                gradient: Gradient(colors: [.blue, .purple.opacity(0.8)]),
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
                         )
-                    )
-            )
-            .shadow(color: Color.black.opacity(0.1), radius: 4, x: 0, y: 2)
+                )
+                .shadow(color: Color.black.opacity(0.1), radius: 4, x: 0, y: 2)
         }
         .padding(20)
         .background(Color(.systemBackground))
@@ -473,7 +473,7 @@ struct TripDetailView: View {
                         .font(.subheadline)
                         .foregroundColor(.primary)
                         .multilineTextAlignment(.leading)
-                        .onChange(of: tripData.startLocation) { _ in
+                        .onChange(of: tripData.startLocation) {
                             calculateRouteInfo() // Recalculate when location changes
                         }
                 }
@@ -513,7 +513,7 @@ struct TripDetailView: View {
                         .font(.subheadline)
                         .foregroundColor(.primary)
                         .multilineTextAlignment(.leading)
-                        .onChange(of: tripData.endLocation) { _ in
+                        .onChange(of: tripData.endLocation) {
                             calculateRouteInfo() // Recalculate when location changes
                         }
                 }

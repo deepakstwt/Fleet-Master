@@ -304,7 +304,7 @@ struct ScheduleMaintenanceView: View {
                 // Update vehicle status to under maintenance
                 var updatedVehicle = vehicle
                 updatedVehicle.vehicle_status = .underMaintenance
-                try await VehicleSupabaseManager.shared.updateVehicle(updatedVehicle)
+//                try await VehicleSupabaseManager.shared.updateVehicle(updatedVehicle)
                 
                 await MainActor.run {
                     isLoading = false

@@ -1659,8 +1659,7 @@ struct AddVehicleView: View {
             return .orange
         case .onTrip:
             return .blue
-        default:
-            return .gray
+        
         }
     }
     
@@ -2385,9 +2384,7 @@ struct EditVehicleView: View {
             return .orange
         case .onTrip:
             return .blue
-        default:
-            return .gray
-        }
+       }
     }
     
     private func advanceToNextField(from currentField: FormField) {
