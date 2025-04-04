@@ -276,12 +276,12 @@ struct MaintenanceCard: View {
             // Avatar
             ZStack {
                 Circle()
-                    .fill(statusColor.opacity(0.15))
+                    .fill(.orange.opacity(0.15))
                     .frame(width: 56, height: 56)
                 
                 Image(systemName: "wrench.fill")
                     .font(.system(size: 24))
-                    .foregroundColor(statusColor)
+                    .foregroundColor(.orange)
             }
             
             // Personnel Info

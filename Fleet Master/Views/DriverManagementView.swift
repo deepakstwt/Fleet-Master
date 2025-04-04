@@ -269,12 +269,12 @@ struct DriverCard: View {
             // Avatar
             ZStack {
                 Circle()
-                    .fill(statusColor.opacity(0.15))
+                    .fill(.green.opacity(0.15))
                     .frame(width: 56, height: 56)
                 
                 Image(systemName: "person.fill")
                     .font(.system(size: 24))
-                    .foregroundColor(statusColor)
+                    .foregroundColor(.green)
             }
             
             // Driver Info
@@ -1512,12 +1512,12 @@ struct DriverDetailView: View {
                     VStack(spacing: 12) {
                         ZStack {
                             Circle()
-                                .fill(statusColor.opacity(0.2))
+                                .fill(.green.opacity(0.2))
                                 .frame(width: 100, height: 100)
                             
                             Image(systemName: "person.circle.fill")
                                 .font(.system(size: 60))
-                                .foregroundColor(statusColor)
+                                .foregroundColor(.green)
                         }
                         
                         Text(driver.name)
