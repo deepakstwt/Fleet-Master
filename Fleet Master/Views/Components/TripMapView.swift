@@ -114,6 +114,56 @@ struct TripMapView: View {
                 makeLookAroundView()
             }
             
+            // Trips Dropdown Menu - Top Left
+            VStack(alignment: .leading) {
+                Menu {
+                    ForEach(trips) { trip in
+                        Button(action: {
+                            selectedTrip = trip
+                            centerMapOnTrip(trip)
+                            // Calculate route for selected trip
+                            locationManager.calculateRoute(from: trip.startLocation, to: trip.endLocation) { result in
+                                if case .success = result {
+                                    // Route will be displayed automatically through routeOverlays
+                                }
+                            }
+                        }) {
+                            HStack {
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(trip.title)
+                                        .font(.headline)
+                                    Text("\(trip.startLocation) → \(trip.endLocation)")
+                                        .font(.caption)
+                                        .foregroundColor(.gray)
+                                }
+                                
+                                Spacer()
+                                
+                                if trip == selectedTrip {
+                                    Image(systemName: "checkmark")
+                                        .foregroundColor(.blue)
+                                }
+                            }
+                        }
+                    }
+                } label: {
+                    HStack {
+                        Image(systemName: "list.bullet")
+                        Text(selectedTrip?.title ?? "सभी यात्राएँ")
+                            .lineLimit(1)
+                    }
+                    .font(.headline)
+                    .padding(10)
+                    .background(Color(.systemBackground))
+                    .cornerRadius(10)
+                    .shadow(radius: 2)
+                }
+                .padding()
+                
+                Spacer()
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            
             // Map Controls - Top Right (Apple Maps style)
             makeMapControls()
             

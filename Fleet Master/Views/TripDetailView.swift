@@ -120,111 +120,24 @@ struct TripDetailView: View {
                             isAssignedTrip: tripData.status == .ongoing && tripData.driverId != nil && tripData.vehicleId != nil
                         )
                             .edgesIgnoringSafeArea(.all)
-                            .overlay(alignment: .topLeading) {
-                                // Clean back button without "All Trips" text
+                            .overlay(alignment: .topTrailing) {
                                 Button(action: {
-                                        isMapFullScreen = false
+                                    isMapFullScreen = false
                                 }) {
-                                    HStack(spacing: 4) {
-                                        Image(systemName: "chevron.left")
-                                        Text("Back")
-                                    }
-                                    .font(.system(size: 16, weight: .semibold))
-                                    .foregroundColor(.primary)
-                                    .padding(12)
-                                    .background(Color.white.opacity(0.95))
-                                    .cornerRadius(8)
-                                    .shadow(color: Color.black.opacity(0.1), radius: 4, x: 0, y: 2)
+                                    Image(systemName: "xmark.circle.fill")
+                                        .font(.system(size: 32))
+                                        .foregroundColor(.gray)
+                                        .background(
+                                            Circle()
+                                                .fill(Color(.systemBackground))
+                                                .shadow(radius: 2)
+                                        )
                                 }
-                                .padding([.top, .leading], 16)
+                                .padding(.top, 0)
+                                .padding(.trailing, 16)
                             }
 
-                        // Simplified floating card with essential trip information
-                        VStack(spacing: 12) {
-                            VStack(spacing: 16) {
-                                // Route information
-                                HStack {
-                                    // From
-                                    HStack(spacing: 10) {
-                                        Circle()
-                                            .fill(Color.green)
-                                            .frame(width: 10, height: 10)
-                                        Text(tripData.startLocation)
-                                            .font(.system(size: 14, weight: .medium))
-                                            .lineLimit(1)
-                                    }
-                                    .frame(maxWidth: .infinity, alignment: .leading)
-                                    
-                                    Image(systemName: "arrow.right")
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
-                                    
-                                    // To
-                                    HStack(spacing: 10) {
-                                        Circle()
-                                            .fill(Color.red)
-                                            .frame(width: 10, height: 10)
-                                        Text(tripData.endLocation)
-                                            .font(.system(size: 14, weight: .medium))
-                                            .lineLimit(1)
-                                    }
-                                    .frame(maxWidth: .infinity, alignment: .trailing)
-                                }
-                                
-                                Divider()
-                                
-                                // Trip metrics
-                                HStack(spacing: 24) {
-                                    // Distance
-                                    VStack(spacing: 4) {
-                                        Text(String(format: "%.1f km", estimatedDistance))
-                                            .font(.system(size: 16, weight: .semibold))
-                                        Text("Distance")
-                                            .font(.caption)
-                                            .foregroundColor(.secondary)
-                                    }
-                                    .frame(maxWidth: .infinity)
-                                    
-                                    // Duration
-                                    VStack(spacing: 4) {
-                                        Text(estimatedTime)
-                                            .font(.system(size: 16, weight: .semibold))
-                                        Text("Duration")
-                                            .font(.caption)
-                                            .foregroundColor(.secondary)
-                                    }
-                                    .frame(maxWidth: .infinity)
-                                }
-                            }
-                            .padding(16)
-                            .background(Color.white)
-                            .cornerRadius(12)
-                            
-                            // Live tracking button
-                            if let vehicleId = tripData.vehicleId {
-                                Button(action: {
-                                    locationManager.startTrackingVehicles(vehicleIds: [vehicleId])
-                                }) {
-                                    HStack(spacing: 8) {
-                                        Image(systemName: "location.fill")
-                                        Text("Track Live Location")
-                                            .fontWeight(.bold)
-                                    }
-                                    .foregroundColor(.white)
-                                    .frame(maxWidth: .infinity)
-                                    .padding(.vertical, 16)
-                                    .background(Color.green)
-                                    .cornerRadius(12)
-                                }
-                            }
-                        }
-                        .padding(16)
-                        .background(
-                            RoundedRectangle(cornerRadius: 16)
-                                .fill(Color.white.opacity(0.95))
-                                .shadow(color: Color.black.opacity(0.1), radius: 10, x: 0, y: -5)
-                        )
-                        .padding([.horizontal, .bottom], 16)
+                        // Removing the bottom information card completely
                     }
                     .onAppear {
                         // Force calculation of route with focus on Indian routes
