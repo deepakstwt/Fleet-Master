@@ -289,6 +289,11 @@ struct ScheduleMaintenanceView: View {
                 
                 try await SupabaseManager.shared.scheduleMaintenance(&maintenanceVehicle)
                 
+                // Update vehicle status to under maintenance
+                var updatedVehicle = vehicle
+                updatedVehicle.vehicle_status = .underMaintenance
+                try await VehicleSupabaseManager.shared.updateVehicle(updatedVehicle)
+                
                 await MainActor.run {
                     isLoading = false
                     alertMessage = "Maintenance scheduled successfully"

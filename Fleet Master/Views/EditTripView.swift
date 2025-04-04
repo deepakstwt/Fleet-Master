@@ -160,7 +160,7 @@ struct EditTripView: View {
         tripViewModel.status = tripStatus
         tripViewModel.description = tripDescription
         tripViewModel.notes = notes
-        tripViewModel.distance = distance
+        tripViewModel.distance = distance ?? 0
         tripViewModel.driverId = driverId
         tripViewModel.vehicleId = vehicleId
         

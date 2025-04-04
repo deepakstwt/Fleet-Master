@@ -1815,7 +1815,7 @@ struct TripManagementView: View {
                             .font(.system(size: 16, weight: .semibold))
                 .foregroundColor(.blue)
                     }
-                } else if let vehicleId = trip.vehicleId, let vehicle = vehicleViewModel.getVehicleById(vehicleId) {
+                } else if let vehicleId = trip.vehicleId, let _ = vehicleViewModel.getVehicleById(vehicleId) {
                     ZStack {
                         // Outer circle
                         Circle()

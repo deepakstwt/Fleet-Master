@@ -20,7 +20,7 @@ final class TripSupabaseManager {
     func verifyConnection() async throws -> Bool {
         do {
             // Simple ping to the database
-            let response = try await supabase
+            _ = try await supabase
                 .from("trip")
                 .select("id")
                 .limit(1)
@@ -350,7 +350,7 @@ final class TripSupabaseManager {
         } catch let error as PostgrestError {
             print("===== TRIP UPDATE ERROR =====")
             print("PostgrestError updating trip:")
-            print("Error code: \(error.code)")
+            print("Error code: \(String(describing: error.code))")
             print("Error message: \(error.message)")
             print("===================================")
             throw error
@@ -434,7 +434,7 @@ final class TripSupabaseManager {
         } catch let error as PostgrestError {
             print("===== TRIP STATUS UPDATE ERROR =====")
             print("PostgrestError updating trip status:")
-            print("Error code: \(error.code)")
+            print("Error code: \(String(describing: error.code))")
             print("Error message: \(error.message)")
             print("===================================")
             throw error

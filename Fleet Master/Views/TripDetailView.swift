@@ -1115,8 +1115,8 @@ struct TripDetailView: View {
         let endTime = tripData.scheduledStartTime.addingTimeInterval(estimatedDuration)
         
         // Format the time strings for debugging
-        let startTimeString = currentTimeFormatter.string(from: tripData.scheduledStartTime)
-        let endTimeString = currentTimeFormatter.string(from: endTime)
+        _ = currentTimeFormatter.string(from: tripData.scheduledStartTime)
+        _ = currentTimeFormatter.string(from: endTime)
         
         // Update only the end time based on the duration
         tripData.scheduledEndTime = endTime
