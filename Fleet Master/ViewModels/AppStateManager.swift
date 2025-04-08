@@ -162,11 +162,5 @@ class AppStateManager: ObservableObject {
             }
             .store(in: &cancellables)
         
-        // Handle app going to background
-//        NotificationCenter.default.publisher(for: UIApplication.didEnterBackgroundNotification)
-//            .sink { [weak self] _ in
-//                // This is a good place to perform cleanup if needed
-//            }
-//            .store(in: &cancellables)
     }
 } 
